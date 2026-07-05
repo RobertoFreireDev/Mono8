@@ -6,37 +6,17 @@ internal class Mono8API : IMono8API
     private static SfxEngine _sfxEngine = new SfxEngine();
     public static SpriteSheet SpriteSheet = new SpriteSheet();
     public static MapSheet MapSheet = new MapSheet();
-    private static string _folder = string.Empty;
+    private static string _folder = Constants.File.Folder;
+    private bool firstTime = true;
 
     public Mono8API()
     {
-        editor = new SpriteEditor();
-
-        try
-        {
-            editor.Init();
-        }
-        catch (Exception ex) { ErrorHandler.SetError(ex); }
+        Load();
+        editor = new SpriteEditor(this);
     }
 
-    public void load(string folder)
+    internal void Load()
     {
-        if (string.IsNullOrWhiteSpace(folder))
-        {
-            return;
-        }
-
-        _folder = folder;
-        Reload();
-    }
-
-    internal void Reload()
-    {
-        if (string.IsNullOrWhiteSpace(_folder))
-        {
-            return;
-        }
-
         _sfxEngine.Sfx(-1);
         var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
         _sfxEngine.LoadSfxs(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Sfx, path)));
@@ -54,6 +34,12 @@ internal class Mono8API : IMono8API
 
         try
         {
+            if (firstTime)
+            {
+                editor.Init();
+                firstTime = false;
+            }
+
             _sfxEngine.UpdateMusic();
             if (!Menu.IsPaused())
             {
@@ -243,12 +229,6 @@ internal class Mono8API : IMono8API
     public int rnd(int max) => max <= 0 ? 0 : _rng.Next(0, max);
 
     public void srand(int seed) => _rng = new Random(seed);
-
-    public void run()
-    {
-        editor = new SpriteEditor();
-        editor.Init();
-    }
 
     public double time() => (double)DateTime.Now.TimeOfDay.TotalSeconds;
 

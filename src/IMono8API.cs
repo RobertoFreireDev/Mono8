@@ -13,8 +13,6 @@ public interface IMono8API
 
     int stat(int id);
 
-    void load(string folder);
-
     void menuitem(int index, string label, Action callback);
 
     void menuitem(int index);
@@ -161,8 +159,6 @@ public interface IMono8API
     int rnd(int max);
 
     void srand(int seed);
-
-    void run();
 
     // ============================================================
     // MATH

@@ -81,9 +81,9 @@ internal class SpriteSheet
     {
         Data = new int[Constants.GameDataSizes.SpriteSheetY, Constants.GameDataSizes.SpriteSheetX];
 
-        for (int r = 0; r < 128; r++)
+        for (int r = 0; r < Constants.GameDataSizes.SpriteSheetY; r++)
         {
-            for (int c = 0; c < 128; c++)
+            for (int c = 0; c < Constants.GameDataSizes.SpriteSheetX; c++)
             {
                 char ch = '0';
 
