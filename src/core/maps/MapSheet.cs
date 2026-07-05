@@ -62,27 +62,6 @@ internal class MapSheet
         }
     }
 
-    // PICO-8 map rows 32-63 share memory with sprite sheet pixel rows 64-127.
-    // For tile at (col, row): byte offset B = (row-32)*128 + col,
-    // which maps to sprite pixel row 64 + B/64, columns (B%64)*2 and (B%64)*2+1
-    // (low nibble first, high nibble second — little-endian nibble order).
-    public void PopulateSharedRegion()
-    {
-        var spriteData = Mono8API.SpriteSheet.Data;
-        for (int mapRow = 32; mapRow < Constants.GameDataSizes.MapSheetY; mapRow++)
-        {
-            for (int mapCol = 0; mapCol < Constants.GameDataSizes.MapSheetX; mapCol++)
-            {
-                int b = (mapRow - 32) * 128 + mapCol;
-                int spriteRow = 64 + b / 64;
-                int spriteCol = (b % 64) * 2;
-                int low = spriteData[spriteRow, spriteCol];
-                int high = spriteData[spriteRow, spriteCol + 1];
-                Data[mapRow, mapCol] = low | (high << 4);
-            }
-        }
-    }
-
     public void DrawMap(
         int mapX, int mapY,   // starting tile in map
         int px, int py,       // screen position to draw at

@@ -45,7 +45,6 @@ internal class Mono8API : IMono8API
             FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.SpriteSheet, path)),
             FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Flags, path)));
         MapSheet.LoadMaps(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.MapSheet, path)));
-        MapSheet.PopulateSharedRegion();
         SaveData.Load(path);
     }
 
