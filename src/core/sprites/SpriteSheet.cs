@@ -342,6 +342,46 @@ internal class SpriteSheet
         UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
     }
 
+    public void PaintBucket(int x, int y, int colorIndex)
+    {
+        if (!IsValidColor(colorIndex) || !IsValidPos(x, y)) return;
+
+        int targetColor = Data[y, x];
+        if (targetColor == colorIndex) return;
+
+        SaveSnapshot();
+
+        int minX = x, maxX = x, minY = y, maxY = y;
+        var queue = new Queue<(int x, int y)>();
+
+        void TryEnqueue(int px, int py)
+        {
+            if (!IsValidPos(px, py) || Data[py, px] != targetColor) return;
+            Data[py, px] = colorIndex;
+            queue.Enqueue((px, py));
+        }
+
+        Data[y, x] = colorIndex;
+        queue.Enqueue((x, y));
+
+        while (queue.Count > 0)
+        {
+            var (cx, cy) = queue.Dequeue();
+
+            if (cx < minX) minX = cx;
+            if (cx > maxX) maxX = cx;
+            if (cy < minY) minY = cy;
+            if (cy > maxY) maxY = cy;
+
+            TryEnqueue(cx + 1, cy);
+            TryEnqueue(cx - 1, cy);
+            TryEnqueue(cx, cy + 1);
+            TryEnqueue(cx, cy - 1);
+        }
+
+        UpdateTextureRegion(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
     public void MoveGrid(int x, int y, int w, int h, int deltaX, int deltaY)
     {
         int x1 = Math.Max(x, 0);
