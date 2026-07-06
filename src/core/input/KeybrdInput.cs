@@ -36,6 +36,16 @@ public static class KeybrdInput
             && JustPressed(Keys.Z);
     }
 
+    public static bool IsCopyShortcutPressed()
+    {
+        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.C);
+    }
+
+    public static bool IsPasteShortcutPressed()
+    {
+        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.V);
+    }
+
     public static bool JustPressed(Keys key)
     {
         return InputStateManager.CurrentKeyboardState()[key] == KeyState.Down && InputStateManager.PreviousKeyboardState()[key] == KeyState.Up;

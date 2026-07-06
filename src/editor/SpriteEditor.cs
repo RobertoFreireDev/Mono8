@@ -94,6 +94,20 @@ internal class SpriteEditor : IEditor
             Mono8API.SpriteSheet.ClearGrid(regionX, regionY, regionW, regionH);
         }
 
+        if (KeybrdInput.IsCopyShortcutPressed())
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.CopyRegion(regionX, regionY, regionW, regionH);
+            eventNotifier.AddEvent("COPY");
+        }
+
+        if (KeybrdInput.IsPasteShortcutPressed())
+        {
+            var (regionX, regionY, _, _) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.PasteRegion(regionX, regionY);
+            eventNotifier.AddEvent("PASTE");
+        }
+
         var mouse = _api.mousexy();
 
         if (_api.mousedown())

@@ -12,6 +12,8 @@ internal class SpriteSheet
 
     public byte[] Flags = new byte[TotalSprites];
 
+    private int[,] _copy;
+
     private const int MaxUndoSteps = 50;
     private readonly Stack<int[,]> _undoStack = new Stack<int[,]>();
     private readonly Stack<int[,]> _redoStack = new Stack<int[,]>();
@@ -364,6 +366,46 @@ internal class SpriteSheet
         for (int row = 0; row < regionH; row++)
             for (int col = 0; col < regionW; col++)
                 Data[y1 + row, x1 + col] = temp[row, col];
+
+        UpdateTextureRegion(x1, y1, regionW, regionH);
+    }
+
+    public void CopyRegion(int x, int y, int w, int h)
+    {
+        int x1 = Math.Max(x, 0);
+        int y1 = Math.Max(y, 0);
+        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
+        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
+        int regionW = x2 - x1;
+        int regionH = y2 - y1;
+        if (regionW <= 0 || regionH <= 0) return;
+
+        _copy = new int[regionH, regionW];
+        for (int row = 0; row < regionH; row++)
+            for (int col = 0; col < regionW; col++)
+                _copy[row, col] = Data[y1 + row, x1 + col];
+    }
+
+    public void PasteRegion(int x, int y)
+    {
+        if (_copy == null) return;
+
+        int copyH = _copy.GetLength(0);
+        int copyW = _copy.GetLength(1);
+
+        int x1 = Math.Max(x, 0);
+        int y1 = Math.Max(y, 0);
+        int x2 = Math.Min(x + copyW, Constants.GameDataSizes.SpriteSheetX);
+        int y2 = Math.Min(y + copyH, Constants.GameDataSizes.SpriteSheetY);
+        int regionW = x2 - x1;
+        int regionH = y2 - y1;
+        if (regionW <= 0 || regionH <= 0) return;
+
+        SaveSnapshot();
+
+        for (int row = 0; row < regionH; row++)
+            for (int col = 0; col < regionW; col++)
+                Data[y1 + row, x1 + col] = _copy[row, col];
 
         UpdateTextureRegion(x1, y1, regionW, regionH);
     }
