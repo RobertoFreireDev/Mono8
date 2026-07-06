@@ -20,6 +20,12 @@ public static class FileIO
         
     }
 
+    public static void Write(string fileName, string extension, string content, string path = "")
+    {
+        var fullPath = BuildPath(fileName, extension, path);
+        File.WriteAllText(fullPath, content);
+    }
+
     public static string BuildPath(string fileName, string extension, string path)
     {
         var basePath = string.IsNullOrWhiteSpace(path)

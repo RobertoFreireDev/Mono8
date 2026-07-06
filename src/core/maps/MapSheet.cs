@@ -62,6 +62,19 @@ internal class MapSheet
         }
     }
 
+    public string[] ToMapLines()
+    {
+        var lines = new string[Constants.GameDataSizes.MapSheetY];
+        for (int r = 0; r < Constants.GameDataSizes.MapSheetY; r++)
+        {
+            var sb = new System.Text.StringBuilder(Constants.GameDataSizes.MapSheetX * 2);
+            for (int c = 0; c < Constants.GameDataSizes.MapSheetX; c++)
+                sb.Append(Data[r, c].ToString("x2"));
+            lines[r] = sb.ToString();
+        }
+        return lines;
+    }
+
     public void DrawMap(
         int mapX, int mapY,   // starting tile in map
         int px, int py,       // screen position to draw at

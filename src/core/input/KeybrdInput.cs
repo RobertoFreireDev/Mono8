@@ -17,6 +17,11 @@ public static class KeybrdInput
         return Released(Keys.F2);
     }
 
+    public static bool IsSaveShortcutPressed()
+    {
+        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.S);
+    }
+
     public static bool JustPressed(Keys key)
     {
         return InputStateManager.CurrentKeyboardState()[key] == KeyState.Down && InputStateManager.PreviousKeyboardState()[key] == KeyState.Up;

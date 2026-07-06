@@ -65,6 +65,38 @@ internal class SpriteSheet
     private static int HexNibble(char c) =>
         c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : 0;
 
+    public string[] ToSheetLines()
+    {
+        var lines = new string[Constants.GameDataSizes.SpriteSheetY];
+        for (int r = 0; r < Constants.GameDataSizes.SpriteSheetY; r++)
+        {
+            var chars = new char[Constants.GameDataSizes.SpriteSheetX];
+            for (int c = 0; c < Constants.GameDataSizes.SpriteSheetX; c++)
+                chars[c] = HexChar(Data[r, c]);
+            lines[r] = new string(chars);
+        }
+        return lines;
+    }
+
+    public string[] ToFlagLines()
+    {
+        var line0 = new char[TotalSprites];
+        var line1 = new char[TotalSprites];
+        for (int i = 0; i < TotalSprites / 2; i++)
+        {
+            var hex0 = Flags[i].ToString("x2");
+            line0[i * 2] = hex0[0];
+            line0[i * 2 + 1] = hex0[1];
+
+            var hex1 = Flags[TotalSprites / 2 + i].ToString("x2");
+            line1[i * 2] = hex1[0];
+            line1[i * 2 + 1] = hex1[1];
+        }
+        return new[] { new string(line0), new string(line1) };
+    }
+
+    private static char HexChar(int value) => (char)(value < 10 ? '0' + value : 'a' + value - 10);
+
     private void CalculateTileRects()
     {
         int columns = Constants.GameDataSizes.SpriteSheetColumns;

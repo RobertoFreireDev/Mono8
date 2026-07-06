@@ -28,6 +28,14 @@ internal class Mono8API : IMono8API
         SaveData.Load(path);
     }
 
+    internal void Save()
+    {
+        var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
+        FileIO.Write(Constants.File.Name, Constants.File.Extensions.SpriteSheet, string.Join("\n", SpriteSheet.ToSheetLines()), path);
+        FileIO.Write(Constants.File.Name, Constants.File.Extensions.Flags, string.Join("\n", SpriteSheet.ToFlagLines()), path);
+        FileIO.Write(Constants.File.Name, Constants.File.Extensions.MapSheet, string.Join("\n", MapSheet.ToMapLines()), path);
+    }
+
     public void Update(GameTime gameTime)
     {
         if (ErrorHandler.HasError()) return;

@@ -82,6 +82,11 @@ public class mono8 : Game
             Screen.ToggleFullScreen(_graphics, GraphicsDevice);
         }
 
+        if (KeybrdInput.IsSaveShortcutPressed())
+        {
+            GameAPI.Save();
+        }
+
         Menu.Update();
         Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);        
         InputStateManager.Update();
