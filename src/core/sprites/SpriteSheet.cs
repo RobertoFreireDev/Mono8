@@ -79,7 +79,8 @@ internal class SpriteSheet
 
     private void LoadData(string[] sheet)
     {
-        Data = new int[Constants.GameDataSizes.SpriteSheetY, Constants.GameDataSizes.SpriteSheetX];
+        // + 1 to avoid drawing issues in the border 
+        Data = new int[Constants.GameDataSizes.SpriteSheetY + 1, Constants.GameDataSizes.SpriteSheetX + 1];
 
         for (int r = 0; r < Constants.GameDataSizes.SpriteSheetY; r++)
         {
