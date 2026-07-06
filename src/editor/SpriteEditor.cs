@@ -6,11 +6,12 @@ internal class SpriteEditor : IEditor
     private Rectangle sprvwrarea;
     private Rectangle sprcnvsarea;
     private int sprNmbr = 0;
-    public int SprX = -1;
-    public int SprY = -1;
-    public int SprSclIdx = 0;
-    public int[] Zooms = { 1, 2, 4 };
-    public int[] CnvScale = { 8, 4, 2 };
+    private int SprX = -1;
+    private int SprY = -1;
+    private int SprSclIdx = 0;
+    private int[] Zooms = { 1, 2, 4 };
+    private int[] CnvScale = { 8, 4, 2 };
+    private int ColorSelected = Constants.Colors.White;
 
     public SpriteEditor(IMono8API api)
     {
@@ -42,18 +43,25 @@ internal class SpriteEditor : IEditor
 
         SprSclIdx = Math.Clamp(SprSclIdx, 0, Zooms.Length - 1);
 
-        if (!sprvwrarea.Contains(mouse.x, mouse.y))
+        if (sprvwrarea.Contains(mouse.x, mouse.y))
         {
-            return;
+            if (_api.mouselp())
+            {
+                int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
+                int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
+                SprX = x * Constants.GameDataSizes.TileSize + sprvwrarea.X;
+                SprY = y * Constants.GameDataSizes.TileSize + sprvwrarea.Y;
+                sprNmbr = x + y * Constants.GameDataSizes.SpriteSheetColumns;
+            }
         }
-
-        if (_api.mouselp())
+        else if (sprcnvsarea.Contains(mouse.x, mouse.y))
         {
-            int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
-            int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
-            SprX = x * Constants.GameDataSizes.TileSize + sprvwrarea.X;
-            SprY = y * Constants.GameDataSizes.TileSize + sprvwrarea.Y;
-            sprNmbr = x + y * Constants.GameDataSizes.SpriteSheetColumns;
+            if (_api.mousel())
+            {
+                int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+                int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+                _api.SetPixel(x, y, ColorSelected);
+            }
         }
     }
 

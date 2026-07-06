@@ -101,6 +101,16 @@ internal class Mono8API : IMono8API
         Text.DrawText(text, new Vector2(x,y), color);
     }
 
+    public void SetPixel(int x, int y, int colorIndex) => SpriteSheet.SetPixel(x, y, colorIndex);
+
+    public void SetRectFill(int x, int y, int w, int h, int colorIndex) => SpriteSheet.SetRectFill(x, y, w, h, colorIndex);
+
+    public void SetRect(int x, int y, int w, int h, int colorIndex) => SpriteSheet.SetRect(x, y, w, h, colorIndex);
+
+    public void SetCirc(int cx, int cy, int r, int colorIndex) => SpriteSheet.SetCirc(cx, cy, r, colorIndex);
+
+    public void SetCircFill(int cx, int cy, int r, int colorIndex) => SpriteSheet.SetCircFill(cx, cy, r, colorIndex);
+
     public void sfx(int sfxId, int channel = -1, int offset = 0, int length = -1) 
         => _sfxEngine.Sfx(sfxId, channel, offset, length);
 

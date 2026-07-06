@@ -134,6 +134,20 @@ public interface IMono8API
     (int x, int y) mousexy();
 
     // ============================================================
+    // SPRITE EDITOR
+    // ============================================================
+
+    void SetPixel(int x, int y, int colorIndex);
+
+    void SetRectFill(int x, int y, int w, int h, int colorIndex);
+
+    void SetRect(int x, int y, int w, int h, int colorIndex);
+
+    void SetCirc(int cx, int cy, int r, int colorIndex);
+
+    void SetCircFill(int cx, int cy, int r, int colorIndex);
+
+    // ============================================================
     // AUDIO
     // ============================================================
 
