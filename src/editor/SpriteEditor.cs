@@ -5,6 +5,7 @@ internal class SpriteEditor : IEditor
     private readonly IMono8API _api;
     private Rectangle sprvwrarea;
     private Rectangle sprcnvsarea;
+    private Rectangle palettearea;
     private int sprNmbr = 0;
     private int SprX = -1;
     private int SprY = -1;
@@ -21,6 +22,7 @@ internal class SpriteEditor : IEditor
             Constants.GameDataSizes.SpriteSheetX,
             Constants.GameDataSizes.SpriteSheetY);
         sprcnvsarea = new Rectangle(80, 15, 8*8, 8 * 8);
+        palettearea = new Rectangle(170, 15, 8 * Constants.GameDataSizes.TileSize, 2 * Constants.GameDataSizes.TileSize);
     }
 
     public void Init()
@@ -63,6 +65,15 @@ internal class SpriteEditor : IEditor
                 _api.SetPixel(x, y, ColorSelected);
             }
         }
+        else if (palettearea.Contains(mouse.x, mouse.y))
+        {
+            if (_api.mousel())
+            {
+                int x = (mouse.x - palettearea.X) / Constants.GameDataSizes.TileSize;
+                int y = (mouse.y - palettearea.Y) / Constants.GameDataSizes.TileSize;
+                ColorSelected = x + y * 8;
+            }
+        }
     }
 
     public void Draw()
@@ -95,5 +106,39 @@ internal class SpriteEditor : IEditor
              Zooms[SprSclIdx],
              CnvScale[SprSclIdx]);
         _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
+
+        _api.rectfill(palettearea.X - 1, palettearea.Y - 1,
+            palettearea.X + palettearea.Width,
+            palettearea.Y + palettearea.Height, Constants.Colors.Black);
+        for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
+        {
+            int col = color % 8;
+            int row = color / 8;
+            int x = palettearea.X + col * Constants.GameDataSizes.TileSize;
+            int y = palettearea.Y + row * Constants.GameDataSizes.TileSize;
+            _api.rectfill(x, y,
+                x + Constants.GameDataSizes.TileSize - 1,
+                y + Constants.GameDataSizes.TileSize - 1,
+                color);
+        }
+
+        for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
+        {
+            int col = color % 8;
+            int row = color / 8;
+            int x = palettearea.X + col * Constants.GameDataSizes.TileSize;
+            int y = palettearea.Y + row * Constants.GameDataSizes.TileSize;
+            if (color == ColorSelected)
+            {
+                _api.rect(x, y,
+                    x + Constants.GameDataSizes.TileSize - 1,
+                    y + Constants.GameDataSizes.TileSize - 1,
+                    Constants.Colors.Black);
+                _api.rect(x - 1, y - 1,
+                    x + Constants.GameDataSizes.TileSize,
+                    y + Constants.GameDataSizes.TileSize,
+                    Constants.Colors.White);
+            }
+        }
     }
 }
