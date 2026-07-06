@@ -20,7 +20,7 @@ internal class SpriteEditor : IEditor
             Constants.Screen.ResolutionY - 1 - Constants.GameDataSizes.SpriteSheetY - Constants.GameDataSizes.TileSize,
             Constants.GameDataSizes.SpriteSheetX,
             Constants.GameDataSizes.SpriteSheetY);
-        sprcnvsarea = new Rectangle(8, 12, 8*8, 8 * 8);
+        sprcnvsarea = new Rectangle(80, 15, 8*8, 8 * 8);
     }
 
     public void Init()
@@ -45,7 +45,7 @@ internal class SpriteEditor : IEditor
 
         if (sprvwrarea.Contains(mouse.x, mouse.y))
         {
-            if (_api.mouselp())
+            if (_api.mousel())
             {
                 int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
                 int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
