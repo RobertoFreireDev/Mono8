@@ -22,6 +22,20 @@ public static class KeybrdInput
         return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.S);
     }
 
+    public static bool IsUndoShortcutPressed()
+    {
+        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl))
+            && !(Pressed(Keys.LeftShift) || Pressed(Keys.RightShift))
+            && JustPressed(Keys.Z);
+    }
+
+    public static bool IsRedoShortcutPressed()
+    {
+        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl))
+            && (Pressed(Keys.LeftShift) || Pressed(Keys.RightShift))
+            && JustPressed(Keys.Z);
+    }
+
     public static bool JustPressed(Keys key)
     {
         return InputStateManager.CurrentKeyboardState()[key] == KeyState.Down && InputStateManager.PreviousKeyboardState()[key] == KeyState.Up;

@@ -12,6 +12,45 @@ internal class SpriteSheet
 
     public byte[] Flags = new byte[TotalSprites];
 
+    private const int MaxUndoSteps = 50;
+    private readonly Stack<int[,]> _undoStack = new Stack<int[,]>();
+    private readonly Stack<int[,]> _redoStack = new Stack<int[,]>();
+
+    public bool CanUndo => _undoStack.Count > 0;
+    public bool CanRedo => _redoStack.Count > 0;
+
+    private void SaveSnapshot()
+    {
+        _undoStack.Push((int[,])Data.Clone());
+        _redoStack.Clear();
+
+        if (_undoStack.Count > MaxUndoSteps)
+        {
+            var items = _undoStack.ToArray();
+            _undoStack.Clear();
+            for (int i = MaxUndoSteps - 1; i >= 0; i--)
+                _undoStack.Push(items[i]);
+        }
+    }
+
+    public void Undo()
+    {
+        if (!CanUndo) return;
+
+        _redoStack.Push((int[,])Data.Clone());
+        Data = _undoStack.Pop();
+        DataToTexture();
+    }
+
+    public void Redo()
+    {
+        if (!CanRedo) return;
+
+        _undoStack.Push((int[,])Data.Clone());
+        Data = _redoStack.Pop();
+        DataToTexture();
+    }
+
     public int GetFlags(int spriteId) =>
         spriteId >= 0 && spriteId < TotalSprites ? Flags[spriteId] : 0;
 
@@ -162,11 +201,13 @@ internal class SpriteSheet
     private static bool IsValidColor(int colorIndex) =>
         colorIndex >= 0 && colorIndex < Constants.GameDataSizes.ColorPalette;
 
+    private static bool IsValidPos(int x, int y) =>
+        x >= 0 && x < Constants.GameDataSizes.SpriteSheetX &&
+        y >= 0 && y < Constants.GameDataSizes.SpriteSheetY;
+
     private bool TrySetPixelData(int x, int y, int colorIndex)
     {
-        int width = Constants.GameDataSizes.SpriteSheetX;
-        int height = Constants.GameDataSizes.SpriteSheetY;
-        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+        if (!IsValidPos(x, y)) return false;
 
         Data[y, x] = colorIndex;
         return true;
@@ -211,9 +252,10 @@ internal class SpriteSheet
 
     public void SetPixel(int x, int y, int colorIndex)
     {
-        if (!IsValidColor(colorIndex)) return;
-        if (!TrySetPixelData(x, y, colorIndex)) return;
+        if (!IsValidColor(colorIndex) || !IsValidPos(x, y)) return;
 
+        SaveSnapshot();
+        TrySetPixelData(x, y, colorIndex);
         UpdateTextureRegion(x, y, 1, 1);
     }
 
@@ -221,6 +263,7 @@ internal class SpriteSheet
     {
         if (!IsValidColor(colorIndex)) return;
 
+        SaveSnapshot();
         SetRectFillData(x, y, w, h, colorIndex);
         UpdateTextureRegion(x, y, w, h);
     }
@@ -229,6 +272,7 @@ internal class SpriteSheet
     {
         if (!IsValidColor(colorIndex)) return;
 
+        SaveSnapshot();
         var thickness = 1;
         // Top
         SetRectFillData(x, y, w, thickness, colorIndex);
@@ -246,6 +290,7 @@ internal class SpriteSheet
     {
         if (!IsValidColor(colorIndex)) return;
 
+        SaveSnapshot();
         int x = 0, y = r, d = 3 - 2 * r;
         while (y >= x)
         {
@@ -264,6 +309,7 @@ internal class SpriteSheet
     {
         if (!IsValidColor(colorIndex)) return;
 
+        SaveSnapshot();
         int[] minX = new int[r * 2 + 1];
         int[] maxX = new int[r * 2 + 1];
         for (int i = 0; i < minX.Length; i++) { minX[i] = int.MaxValue; maxX[i] = int.MinValue; }
@@ -292,6 +338,43 @@ internal class SpriteSheet
                 SetRectFillData(minX[row], cy - r + row, maxX[row] - minX[row] + 1, 1, colorIndex);
 
         UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
+    }
+
+    public void MoveGrid(int x, int y, int w, int h, int deltaX, int deltaY)
+    {
+        int x1 = Math.Max(x, 0);
+        int y1 = Math.Max(y, 0);
+        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
+        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
+        int regionW = x2 - x1;
+        int regionH = y2 - y1;
+        if (regionW <= 0 || regionH <= 0) return;
+
+        SaveSnapshot();
+
+        var temp = new int[regionH, regionW];
+        for (int row = 0; row < regionH; row++)
+            for (int col = 0; col < regionW; col++)
+            {
+                int newRow = ((row + deltaY) % regionH + regionH) % regionH;
+                int newCol = ((col + deltaX) % regionW + regionW) % regionW;
+                temp[newRow, newCol] = Data[y1 + row, x1 + col];
+            }
+
+        for (int row = 0; row < regionH; row++)
+            for (int col = 0; col < regionW; col++)
+                Data[y1 + row, x1 + col] = temp[row, col];
+
+        UpdateTextureRegion(x1, y1, regionW, regionH);
+    }
+
+    public void ClearGrid(int x, int y, int w, int h, int colorIndex = 0)
+    {
+        if (!IsValidColor(colorIndex)) return;
+
+        SaveSnapshot();
+        SetRectFillData(x, y, w, h, colorIndex);
+        UpdateTextureRegion(x, y, w, h);
     }
 
     public void DrawSub(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY)

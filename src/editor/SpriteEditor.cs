@@ -34,14 +34,51 @@ internal class SpriteEditor : IEditor
     {
     }
 
+    private (int x, int y, int w, int h) CurrentCanvasRegion()
+    {
+        int size = Zooms[SprSclIdx] * Constants.GameDataSizes.TileSize;
+        int x = (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+        int y = (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+        return (x, y, size, size);
+    }
+
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
-            mono8.GameAPI.Save(); 
+            mono8.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
+        }
+
+        if (KeybrdInput.IsUndoShortcutPressed() && Mono8API.SpriteSheet.CanUndo)
+        {
+            Mono8API.SpriteSheet.Undo();
+            eventNotifier.AddEvent("UNDO");
+        }
+
+        if (KeybrdInput.IsRedoShortcutPressed() && Mono8API.SpriteSheet.CanRedo)
+        {
+            Mono8API.SpriteSheet.Redo();
+            eventNotifier.AddEvent("REDO");
+        }
+
+        int moveX = 0, moveY = 0;
+        if (KeybrdInput.JustPressed(Keys.Left)) moveX -= 1;
+        if (KeybrdInput.JustPressed(Keys.Right)) moveX += 1;
+        if (KeybrdInput.JustPressed(Keys.Up)) moveY -= 1;
+        if (KeybrdInput.JustPressed(Keys.Down)) moveY += 1;
+        if (moveX != 0 || moveY != 0)
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.MoveGrid(regionX, regionY, regionW, regionH, moveX, moveY);
+        }
+
+        if (KeybrdInput.JustPressed(Keys.Delete))
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.ClearGrid(regionX, regionY, regionW, regionH);
         }
 
         var mouse = _api.mousexy();
