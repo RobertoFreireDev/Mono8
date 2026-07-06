@@ -42,6 +42,19 @@ internal class SpriteEditor : IEditor
         return (x, y, size, size);
     }
 
+    private void DrawEmptyWorkspacePattern(int x, int y, int w, int h)
+    {
+        const int stripe = 4;
+        for (int py = 0; py < h; py++)
+        {
+            for (int px = 0; px < w; px++)
+            {
+                int color = ((px + py) / stripe) % 2 == 0 ? Constants.Colors.DarkBlue : Constants.Colors.Black;
+                _api.pixel(x + px, y + py, color);
+            }
+        }
+    }
+
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
@@ -148,13 +161,31 @@ internal class SpriteEditor : IEditor
         }
         _api.rectfill(0, Constants.GameDataSizes.TileSize + 1,
             Constants.Screen.ResolutionX, 85, Constants.Colors.DarkGray);
-        _api.rectfill(sprcnvsarea.X -1, sprcnvsarea.Y - 1, 
+        _api.rectfill(sprcnvsarea.X -1, sprcnvsarea.Y - 1,
             sprcnvsarea.X + sprcnvsarea.Width,
             sprcnvsarea.Y + sprcnvsarea.Height, Constants.Colors.Black);
+
+        var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+        int scale = CnvScale[SprSclIdx];
+        int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
+        int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
+
+        if (validW < regionW)
+        {
+            DrawEmptyWorkspacePattern(sprcnvsarea.X + validW * scale, sprcnvsarea.Y,
+                (regionW - validW) * scale, regionH * scale);
+        }
+
+        if (validH < regionH)
+        {
+            DrawEmptyWorkspacePattern(sprcnvsarea.X, sprcnvsarea.Y + validH * scale,
+                validW * scale, (regionH - validH) * scale);
+        }
+
         _api.spr(sprNmbr, sprcnvsarea.X, sprcnvsarea.Y,
-             Zooms[SprSclIdx],
-             Zooms[SprSclIdx],
-             CnvScale[SprSclIdx]);
+             validW / Constants.GameDataSizes.TileSize,
+             validH / Constants.GameDataSizes.TileSize,
+             scale);
         _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
 
         _api.rectfill(palettearea.X - 1, palettearea.Y - 1,
