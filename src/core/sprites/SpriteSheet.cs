@@ -124,6 +124,141 @@ internal class SpriteSheet
         }
     }
 
+    private static bool IsValidColor(int colorIndex) =>
+        colorIndex >= 0 && colorIndex < Constants.GameDataSizes.ColorPalette;
+
+    private bool TrySetPixelData(int x, int y, int colorIndex)
+    {
+        int width = Data.GetLength(1);
+        int height = Data.GetLength(0);
+        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+
+        Data[y, x] = colorIndex;
+        return true;
+    }
+
+    private void SetRectFillData(int x, int y, int w, int h, int colorIndex)
+    {
+        for (int yy = y; yy < y + h; yy++)
+            for (int xx = x; xx < x + w; xx++)
+                TrySetPixelData(xx, yy, colorIndex);
+    }
+
+    private void UpdateTextureRegion(int x, int y, int w, int h)
+    {
+        int width = Data.GetLength(1);
+        int height = Data.GetLength(0);
+
+        int left = Math.Max(x, 0);
+        int top = Math.Max(y, 0);
+        int right = Math.Min(x + w, width);
+        int bottom = Math.Min(y + h, height);
+
+        int regionWidth = right - left;
+        int regionHeight = bottom - top;
+        if (regionWidth <= 0 || regionHeight <= 0) return;
+
+        var rect = new Rectangle(left, top, regionWidth, regionHeight);
+        var maskData = new Color[regionWidth * regionHeight];
+
+        for (int ci = 0; ci < Constants.GameDataSizes.ColorPalette; ci++)
+        {
+            if (ColorTextures[ci] == null) continue;
+
+            for (int ry = 0; ry < regionHeight; ry++)
+                for (int rx = 0; rx < regionWidth; rx++)
+                    maskData[ry * regionWidth + rx] =
+                        Data[top + ry, left + rx] == ci ? Color.White : ColorPalette.TransparentColor;
+
+            ColorTextures[ci].SetData(0, rect, maskData, 0, maskData.Length);
+        }
+    }
+
+    public void SetPixel(int x, int y, int colorIndex)
+    {
+        if (!IsValidColor(colorIndex)) return;
+        if (!TrySetPixelData(x, y, colorIndex)) return;
+
+        UpdateTextureRegion(x, y, 1, 1);
+    }
+
+    public void SetRectFill(int x, int y, int w, int h, int colorIndex)
+    {
+        if (!IsValidColor(colorIndex)) return;
+
+        SetRectFillData(x, y, w, h, colorIndex);
+        UpdateTextureRegion(x, y, w, h);
+    }
+
+    public void SetRect(int x, int y, int w, int h, int colorIndex)
+    {
+        if (!IsValidColor(colorIndex)) return;
+
+        var thickness = 1;
+        // Top
+        SetRectFillData(x, y, w, thickness, colorIndex);
+        // Bottom
+        SetRectFillData(x, y + h - thickness, w, thickness, colorIndex);
+        // Left
+        SetRectFillData(x, y + 1, thickness, h - 2, colorIndex);
+        // Right
+        SetRectFillData(x + w - thickness, y + 1, thickness, h - 2, colorIndex);
+
+        UpdateTextureRegion(x, y, w, h);
+    }
+
+    public void SetCirc(int cx, int cy, int r, int colorIndex)
+    {
+        if (!IsValidColor(colorIndex)) return;
+
+        int x = 0, y = r, d = 3 - 2 * r;
+        while (y >= x)
+        {
+            TrySetPixelData(cx + x, cy + y, colorIndex); TrySetPixelData(cx - x, cy + y, colorIndex);
+            TrySetPixelData(cx + x, cy - y, colorIndex); TrySetPixelData(cx - x, cy - y, colorIndex);
+            TrySetPixelData(cx + y, cy + x, colorIndex); TrySetPixelData(cx - y, cy + x, colorIndex);
+            TrySetPixelData(cx + y, cy - x, colorIndex); TrySetPixelData(cx - y, cy - x, colorIndex);
+            if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
+            x++;
+        }
+
+        UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
+    }
+
+    public void SetCircFill(int cx, int cy, int r, int colorIndex)
+    {
+        if (!IsValidColor(colorIndex)) return;
+
+        int[] minX = new int[r * 2 + 1];
+        int[] maxX = new int[r * 2 + 1];
+        for (int i = 0; i < minX.Length; i++) { minX[i] = int.MaxValue; maxX[i] = int.MinValue; }
+
+        void Mark(int px, int py)
+        {
+            int row = py - (cy - r);
+            if (row < 0 || row >= minX.Length) return;
+            if (px < minX[row]) minX[row] = px;
+            if (px > maxX[row]) maxX[row] = px;
+        }
+
+        int x = 0, y = r, d = 3 - 2 * r;
+        while (y >= x)
+        {
+            Mark(cx + x, cy + y); Mark(cx - x, cy + y);
+            Mark(cx + x, cy - y); Mark(cx - x, cy - y);
+            Mark(cx + y, cy + x); Mark(cx - y, cy + x);
+            Mark(cx + y, cy - x); Mark(cx - y, cy - x);
+            if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
+            x++;
+        }
+
+        for (int row = 0; row < minX.Length; row++)
+            if (maxX[row] >= minX[row])
+                SetRectFillData(minX[row], cy - r + row, maxX[row] - minX[row] + 1, 1, colorIndex);
+
+        UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
+    }
+
     public void DrawSub(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY)
     {
         var source = new Rectangle(sx, sy, sw, sh);
