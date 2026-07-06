@@ -6,9 +6,9 @@ internal class SpriteEditor : IEditor
     private Rectangle sprvwrarea;
     private Rectangle sprcnvsarea;
     private Rectangle palettearea;
-    private int sprNmbr = 0;
-    private int SprX = -1;
-    private int SprY = -1;
+    private int sprNmbr;
+    private int SprX;
+    private int SprY;
     private int SprSclIdx = 0;
     private int[] Zooms = { 1, 2, 4 };
     private int[] CnvScale = { 8, 4, 2 };
@@ -25,6 +25,9 @@ internal class SpriteEditor : IEditor
             Constants.GameDataSizes.SpriteSheetY);
         sprcnvsarea = new Rectangle(80, 15, 8*8, 8 * 8);
         palettearea = new Rectangle(170, 15, 8 * Constants.GameDataSizes.TileSize, 2 * Constants.GameDataSizes.TileSize);
+        sprNmbr = 0;
+        SprX = 0;
+        SprY = Constants.Screen.ResolutionY - 1 - Constants.GameDataSizes.SpriteSheetY - Constants.GameDataSizes.TileSize;
     }
 
     public void Init()
