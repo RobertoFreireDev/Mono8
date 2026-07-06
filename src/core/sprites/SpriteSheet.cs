@@ -2,35 +2,38 @@
 
 internal class SpriteSheet
 {
+    private static readonly int TotalSprites =
+        Constants.GameDataSizes.SpriteSheetColumns * Constants.GameDataSizes.SpriteSheetRows;
+
     public int[,] Data;
     public Texture2D[] ColorTextures = new Texture2D[Constants.GameDataSizes.ColorPalette];
 
     public Rectangle[] TileRects;
 
-    public byte[] Flags = new byte[256];
+    public byte[] Flags = new byte[TotalSprites];
 
     public int GetFlags(int spriteId) =>
-        spriteId >= 0 && spriteId < 256 ? Flags[spriteId] : 0;
+        spriteId >= 0 && spriteId < TotalSprites ? Flags[spriteId] : 0;
 
     public bool GetFlag(int spriteId, int flag) =>
-        spriteId >= 0 && spriteId < 256 && (Flags[spriteId] & (1 << flag)) != 0;
+        spriteId >= 0 && spriteId < TotalSprites && (Flags[spriteId] & (1 << flag)) != 0;
 
     public void SetFlag(int spriteId, int flag, bool value)
     {
-        if (spriteId < 0 || spriteId >= 256) return;
+        if (spriteId < 0 || spriteId >= TotalSprites) return;
         if (value) Flags[spriteId] |= (byte)(1 << flag);
         else Flags[spriteId] &= (byte)~(1 << flag);
     }
 
     public void SetFlags(int spriteId, int value)
     {
-        if (spriteId >= 0 && spriteId < 256) Flags[spriteId] = (byte)value;
+        if (spriteId >= 0 && spriteId < TotalSprites) Flags[spriteId] = (byte)value;
     }
 
     public void LoadSprites(string[] sheet, string[] flags)
     {
         LoadData(sheet);
-        var defaultFlags = new string('0', 256);
+        var defaultFlags = new string('0', TotalSprites);
         string line0 = flags != null && flags.Length > 0
         ? flags[0]
         : defaultFlags;
@@ -46,12 +49,12 @@ internal class SpriteSheet
     public void LoadFlags(string line0, string line1 = null)
     {
         LoadFlagsLine(line0, 0);
-        if (line1 != null) LoadFlagsLine(line1, 128);
+        if (line1 != null) LoadFlagsLine(line1, TotalSprites / 2);
     }
 
     private void LoadFlagsLine(string line, int spriteOffset)
     {
-        for (int i = 0; i < 128 && i * 2 + 1 < line.Length; i++)
+        for (int i = 0; i < TotalSprites / 2 && i * 2 + 1 < line.Length; i++)
         {
             int hi = HexNibble(line[i * 2]);
             int lo = HexNibble(line[i * 2 + 1]);
