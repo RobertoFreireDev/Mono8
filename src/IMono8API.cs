@@ -149,6 +149,8 @@ public interface IMono8API
 
     void SetCircFill(int cx, int cy, int r, int colorIndex);
 
+    void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex);
+
     // ============================================================
     // AUDIO
     // ============================================================

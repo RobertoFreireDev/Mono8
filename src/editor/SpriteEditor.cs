@@ -2,6 +2,16 @@
 
 internal class SpriteEditor : IEditor
 {
+    private enum Tool
+    {
+        Pixel,
+        Rect,
+        RectFill,
+        Circ,
+        CircFill,
+        PaintBucket,
+    }
+
     private readonly IMono8API _api;
     private Rectangle sprvwrarea;
     private Rectangle sprcnvsarea;
@@ -14,6 +24,12 @@ internal class SpriteEditor : IEditor
     private int[] CnvScale = { 8, 4, 2 };
     private int ColorSelected = Constants.Colors.White;
     private readonly EventNotifier eventNotifier;
+
+    private readonly (Button Button, Tool Tool)[] toolButtons;
+    private Tool selectedTool = Tool.Pixel;
+    private bool dragging;
+    private int dragStartX;
+    private int dragStartY;
 
     public SpriteEditor(IMono8API api)
     {
@@ -28,6 +44,18 @@ internal class SpriteEditor : IEditor
         sprNmbr = 0;
         SprX = 0;
         SprY = Constants.Screen.ResolutionY - 1 - Constants.GameDataSizes.SpriteSheetY - Constants.GameDataSizes.TileSize;
+
+        int toolButtonY = palettearea.Y + palettearea.Height + 2;
+        int size = Constants.GameDataSizes.TileSize;
+        toolButtons = new[]
+        {
+            (new Button(palettearea.X + 0 * size, toolButtonY, size, 25), Tool.Pixel),
+            (new Button(palettearea.X + 1 * size, toolButtonY, size, 14), Tool.Rect),
+            (new Button(palettearea.X + 2 * size, toolButtonY, size, 23), Tool.RectFill),
+            (new Button(palettearea.X + 3 * size, toolButtonY, size, 27), Tool.Circ),
+            (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.CircFill),
+            (new Button(palettearea.X + 5 * size, toolButtonY, size, 29), Tool.PaintBucket),
+        };
     }
 
     public void Init()
@@ -157,11 +185,31 @@ internal class SpriteEditor : IEditor
         }
         else if (sprcnvsarea.Contains(mouse.x, mouse.y))
         {
-            if (_api.mousel())
+            int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+            int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+
+            if (selectedTool == Tool.Pixel)
             {
-                int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
-                int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
-                _api.SetPixel(x, y, ColorSelected);
+                if (_api.mousel()) _api.SetPixel(x, y, ColorSelected);
+            }
+            else if (selectedTool == Tool.PaintBucket)
+            {
+                if (_api.mouselp())
+                {
+                    var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+                    _api.SetPaintBucket(x, y, regionX, regionY, regionW, regionH, ColorSelected);
+                }
+            }
+            else if (_api.mouselp())
+            {
+                dragStartX = x;
+                dragStartY = y;
+                dragging = true;
+            }
+            else if (dragging && _api.mouselr())
+            {
+                ApplyShapeTool(dragStartX, dragStartY, x, y);
+                dragging = false;
             }
         }
         else if (palettearea.Contains(mouse.x, mouse.y))
@@ -172,6 +220,42 @@ internal class SpriteEditor : IEditor
                 int y = (mouse.y - palettearea.Y) / Constants.GameDataSizes.TileSize;
                 ColorSelected = x + y * 8;
             }
+        }
+        else
+        {
+            foreach (var (button, tool) in toolButtons)
+            {
+                if (button.IsClicked(_api, mouse))
+                {
+                    selectedTool = tool;
+                    break;
+                }
+            }
+        }
+    }
+
+    private void ApplyShapeTool(int x0, int y0, int x1, int y1)
+    {
+        int x = Math.Min(x0, x1);
+        int y = Math.Min(y0, y1);
+        int w = Math.Abs(x1 - x0) + 1;
+        int h = Math.Abs(y1 - y0) + 1;
+        int radius = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
+
+        switch (selectedTool)
+        {
+            case Tool.Rect:
+                _api.SetRect(x, y, w, h, ColorSelected);
+                break;
+            case Tool.RectFill:
+                _api.SetRectFill(x, y, w, h, ColorSelected);
+                break;
+            case Tool.Circ:
+                _api.SetCirc(x0, y0, radius, ColorSelected);
+                break;
+            case Tool.CircFill:
+                _api.SetCircFill(x0, y0, radius, ColorSelected);
+                break;
         }
     }
 
@@ -256,6 +340,11 @@ internal class SpriteEditor : IEditor
                     y + Constants.GameDataSizes.TileSize,
                     Constants.Colors.White);
             }
+        }
+
+        foreach (var (button, tool) in toolButtons)
+        {
+            button.Draw(_api, tool == selectedTool);
         }
 
         eventNotifier.Draw();

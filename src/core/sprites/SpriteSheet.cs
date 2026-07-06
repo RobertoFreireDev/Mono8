@@ -255,6 +255,7 @@ internal class SpriteSheet
     public void SetPixel(int x, int y, int colorIndex)
     {
         if (!IsValidColor(colorIndex) || !IsValidPos(x, y)) return;
+        if (Data[y, x] == colorIndex) return;
 
         SaveSnapshot();
         TrySetPixelData(x, y, colorIndex);
@@ -342,9 +343,15 @@ internal class SpriteSheet
         UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
     }
 
-    public void PaintBucket(int x, int y, int colorIndex)
+    public void PaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex)
     {
         if (!IsValidColor(colorIndex) || !IsValidPos(x, y)) return;
+
+        int regionMinX = Math.Max(regionX, 0);
+        int regionMinY = Math.Max(regionY, 0);
+        int regionMaxX = Math.Min(regionX + regionW, Constants.GameDataSizes.SpriteSheetX) - 1;
+        int regionMaxY = Math.Min(regionY + regionH, Constants.GameDataSizes.SpriteSheetY) - 1;
+        if (x < regionMinX || x > regionMaxX || y < regionMinY || y > regionMaxY) return;
 
         int targetColor = Data[y, x];
         if (targetColor == colorIndex) return;
@@ -356,6 +363,7 @@ internal class SpriteSheet
 
         void TryEnqueue(int px, int py)
         {
+            if (px < regionMinX || px > regionMaxX || py < regionMinY || py > regionMaxY) return;
             if (!IsValidPos(px, py) || Data[py, px] != targetColor) return;
             Data[py, px] = colorIndex;
             queue.Enqueue((px, py));

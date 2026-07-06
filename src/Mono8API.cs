@@ -126,6 +126,9 @@ internal class Mono8API : IMono8API
 
     public void SetCircFill(int cx, int cy, int r, int colorIndex) => SpriteSheet.SetCircFill(cx, cy, r, colorIndex);
 
+    public void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex)
+        => SpriteSheet.PaintBucket(x, y, regionX, regionY, regionW, regionH, colorIndex);
+
     public void sfx(int sfxId, int channel = -1, int offset = 0, int length = -1) 
         => _sfxEngine.Sfx(sfxId, channel, offset, length);
 
