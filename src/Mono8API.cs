@@ -21,6 +21,7 @@ internal class Mono8API : IMono8API
         var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
         _sfxEngine.LoadSfxs(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Sfx, path)));
         _sfxEngine.LoadMusicPatterns(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Music, path)));
+        IconSheet.LoadIcons(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.IconSheet, path)));
         SpriteSheet.LoadSprites(
             FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.SpriteSheet, path)),
             FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Flags, path)));
@@ -108,6 +109,11 @@ internal class Mono8API : IMono8API
     {
         // offset 1 pixel up
         Text.DrawText(text, new Vector2(x,y-1), color);
+    }
+
+    public void icon(int n, int x, int y)
+    {
+        IconSheet.Draw(n, x, y);
     }
 
     public void SetPixel(int x, int y, int colorIndex) => SpriteSheet.SetPixel(x, y, colorIndex);

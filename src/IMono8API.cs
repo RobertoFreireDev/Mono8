@@ -56,6 +56,8 @@ public interface IMono8API
         int y,
         int color = 7);
 
+    void icon(int n, int x, int y);
+
     void camera(float x = 0, float y = 0);
 
     void pal();

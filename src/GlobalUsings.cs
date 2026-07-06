@@ -13,5 +13,6 @@ global using mono8.core.graphics;
 global using mono8.core.input;
 global using mono8.core.sprites;
 global using mono8.core.maps;
+global using mono8.core.icons;
 
 global using mono8.editor;
