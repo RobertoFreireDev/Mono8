@@ -129,8 +129,8 @@ internal class SpriteSheet
 
     private bool TrySetPixelData(int x, int y, int colorIndex)
     {
-        int width = Data.GetLength(1);
-        int height = Data.GetLength(0);
+        int width = Constants.GameDataSizes.SpriteSheetX;
+        int height = Constants.GameDataSizes.SpriteSheetY;
         if (x < 0 || x >= width || y < 0 || y >= height) return false;
 
         Data[y, x] = colorIndex;
