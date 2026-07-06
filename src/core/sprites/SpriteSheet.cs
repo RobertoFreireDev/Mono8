@@ -370,6 +370,77 @@ internal class SpriteSheet
         UpdateTextureRegion(x1, y1, regionW, regionH);
     }
 
+    public void FlipRegionHorizontal(int x, int y, int w, int h)
+    {
+        int x1 = Math.Max(x, 0);
+        int y1 = Math.Max(y, 0);
+        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
+        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
+        int regionW = x2 - x1;
+        int regionH = y2 - y1;
+        if (regionW <= 0 || regionH <= 0) return;
+
+        SaveSnapshot();
+
+        for (int row = 0; row < regionH; row++)
+            for (int col = 0; col < regionW / 2; col++)
+            {
+                int leftCol = x1 + col;
+                int rightCol = x1 + regionW - 1 - col;
+                (Data[y1 + row, leftCol], Data[y1 + row, rightCol]) = (Data[y1 + row, rightCol], Data[y1 + row, leftCol]);
+            }
+
+        UpdateTextureRegion(x1, y1, regionW, regionH);
+    }
+
+    public void FlipRegionVertical(int x, int y, int w, int h)
+    {
+        int x1 = Math.Max(x, 0);
+        int y1 = Math.Max(y, 0);
+        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
+        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
+        int regionW = x2 - x1;
+        int regionH = y2 - y1;
+        if (regionW <= 0 || regionH <= 0) return;
+
+        SaveSnapshot();
+
+        for (int row = 0; row < regionH / 2; row++)
+        {
+            int topRow = y1 + row;
+            int bottomRow = y1 + regionH - 1 - row;
+            for (int col = 0; col < regionW; col++)
+                (Data[topRow, x1 + col], Data[bottomRow, x1 + col]) = (Data[bottomRow, x1 + col], Data[topRow, x1 + col]);
+        }
+
+        UpdateTextureRegion(x1, y1, regionW, regionH);
+    }
+
+    public void RotateRegion90Clockwise(int x, int y, int w, int h)
+    {
+        int x1 = Math.Max(x, 0);
+        int y1 = Math.Max(y, 0);
+        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
+        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
+        int regionW = x2 - x1;
+        int regionH = y2 - y1;
+        if (regionW <= 0 || regionH <= 0 || regionW != regionH) return;
+
+        SaveSnapshot();
+
+        int size = regionW;
+        var temp = new int[size, size];
+        for (int row = 0; row < size; row++)
+            for (int col = 0; col < size; col++)
+                temp[col, size - 1 - row] = Data[y1 + row, x1 + col];
+
+        for (int row = 0; row < size; row++)
+            for (int col = 0; col < size; col++)
+                Data[y1 + row, x1 + col] = temp[row, col];
+
+        UpdateTextureRegion(x1, y1, size, size);
+    }
+
     public void CopyRegion(int x, int y, int w, int h)
     {
         int x1 = Math.Max(x, 0);

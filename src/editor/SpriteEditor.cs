@@ -108,6 +108,28 @@ internal class SpriteEditor : IEditor
             eventNotifier.AddEvent("PASTE");
         }
 
+        if (KeybrdInput.JustPressed(Keys.F))
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.FlipRegionHorizontal(regionX, regionY, regionW, regionH);
+            eventNotifier.AddEvent("FLIP H");
+        }
+
+        if (!KeybrdInput.Pressed(Keys.LeftControl) && !KeybrdInput.Pressed(Keys.RightControl)
+            && KeybrdInput.JustPressed(Keys.V))
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.FlipRegionVertical(regionX, regionY, regionW, regionH);
+            eventNotifier.AddEvent("FLIP V");
+        }
+
+        if (KeybrdInput.JustPressed(Keys.R))
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.RotateRegion90Clockwise(regionX, regionY, regionW, regionH);
+            eventNotifier.AddEvent("ROTATE");
+        }
+
         var mouse = _api.mousexy();
 
         if (_api.mousedown())
