@@ -106,7 +106,8 @@ internal class Mono8API : IMono8API
 
     public void print(string text, int x, int y, int color = 7)
     {
-        Text.DrawText(text, new Vector2(x,y), color);
+        // offset 1 pixel up
+        Text.DrawText(text, new Vector2(x,y-1), color);
     }
 
     public void SetPixel(int x, int y, int colorIndex) => SpriteSheet.SetPixel(x, y, colorIndex);

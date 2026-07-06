@@ -13,10 +13,12 @@ internal class SpriteEditor : IEditor
     private int[] Zooms = { 1, 2, 4 };
     private int[] CnvScale = { 8, 4, 2 };
     private int ColorSelected = Constants.Colors.White;
+    private readonly EventNotifier eventNotifier;
 
     public SpriteEditor(IMono8API api)
     {
         _api = api;
+        eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
         sprvwrarea = new Rectangle(0,
             Constants.Screen.ResolutionY - 1 - Constants.GameDataSizes.SpriteSheetY - Constants.GameDataSizes.TileSize,
             Constants.GameDataSizes.SpriteSheetX,
@@ -31,6 +33,14 @@ internal class SpriteEditor : IEditor
 
     public void Update(float elapsedSeconds)
     {
+        eventNotifier.Update(elapsedSeconds);
+
+        if (KeybrdInput.IsSaveShortcutPressed())
+        {
+            mono8.GameAPI.Save(); 
+            eventNotifier.AddEvent("SAVED");
+        }
+
         var mouse = _api.mousexy();
 
         if (_api.mousedown())
@@ -140,5 +150,7 @@ internal class SpriteEditor : IEditor
                     Constants.Colors.White);
             }
         }
+
+        eventNotifier.Draw();
     }
 }
