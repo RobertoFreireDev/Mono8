@@ -125,3 +125,22 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 |---|---|---|
 | `dget` | `index` | Reads a persisted value at `index`. |
 | `dset` | `index, value` | Writes a persisted value at `index`. |
+
+## Sprite Editor Hotkeys
+
+| Key | Description |
+|---|---|
+| `Ctrl+S` | Saves the project. |
+| `Ctrl+Z` | Undo (available when there is a change to undo). |
+| `Ctrl+Shift+Z` | Redo (available when there is a change to redo). |
+| `Ctrl+C` | Copies the current sprite region. |
+| `Ctrl+V` | Pastes the copied region at the current sprite's position. |
+| `Arrow Left/Right/Up/Down` | Shifts the pixels of the current sprite by one pixel in that direction. |
+| `Delete` | Clears the current sprite region. |
+| `F` | Flips the current sprite horizontally. |
+| `V` | Flips the current sprite vertically. |
+| `R` | Rotates the current sprite 90° clockwise. |
+| `1`-`8` | Toggles the current sprite into/out of the corresponding animation frame slot (only when no modifier keys are held). |
+| `9` | Clears all animation frame slots (only when no modifier keys are held). |
+
+Mouse wheel up/down over the sprite canvas zooms the canvas in/out.
