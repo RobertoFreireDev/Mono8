@@ -78,7 +78,7 @@ internal static class Menu
             }
             else if (label == "Restart")
             {
-                Mono8API.editor.Init();
+                Mono8API.Editors.ReinitActive();
                 Paused = false;
             }
             else if (label == "Exit")

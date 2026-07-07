@@ -349,8 +349,6 @@ internal class SpriteEditor : IEditor
 
     public void Draw()
     {
-        _api.rectfill(0,0,Constants.Screen.ResolutionX,Constants.GameDataSizes.TileSize,Constants.Colors.Orange);
-
         _api.spr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
             sprvwrarea.X,
             sprvwrarea.Y,

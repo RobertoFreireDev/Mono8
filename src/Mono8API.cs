@@ -2,17 +2,19 @@
 
 internal class Mono8API : IMono8API
 {
-    public static IEditor editor;
+    public static EditorRegistry Editors = new EditorRegistry();
     private static SfxEngine _sfxEngine = new SfxEngine();
     public static SpriteSheet SpriteSheet = new SpriteSheet();
     public static MapSheet MapSheet = new MapSheet();
     private static string _folder = Constants.File.Folder;
-    private bool firstTime = true;
+    private EditorMenuBar _menuBar;
 
     public Mono8API()
     {
         Load();
-        editor = new SpriteEditor(this);
+        Editors.Register(new SpriteEditor(this), 15, "Sprite");
+        Editors.Register(new MapEditor(this), 16, "Map");
+        _menuBar = new EditorMenuBar(this, Editors);
     }
 
     internal void Load()
@@ -43,16 +45,18 @@ internal class Mono8API : IMono8API
 
         try
         {
-            if (firstTime)
-            {
-                editor.Init();
-                firstTime = false;
-            }
+            Editors.EnsureActiveInitialized();
 
             _sfxEngine.UpdateMusic();
             if (!Menu.IsPaused())
             {
-                editor.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                _menuBar.Update();
+
+                var mouse = mousexy();
+                if (!_menuBar.Bounds.Contains(mouse.x, mouse.y))
+                {
+                    Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                }
             }
         }
         catch (Exception ex) { ErrorHandler.SetError(ex); }
@@ -68,7 +72,8 @@ internal class Mono8API : IMono8API
 
         try
         {
-            editor.Draw();
+            Editors.Active.Draw();
+            _menuBar.Draw();
             camera(0, 0);
             Menu.Draw();
         }
