@@ -35,10 +35,10 @@ public static class Constants
         public const int IconSheetX = 256;
         public const int IconSheetY = 16;
         public const int SpriteSheetX = 256;
-        public const int SpriteSheetY = 48;
+        public const int SpriteSheetY = 48 * 4;
         public const int TileSize = 8;
         public const int SpriteSheetColumns = 32; // SpriteSheetX / TileSize
-        public const int SpriteSheetRows = 6; // SpriteSheetY / TileSize
+        public const int SpriteSheetRows = 24; // SpriteSheetY / TileSize
         public const int MaxSpriteIndex = SpriteSheetColumns * SpriteSheetRows - 1;
         public const int MapSheetX = 128;
         public const int MapSheetY = 64;

@@ -32,19 +32,28 @@ internal class SpriteEditor : IEditor
     private int dragStartY;
     private readonly ShapePreviewGrid shapePreview = new();
 
+    private const int VisibleRows = 6;
+    private const int SpritePages = Constants.GameDataSizes.SpriteSheetRows / VisibleRows;
+    private const int PageIconSelected = 45;
+    private const int PageIconNotSelected = 46;
+    private readonly Rectangle[] pageButtons;
+    private readonly int labelRowY;
+    private readonly Rectangle sprNmbrLabelArea;
+    private int spritePage = 0;
+
     public SpriteEditor(IMono8API api)
     {
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
         sprvwrarea = new Rectangle(0,
-            Constants.Screen.ResolutionY - 1 - 48 - Constants.GameDataSizes.TileSize,
+            Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize,
             Constants.GameDataSizes.SpriteSheetX,
-            48);
+            VisibleRows * Constants.GameDataSizes.TileSize);
         sprcnvsarea = new Rectangle(80, 15, 8*8, 8 * 8);
         palettearea = new Rectangle(170, 15, 8 * Constants.GameDataSizes.TileSize, 2 * Constants.GameDataSizes.TileSize);
         sprNmbr = 0;
         SprX = 0;
-        SprY = Constants.Screen.ResolutionY - 1 - 48 - Constants.GameDataSizes.TileSize;
+        SprY = Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize;
 
         int toolButtonY = palettearea.Y + palettearea.Height + 2;
         int size = Constants.GameDataSizes.TileSize;
@@ -57,6 +66,16 @@ internal class SpriteEditor : IEditor
             (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.OvalFill),
             (new Button(palettearea.X + 5 * size, toolButtonY, size, 29), Tool.PaintBucket),
         };
+
+        labelRowY = sprvwrarea.Y - size;
+        sprNmbrLabelArea = new Rectangle(sprvwrarea.X + 204, labelRowY - 1, size * 2, size - 1);
+
+        int pageButtonsStartX = Constants.Screen.ResolutionX - SpritePages * size;
+        pageButtons = new Rectangle[SpritePages];
+        for (int i = 0; i < pageButtons.Length; i++)
+        {
+            pageButtons[i] = new Rectangle(pageButtonsStartX + i * size, labelRowY - 1, size, size);
+        }
     }
 
     public void Init()
@@ -187,7 +206,7 @@ internal class SpriteEditor : IEditor
                 int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
                 SprX = x * Constants.GameDataSizes.TileSize + sprvwrarea.X;
                 SprY = y * Constants.GameDataSizes.TileSize + sprvwrarea.Y;
-                sprNmbr = x + y * Constants.GameDataSizes.SpriteSheetColumns;
+                sprNmbr = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
             }
         }
         else if (sprcnvsarea.Contains(mouse.x, mouse.y))
@@ -242,6 +261,15 @@ internal class SpriteEditor : IEditor
                 if (button.IsClicked(_api, mouse))
                 {
                     selectedTool = tool;
+                    break;
+                }
+            }
+
+            for (int i = 0; i < pageButtons.Length; i++)
+            {
+                if (pageButtons[i].Contains(mouse.x, mouse.y) && _api.mouselp())
+                {
+                    spritePage = i;
                     break;
                 }
             }
@@ -300,12 +328,15 @@ internal class SpriteEditor : IEditor
     {
         _api.rectfill(0,0,Constants.Screen.ResolutionX,Constants.GameDataSizes.TileSize,Constants.Colors.Orange);
 
-        _api.spr(0, sprvwrarea.X,
+        _api.spr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
+            sprvwrarea.X,
             sprvwrarea.Y,
             Constants.GameDataSizes.SpriteSheetColumns,
-            Constants.GameDataSizes.SpriteSheetRows);
+            VisibleRows);
 
-        if (SprX > -1 && SprY > -1)
+        int selectedRow = sprNmbr / Constants.GameDataSizes.SpriteSheetColumns;
+        bool selectedOnPage = selectedRow >= spritePage * VisibleRows && selectedRow < (spritePage + 1) * VisibleRows;
+        if (selectedOnPage && SprX > -1 && SprY > -1)
         {
             _api.rect(SprX - 1, SprY - 1,
              SprX + Constants.GameDataSizes.TileSize * Zooms[SprSclIdx],
@@ -389,6 +420,25 @@ internal class SpriteEditor : IEditor
         {
             button.Draw(_api, tool == selectedTool);
         }
+
+        for (int i = 0; i < pageButtons.Length; i++)
+        {
+            if (i != spritePage)
+            {
+                _api.pal(Constants.Colors.White, Constants.Colors.LightGray);
+            }
+            
+            var bounds = pageButtons[i];
+            _api.icon(i == spritePage ? PageIconSelected : PageIconNotSelected, bounds.X, bounds.Y);
+            _api.print(i.ToString(), bounds.X + 2, bounds.Y + 2, Constants.Colors.Indigo);
+            _api.pal();
+        }
+
+        _api.rectfill(sprNmbrLabelArea.X, sprNmbrLabelArea.Y,
+            sprNmbrLabelArea.X + sprNmbrLabelArea.Width - 1,
+            sprNmbrLabelArea.Y + sprNmbrLabelArea.Height - 1,
+            Constants.Colors.LightGray);
+        _api.print(sprNmbr.ToString("D3"), sprNmbrLabelArea.X + 1, sprNmbrLabelArea.Y + 1, Constants.Colors.Indigo);
 
         eventNotifier.Draw();
     }
