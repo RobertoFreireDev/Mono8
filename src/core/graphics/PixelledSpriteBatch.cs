@@ -93,6 +93,50 @@ public class PixelledSpriteBatch
         }
     }
 
+    public void DrawCirc(int cx, int cy, int r, int colorIndex)
+    {
+        int x = 0, y = r, d = 3 - 2 * r;
+        while (y >= x)
+        {
+            DrawPixel(cx + x, cy + y, colorIndex); DrawPixel(cx - x, cy + y, colorIndex);
+            DrawPixel(cx + x, cy - y, colorIndex); DrawPixel(cx - x, cy - y, colorIndex);
+            DrawPixel(cx + y, cy + x, colorIndex); DrawPixel(cx - y, cy + x, colorIndex);
+            DrawPixel(cx + y, cy - x, colorIndex); DrawPixel(cx - y, cy - x, colorIndex);
+            if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
+            x++;
+        }
+    }
+
+    public void DrawCircFill(int cx, int cy, int r, int colorIndex)
+    {
+        int[] minX = new int[r * 2 + 1];
+        int[] maxX = new int[r * 2 + 1];
+        for (int i = 0; i < minX.Length; i++) { minX[i] = int.MaxValue; maxX[i] = int.MinValue; }
+
+        void Mark(int px, int py)
+        {
+            int row = py - (cy - r);
+            if (row < 0 || row >= minX.Length) return;
+            if (px < minX[row]) minX[row] = px;
+            if (px > maxX[row]) maxX[row] = px;
+        }
+
+        int x = 0, y = r, d = 3 - 2 * r;
+        while (y >= x)
+        {
+            Mark(cx + x, cy + y); Mark(cx - x, cy + y);
+            Mark(cx + x, cy - y); Mark(cx - x, cy - y);
+            Mark(cx + y, cy + x); Mark(cx - y, cy + x);
+            Mark(cx + y, cy - x); Mark(cx - y, cy - x);
+            if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
+            x++;
+        }
+
+        for (int row = 0; row < minX.Length; row++)
+            if (maxX[row] >= minX[row])
+                DrawRectFill(minX[row], cy - r + row, maxX[row] - minX[row] + 1, 1, colorIndex);
+    }
+
     public void DrawOval(int x0, int y0, int x1, int y1, int colorIndex)
     {
         OvalMath.DrawOutline(x0, y0, x1, y1, (px, py) => DrawPixel(px, py, colorIndex));

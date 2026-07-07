@@ -30,6 +30,10 @@ public interface IMono8API
 
     void rectfill(int x0, int y0, int x1, int y1, int color);
 
+    void circ(int x, int y, int radius, int color);
+
+    void circfill(int x, int y, int radius, int color);
+
     void oval(int x0, int y0, int x1, int y1, int color);
 
     void ovalfill(int x0, int y0, int x1, int y1, int color);

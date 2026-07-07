@@ -187,6 +187,16 @@ internal class Mono8API : IMono8API
         return (Math.Min(x0, x1), Math.Min(y0, y1), Math.Abs(x1 - x0) + 1, Math.Abs(y1 - y0) + 1);
     }
 
+    public void circ(int x, int y, int radius, int color)
+    {
+        mono8.SpriteBatch.DrawCirc(x, y, radius, color);
+    }
+
+    public void circfill(int x, int y, int radius, int color)
+    {
+        mono8.SpriteBatch.DrawCircFill(x, y, radius, color);
+    }
+
     public void oval(int x0, int y0, int x1, int y1, int color)
     {
         mono8.SpriteBatch.DrawOval(x0, y0, x1, y1, color);
