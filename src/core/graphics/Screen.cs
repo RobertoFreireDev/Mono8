@@ -54,11 +54,11 @@ internal static class Screen
         }
         else
         {
-            float multx = (float)viewPort.Width / BaseBox.Width;
-            float multy = (float)viewPort.Height / BaseBox.Height;
-            float mult = (float)Math.Floor(Math.Min(multx, multy) * 16f) / 16f;
-            int scaleWidth = (int)Math.Round(mult * BaseBox.Width);
-            int scaleHeight = (int)Math.Round(mult * BaseBox.Height);
+            int multx = (int)viewPort.Width / BaseBox.Width;
+            int multy = (int)viewPort.Height / BaseBox.Height;
+            int mult = Math.Min(multx, multy);
+            int scaleWidth = mult * BaseBox.Width;
+            int scaleHeight = mult * BaseBox.Height;
             int offsetX = (viewPort.Width - scaleWidth) / 2;
             int offsetY = (viewPort.Height - scaleHeight) / 2;
             BoxToDraw = new Rectangle(offsetX, offsetY, scaleWidth, scaleHeight);
