@@ -119,9 +119,9 @@ internal class SpriteEditor : IEditor
         {
             animFrameSlots[i] = new Rectangle(2, 15 + i * size, size, size);
         }
-        animZoomBtn = new Rectangle(12, 15, 12, size);
-        animSpeedBtn = new Rectangle(12, 25, 12, size);
-        animLoopModeBtn = new Rectangle(12, 35, 12, size);
+        animZoomBtn = new Rectangle(14, 15, 11, size);
+        animSpeedBtn = new Rectangle(14, 25, 11, size);
+        animLoopModeBtn = new Rectangle(14, 35, 11, size);
         animPreviewArea = new Rectangle(32, 15, 8 * 8, 8 * 8);
     }
 
@@ -366,9 +366,17 @@ internal class SpriteEditor : IEditor
             {
                 AnimSclIdx = (AnimSclIdx + 1) % Zooms.Length;
             }
+            else if (animZoomBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
+            {
+                AnimSclIdx = (AnimSclIdx - 1 + Zooms.Length) % Zooms.Length;
+            }
             else if (animSpeedBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
             {
                 AnimSpeedIdx = (AnimSpeedIdx + 1) % AnimSpeeds.Length;
+            }
+            else if (animSpeedBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
+            {
+                AnimSpeedIdx = (AnimSpeedIdx - 1 + AnimSpeeds.Length) % AnimSpeeds.Length;
             }
             else if (animLoopModeBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
             {
@@ -378,6 +386,16 @@ internal class SpriteEditor : IEditor
                     LoopMode.Forward => LoopMode.Reverse,
                     LoopMode.Reverse => LoopMode.PingPong,
                     _ => LoopMode.Pause,
+                };
+            }
+            else if (animLoopModeBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
+            {
+                animLoopMode = animLoopMode switch
+                {
+                    LoopMode.Forward => LoopMode.Pause,
+                    LoopMode.Reverse => LoopMode.Forward,
+                    LoopMode.PingPong => LoopMode.Reverse,
+                    _ => LoopMode.PingPong,
                 };
             }
         }
