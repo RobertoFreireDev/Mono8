@@ -289,58 +289,27 @@ internal class SpriteSheet
         UpdateTextureRegion(x, y, w, h);
     }
 
-    public void SetCirc(int cx, int cy, int r, int colorIndex)
+    public void SetOval(int x0, int y0, int x1, int y1, int colorIndex)
     {
         if (!IsValidColor(colorIndex)) return;
 
         SaveSnapshot();
-        int x = 0, y = r, d = 3 - 2 * r;
-        while (y >= x)
-        {
-            TrySetPixelData(cx + x, cy + y, colorIndex); TrySetPixelData(cx - x, cy + y, colorIndex);
-            TrySetPixelData(cx + x, cy - y, colorIndex); TrySetPixelData(cx - x, cy - y, colorIndex);
-            TrySetPixelData(cx + y, cy + x, colorIndex); TrySetPixelData(cx - y, cy + x, colorIndex);
-            TrySetPixelData(cx + y, cy - x, colorIndex); TrySetPixelData(cx - y, cy - x, colorIndex);
-            if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
-            x++;
-        }
+        OvalMath.DrawOutline(x0, y0, x1, y1, (px, py) => TrySetPixelData(px, py, colorIndex));
 
-        UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
+        int x = Math.Min(x0, x1), y = Math.Min(y0, y1);
+        UpdateTextureRegion(x, y, Math.Abs(x1 - x0) + 1, Math.Abs(y1 - y0) + 1);
     }
 
-    public void SetCircFill(int cx, int cy, int r, int colorIndex)
+    public void SetOvalFill(int x0, int y0, int x1, int y1, int colorIndex)
     {
         if (!IsValidColor(colorIndex)) return;
 
         SaveSnapshot();
-        int[] minX = new int[r * 2 + 1];
-        int[] maxX = new int[r * 2 + 1];
-        for (int i = 0; i < minX.Length; i++) { minX[i] = int.MaxValue; maxX[i] = int.MinValue; }
+        OvalMath.DrawFill(x0, y0, x1, y1, (row, leftX, rightX) =>
+            SetRectFillData(leftX, row, rightX - leftX + 1, 1, colorIndex));
 
-        void Mark(int px, int py)
-        {
-            int row = py - (cy - r);
-            if (row < 0 || row >= minX.Length) return;
-            if (px < minX[row]) minX[row] = px;
-            if (px > maxX[row]) maxX[row] = px;
-        }
-
-        int x = 0, y = r, d = 3 - 2 * r;
-        while (y >= x)
-        {
-            Mark(cx + x, cy + y); Mark(cx - x, cy + y);
-            Mark(cx + x, cy - y); Mark(cx - x, cy - y);
-            Mark(cx + y, cy + x); Mark(cx - y, cy + x);
-            Mark(cx + y, cy - x); Mark(cx - y, cy - x);
-            if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
-            x++;
-        }
-
-        for (int row = 0; row < minX.Length; row++)
-            if (maxX[row] >= minX[row])
-                SetRectFillData(minX[row], cy - r + row, maxX[row] - minX[row] + 1, 1, colorIndex);
-
-        UpdateTextureRegion(cx - r, cy - r, r * 2 + 1, r * 2 + 1);
+        int x = Math.Min(x0, x1), y = Math.Min(y0, y1);
+        UpdateTextureRegion(x, y, Math.Abs(x1 - x0) + 1, Math.Abs(y1 - y0) + 1);
     }
 
     public void PaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex)

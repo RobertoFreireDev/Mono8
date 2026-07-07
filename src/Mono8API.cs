@@ -122,9 +122,9 @@ internal class Mono8API : IMono8API
 
     public void SetRect(int x, int y, int w, int h, int colorIndex) => SpriteSheet.SetRect(x, y, w, h, colorIndex);
 
-    public void SetCirc(int cx, int cy, int r, int colorIndex) => SpriteSheet.SetCirc(cx, cy, r, colorIndex);
+    public void SetOval(int x0, int y0, int x1, int y1, int colorIndex) => SpriteSheet.SetOval(x0, y0, x1, y1, colorIndex);
 
-    public void SetCircFill(int cx, int cy, int r, int colorIndex) => SpriteSheet.SetCircFill(cx, cy, r, colorIndex);
+    public void SetOvalFill(int x0, int y0, int x1, int y1, int colorIndex) => SpriteSheet.SetOvalFill(x0, y0, x1, y1, colorIndex);
 
     public void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex)
         => SpriteSheet.PaintBucket(x, y, regionX, regionY, regionW, regionH, colorIndex);
@@ -187,14 +187,14 @@ internal class Mono8API : IMono8API
         return (Math.Min(x0, x1), Math.Min(y0, y1), Math.Abs(x1 - x0) + 1, Math.Abs(y1 - y0) + 1);
     }
 
-    public void circ(int x, int y, int radius, int color)
+    public void oval(int x0, int y0, int x1, int y1, int color)
     {
-        mono8.SpriteBatch.DrawCirc(x, y, radius, color);
+        mono8.SpriteBatch.DrawOval(x0, y0, x1, y1, color);
     }
 
-    public void circfill(int x, int y, int radius, int color)
+    public void ovalfill(int x0, int y0, int x1, int y1, int color)
     {
-        mono8.SpriteBatch.DrawCircFill(x, y, radius, color);
+        mono8.SpriteBatch.DrawOvalFill(x0, y0, x1, y1, color);
     }
 
     public void palt()

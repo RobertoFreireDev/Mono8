@@ -30,9 +30,9 @@ public interface IMono8API
 
     void rectfill(int x0, int y0, int x1, int y1, int color);
 
-    void circ(int x, int y, int radius, int color);
+    void oval(int x0, int y0, int x1, int y1, int color);
 
-    void circfill(int x, int y, int radius, int color);
+    void ovalfill(int x0, int y0, int x1, int y1, int color);
 
     void spr(
         int spriteId,
@@ -145,9 +145,9 @@ public interface IMono8API
 
     void SetRect(int x, int y, int w, int h, int colorIndex);
 
-    void SetCirc(int cx, int cy, int r, int colorIndex);
+    void SetOval(int x0, int y0, int x1, int y1, int colorIndex);
 
-    void SetCircFill(int cx, int cy, int r, int colorIndex);
+    void SetOvalFill(int x0, int y0, int x1, int y1, int colorIndex);
 
     void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex);
 

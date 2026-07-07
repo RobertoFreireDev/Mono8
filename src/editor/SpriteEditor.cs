@@ -7,8 +7,8 @@ internal class SpriteEditor : IEditor
         Pixel,
         Rect,
         RectFill,
-        Circ,
-        CircFill,
+        Oval,
+        OvalFill,
         PaintBucket,
     }
 
@@ -52,8 +52,8 @@ internal class SpriteEditor : IEditor
             (new Button(palettearea.X + 0 * size, toolButtonY, size, 25), Tool.Pixel),
             (new Button(palettearea.X + 1 * size, toolButtonY, size, 14), Tool.Rect),
             (new Button(palettearea.X + 2 * size, toolButtonY, size, 23), Tool.RectFill),
-            (new Button(palettearea.X + 3 * size, toolButtonY, size, 27), Tool.Circ),
-            (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.CircFill),
+            (new Button(palettearea.X + 3 * size, toolButtonY, size, 27), Tool.Oval),
+            (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.OvalFill),
             (new Button(palettearea.X + 5 * size, toolButtonY, size, 29), Tool.PaintBucket),
         };
     }
@@ -240,7 +240,6 @@ internal class SpriteEditor : IEditor
         int y = Math.Min(y0, y1);
         int w = Math.Abs(x1 - x0) + 1;
         int h = Math.Abs(y1 - y0) + 1;
-        int radius = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
 
         switch (selectedTool)
         {
@@ -250,11 +249,11 @@ internal class SpriteEditor : IEditor
             case Tool.RectFill:
                 _api.SetRectFill(x, y, w, h, ColorSelected);
                 break;
-            case Tool.Circ:
-                _api.SetCirc(x0, y0, radius, ColorSelected);
+            case Tool.Oval:
+                _api.SetOval(x0, y0, x1, y1, ColorSelected);
                 break;
-            case Tool.CircFill:
-                _api.SetCircFill(x0, y0, radius, ColorSelected);
+            case Tool.OvalFill:
+                _api.SetOvalFill(x0, y0, x1, y1, ColorSelected);
                 break;
         }
     }
