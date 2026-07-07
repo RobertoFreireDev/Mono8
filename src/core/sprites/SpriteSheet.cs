@@ -59,6 +59,9 @@ internal class SpriteSheet
     public bool GetFlag(int spriteId, int flag) =>
         spriteId >= 0 && spriteId < TotalSprites && (Flags[spriteId] & (1 << flag)) != 0;
 
+    // Flags are intentionally excluded from the pixel undo/redo stack: SaveSnapshot
+    // only clones Data, and flag edits are single-bit toggles that are cheap to redo
+    // manually, so they don't warrant a second undo stack.
     public void SetFlag(int spriteId, int flag, bool value)
     {
         if (spriteId < 0 || spriteId >= TotalSprites) return;

@@ -27,6 +27,10 @@ internal class SpriteEditor : IEditor
 
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
+
+    private const int FlagCount = 8;
+    private const int FlagIconIndex = 43;
+    private readonly Rectangle[] flagButtons;
     private bool dragging;
     private int dragStartX;
     private int dragStartY;
@@ -66,6 +70,13 @@ internal class SpriteEditor : IEditor
             (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.OvalFill),
             (new Button(palettearea.X + 5 * size, toolButtonY, size, 29), Tool.PaintBucket),
         };
+
+        int flagButtonY = toolButtonY + size + 2;
+        flagButtons = new Rectangle[FlagCount];
+        for (int i = 0; i < FlagCount; i++)
+        {
+            flagButtons[i] = new Rectangle(palettearea.X + i * size, flagButtonY, size, size);
+        }
 
         labelRowY = sprvwrarea.Y - size;
 
@@ -275,6 +286,16 @@ internal class SpriteEditor : IEditor
                     break;
                 }
             }
+
+            for (int i = 0; i < flagButtons.Length; i++)
+            {
+                if (flagButtons[i].Contains(mouse.x, mouse.y) && _api.mouselp())
+                {
+                    bool current = Mono8API.SpriteSheet.GetFlag(sprNmbr, i);
+                    Mono8API.SpriteSheet.SetFlag(sprNmbr, i, !current);
+                    break;
+                }
+            }
         }
     }
 
@@ -421,6 +442,21 @@ internal class SpriteEditor : IEditor
         foreach (var (button, tool) in toolButtons)
         {
             button.Draw(_api, tool == selectedTool);
+        }
+
+        for (int i = 0; i < flagButtons.Length; i++)
+        {
+            var bounds = flagButtons[i];
+            if (Mono8API.SpriteSheet.GetFlag(sprNmbr, i))
+            {
+                _api.pal(1, 8 + i);
+                _api.icon(FlagIconIndex, bounds.X, bounds.Y);
+                _api.pal();
+            }
+            else
+            {
+                _api.icon(FlagIconIndex, bounds.X, bounds.Y);
+            }
         }
 
         for (int i = 0; i < pageButtons.Length; i++)
