@@ -37,14 +37,14 @@ internal class SpriteEditor : IEditor
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
         sprvwrarea = new Rectangle(0,
-            Constants.Screen.ResolutionY - 1 - Constants.GameDataSizes.SpriteSheetY - Constants.GameDataSizes.TileSize,
+            Constants.Screen.ResolutionY - 1 - 48 - Constants.GameDataSizes.TileSize,
             Constants.GameDataSizes.SpriteSheetX,
-            Constants.GameDataSizes.SpriteSheetY);
+            48);
         sprcnvsarea = new Rectangle(80, 15, 8*8, 8 * 8);
         palettearea = new Rectangle(170, 15, 8 * Constants.GameDataSizes.TileSize, 2 * Constants.GameDataSizes.TileSize);
         sprNmbr = 0;
         SprX = 0;
-        SprY = Constants.Screen.ResolutionY - 1 - Constants.GameDataSizes.SpriteSheetY - Constants.GameDataSizes.TileSize;
+        SprY = Constants.Screen.ResolutionY - 1 - 48 - Constants.GameDataSizes.TileSize;
 
         int toolButtonY = palettearea.Y + palettearea.Height + 2;
         int size = Constants.GameDataSizes.TileSize;
