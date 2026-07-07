@@ -68,7 +68,6 @@ internal class SpriteEditor : IEditor
         };
 
         labelRowY = sprvwrarea.Y - size;
-        sprNmbrLabelArea = new Rectangle(sprvwrarea.X + 204, labelRowY - 1, size * 2, size - 1);
 
         int pageButtonsStartX = Constants.Screen.ResolutionX - SpritePages * size;
         pageButtons = new Rectangle[SpritePages];
@@ -76,6 +75,9 @@ internal class SpriteEditor : IEditor
         {
             pageButtons[i] = new Rectangle(pageButtonsStartX + i * size, labelRowY - 1, size, size);
         }
+
+        const int labelGap = 4;
+        sprNmbrLabelArea = new Rectangle(pageButtonsStartX - labelGap - size * 2, labelRowY - 1, size * 2, size - 1);
     }
 
     public void Init()
