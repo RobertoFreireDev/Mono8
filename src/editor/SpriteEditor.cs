@@ -20,8 +20,8 @@ internal class SpriteEditor : IEditor
     private int SprX;
     private int SprY;
     private int SprSclIdx = 0;
-    private int[] Zooms = { 1, 2, 4 };
-    private int[] CnvScale = { 8, 4, 2 };
+    private int[] Zooms = { 1, 2, 4, 8 };
+    private int[] CnvScale = { 8, 4, 2, 1 };
     private int ColorSelected = Constants.Colors.White;
     private readonly EventNotifier eventNotifier;
 
