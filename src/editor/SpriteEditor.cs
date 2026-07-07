@@ -53,7 +53,7 @@ internal class SpriteEditor : IEditor
             Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize,
             Constants.GameDataSizes.SpriteSheetX,
             VisibleRows * Constants.GameDataSizes.TileSize);
-        sprcnvsarea = new Rectangle(80, 15, 8*8, 8 * 8);
+        sprcnvsarea = new Rectangle(100, 15, 8*8, 8 * 8);
         palettearea = new Rectangle(170, 15, 8 * Constants.GameDataSizes.TileSize, 2 * Constants.GameDataSizes.TileSize);
         sprNmbr = 0;
         SprX = 0;
