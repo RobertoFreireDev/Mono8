@@ -30,6 +30,7 @@ internal class SpriteEditor : IEditor
     private bool dragging;
     private int dragStartX;
     private int dragStartY;
+    private readonly ShapePreviewGrid shapePreview = new();
 
     public SpriteEditor(IMono8API api)
     {
@@ -172,6 +173,12 @@ internal class SpriteEditor : IEditor
 
         SprSclIdx = Math.Clamp(SprSclIdx, 0, Zooms.Length - 1);
 
+        if (dragging && !sprcnvsarea.Contains(mouse.x, mouse.y))
+        {
+            dragging = false;
+            shapePreview.Clear();
+        }
+
         if (sprvwrarea.Contains(mouse.x, mouse.y))
         {
             if (_api.mousel())
@@ -206,10 +213,17 @@ internal class SpriteEditor : IEditor
                 dragStartY = y;
                 dragging = true;
             }
-            else if (dragging && _api.mouselr())
+            else if (dragging)
             {
-                ApplyShapeTool(dragStartX, dragStartY, x, y);
-                dragging = false;
+                shapePreview.Clear();
+                UpdateShapePreview(dragStartX, dragStartY, x, y);
+
+                if (_api.mouselr())
+                {
+                    ApplyShapeTool(dragStartX, dragStartY, x, y);
+                    shapePreview.Clear();
+                    dragging = false;
+                }
             }
         }
         else if (palettearea.Contains(mouse.x, mouse.y))
@@ -254,6 +268,30 @@ internal class SpriteEditor : IEditor
                 break;
             case Tool.OvalFill:
                 _api.SetOvalFill(x0, y0, x1, y1, ColorSelected);
+                break;
+        }
+    }
+
+    private void UpdateShapePreview(int x0, int y0, int x1, int y1)
+    {
+        int x = Math.Min(x0, x1);
+        int y = Math.Min(y0, y1);
+        int w = Math.Abs(x1 - x0) + 1;
+        int h = Math.Abs(y1 - y0) + 1;
+
+        switch (selectedTool)
+        {
+            case Tool.Rect:
+                shapePreview.SetRect(x, y, w, h, ColorSelected);
+                break;
+            case Tool.RectFill:
+                shapePreview.SetRectFill(x, y, w, h, ColorSelected);
+                break;
+            case Tool.Oval:
+                shapePreview.SetOval(x0, y0, x1, y1, ColorSelected);
+                break;
+            case Tool.OvalFill:
+                shapePreview.SetOvalFill(x0, y0, x1, y1, ColorSelected);
                 break;
         }
     }
@@ -305,6 +343,12 @@ internal class SpriteEditor : IEditor
              validW / Constants.GameDataSizes.TileSize,
              validH / Constants.GameDataSizes.TileSize,
              scale);
+
+        if (shapePreview.HasPixels)
+        {
+            shapePreview.Draw(_api, regionX, regionY, sprcnvsarea.X, sprcnvsarea.Y, scale);
+        }
+
         _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
 
         _api.rectfill(palettearea.X - 1, palettearea.Y - 1,
