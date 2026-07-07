@@ -80,7 +80,7 @@ internal class MapSheet
         int px, int py,       // screen position to draw at
         int width, int height, // how many tiles wide/tall to draw
         int layerMax,
-        int color)
+        int transparency)
     {
         for (int y = 0; y < height; y++)
         {
@@ -100,7 +100,9 @@ internal class MapSheet
                 Mono8API.SpriteSheet.Draw(
                     tileIndex,
                     px + x * Constants.GameDataSizes.TileSize,
-                    py + y * Constants.GameDataSizes.TileSize);
+                    py + y * Constants.GameDataSizes.TileSize,
+                    1, 1, 1, false, false,
+                    transparency);
             }
         }
     }
