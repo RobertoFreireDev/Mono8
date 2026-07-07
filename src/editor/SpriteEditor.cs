@@ -25,6 +25,30 @@ internal class SpriteEditor : IEditor
     private int ColorSelected = Constants.Colors.White;
     private readonly EventNotifier eventNotifier;
 
+    private enum LoopMode
+    {
+        Pause,
+        Forward,
+        Reverse,
+        PingPong,
+    }
+
+    private const int AnimFrameCount = 8;
+    private int[] AnimFrames = { -1, -1, -1, -1, -1, -1, -1, -1 };
+    private int AnimSclIdx = 0;
+    private int[] AnimSpeeds = { 1, 2, 4, 6, 8, 10 };
+    private int AnimSpeedIdx = 0;
+    private LoopMode animLoopMode = LoopMode.Pause;
+    private int animCurrentFrame = 0;
+    private int animPingPongDir = 1;
+    private float animElapsed = 0f;
+
+    private readonly Rectangle[] animFrameSlots;
+    private Rectangle animZoomBtn;
+    private Rectangle animSpeedBtn;
+    private Rectangle animLoopModeBtn;
+    private Rectangle animPreviewArea;
+
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
 
@@ -89,6 +113,16 @@ internal class SpriteEditor : IEditor
 
         const int labelGap = 4;
         sprNmbrLabelArea = new Rectangle(pageButtonsStartX - labelGap - size * 2, labelRowY - 1, size * 2, size - 1);
+
+        animFrameSlots = new Rectangle[AnimFrameCount];
+        for (int i = 0; i < AnimFrameCount; i++)
+        {
+            animFrameSlots[i] = new Rectangle(2, 15 + i * size, size, size);
+        }
+        animZoomBtn = new Rectangle(12, 15, 12, size);
+        animSpeedBtn = new Rectangle(12, 25, 12, size);
+        animLoopModeBtn = new Rectangle(12, 35, 12, size);
+        animPreviewArea = new Rectangle(32, 15, 8 * 8, 8 * 8);
     }
 
     public void Init()
@@ -100,6 +134,14 @@ internal class SpriteEditor : IEditor
         int size = Zooms[SprSclIdx] * Constants.GameDataSizes.TileSize;
         int x = (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
         int y = (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+        return (x, y, size, size);
+    }
+
+    private (int x, int y, int w, int h) AnimCanvasRegion(int spriteIndex)
+    {
+        int size = Zooms[AnimSclIdx] * Constants.GameDataSizes.TileSize;
+        int x = (spriteIndex % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+        int y = (spriteIndex / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
         return (x, y, size, size);
     }
 
@@ -190,6 +232,29 @@ internal class SpriteEditor : IEditor
             Mono8API.SpriteSheet.RotateRegion90Clockwise(regionX, regionY, regionW, regionH);
             eventNotifier.AddEvent("ROTATE");
         }
+
+        bool noModifiers = !KeybrdInput.Pressed(Keys.LeftControl) && !KeybrdInput.Pressed(Keys.RightControl)
+            && !KeybrdInput.Pressed(Keys.LeftShift) && !KeybrdInput.Pressed(Keys.RightShift)
+            && !KeybrdInput.Pressed(Keys.LeftAlt) && !KeybrdInput.Pressed(Keys.RightAlt);
+
+        if (noModifiers)
+        {
+            Keys[] digitKeys = { Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8 };
+            for (int i = 0; i < digitKeys.Length; i++)
+            {
+                if (KeybrdInput.JustPressed(digitKeys[i]))
+                {
+                    AnimFrames[i] = AnimFrames[i] == -1 ? sprNmbr : -1;
+                }
+            }
+
+            if (KeybrdInput.JustPressed(Keys.D9))
+            {
+                for (int i = 0; i < AnimFrames.Length; i++) AnimFrames[i] = -1;
+            }
+        }
+
+        UpdateAnimationPlayback(elapsedSeconds);
 
         var mouse = _api.mousexy();
 
@@ -296,6 +361,105 @@ internal class SpriteEditor : IEditor
                     break;
                 }
             }
+
+            if (animZoomBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                AnimSclIdx = (AnimSclIdx + 1) % Zooms.Length;
+            }
+            else if (animSpeedBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                AnimSpeedIdx = (AnimSpeedIdx + 1) % AnimSpeeds.Length;
+            }
+            else if (animLoopModeBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                animLoopMode = animLoopMode switch
+                {
+                    LoopMode.Pause => LoopMode.Forward,
+                    LoopMode.Forward => LoopMode.Reverse,
+                    LoopMode.Reverse => LoopMode.PingPong,
+                    _ => LoopMode.Pause,
+                };
+            }
+        }
+    }
+
+    private (int first, int last) GetAnimFilledRange()
+    {
+        int first = -1, last = -1;
+        for (int i = 0; i < AnimFrames.Length; i++)
+        {
+            if (AnimFrames[i] != -1)
+            {
+                if (first == -1) first = i;
+                last = i;
+            }
+        }
+        return (first, last);
+    }
+
+    private void UpdateAnimationPlayback(float elapsedSeconds)
+    {
+        var (first, last) = GetAnimFilledRange();
+
+        if (first == -1)
+        {
+            animCurrentFrame = 0;
+            animElapsed = 0f;
+            animPingPongDir = 1;
+            return;
+        }
+
+        if (animCurrentFrame < first || animCurrentFrame > last || AnimFrames[animCurrentFrame] == -1)
+        {
+            animCurrentFrame = first;
+        }
+
+        if (animLoopMode == LoopMode.Pause) return;
+
+        float interval = 1f / AnimSpeeds[AnimSpeedIdx];
+        animElapsed += elapsedSeconds;
+
+        while (animElapsed >= interval)
+        {
+            animElapsed -= interval;
+            StepAnimationFrame(first, last);
+        }
+    }
+
+    private void StepAnimationFrame(int first, int last)
+    {
+        switch (animLoopMode)
+        {
+            case LoopMode.Forward:
+                do
+                {
+                    animCurrentFrame = animCurrentFrame + 1 > last ? first : animCurrentFrame + 1;
+                } while (AnimFrames[animCurrentFrame] == -1);
+                break;
+            case LoopMode.Reverse:
+                do
+                {
+                    animCurrentFrame = animCurrentFrame - 1 < first ? last : animCurrentFrame - 1;
+                } while (AnimFrames[animCurrentFrame] == -1);
+                break;
+            case LoopMode.PingPong:
+                if (first == last) break;
+                do
+                {
+                    int next = animCurrentFrame + animPingPongDir;
+                    if (next > last)
+                    {
+                        animPingPongDir = -1;
+                        next = animCurrentFrame - 1;
+                    }
+                    else if (next < first)
+                    {
+                        animPingPongDir = 1;
+                        next = animCurrentFrame + 1;
+                    }
+                    animCurrentFrame = next;
+                } while (AnimFrames[animCurrentFrame] == -1);
+                break;
         }
     }
 
@@ -476,6 +640,76 @@ internal class SpriteEditor : IEditor
             Constants.Colors.LightGray);
         _api.print(sprNmbr.ToString("D3"), sprNmbrLabelArea.X + 1, sprNmbrLabelArea.Y + 1, Constants.Colors.Indigo);
 
+        DrawAnimationPanel();
+
         eventNotifier.Draw();
+    }
+
+    private void DrawAnimationPanel()
+    {
+        var (first, last) = GetAnimFilledRange();
+
+        for (int i = 0; i < animFrameSlots.Length; i++)
+        {
+            var bounds = animFrameSlots[i];
+            if (AnimFrames[i] != -1)
+            {
+                _api.spr(AnimFrames[i], bounds.X, bounds.Y, 1, 1, 1);
+            }
+            else if (first != -1 && i > first && i < last)
+            {
+                // Don't draw
+            }
+
+            if (animLoopMode != LoopMode.Pause && i == animCurrentFrame && AnimFrames[i] != -1)
+            {
+                _api.rect(bounds.X, bounds.Y, bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, Constants.Colors.White);
+            }
+        }
+
+        DrawTextButton(animZoomBtn, "x" + Zooms[AnimSclIdx]);
+        DrawTextButton(animSpeedBtn, AnimSpeeds[AnimSpeedIdx].ToString("D2"));
+        DrawTextButton(animLoopModeBtn, animLoopMode switch
+        {
+            LoopMode.Forward => "FW",
+            LoopMode.Reverse => "RV",
+            LoopMode.PingPong => "PP",
+            _ => "PA",
+        });
+
+        _api.rectfill(animPreviewArea.X - 1, animPreviewArea.Y - 1,
+            animPreviewArea.X + animPreviewArea.Width,
+            animPreviewArea.Y + animPreviewArea.Height, Constants.Colors.Black);
+
+        if (AnimFrames[animCurrentFrame] != -1)
+        {
+            var (regionX, regionY, regionW, regionH) = AnimCanvasRegion(AnimFrames[animCurrentFrame]);
+            int scale = CnvScale[AnimSclIdx];
+            int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
+            int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
+
+            if (validW < regionW)
+            {
+                DrawEmptyWorkspacePattern(animPreviewArea.X + validW * scale, animPreviewArea.Y,
+                    (regionW - validW) * scale, regionH * scale);
+            }
+
+            if (validH < regionH)
+            {
+                DrawEmptyWorkspacePattern(animPreviewArea.X, animPreviewArea.Y + validH * scale,
+                    validW * scale, (regionH - validH) * scale);
+            }
+
+            _api.spr(AnimFrames[animCurrentFrame], animPreviewArea.X, animPreviewArea.Y,
+                validW / Constants.GameDataSizes.TileSize,
+                validH / Constants.GameDataSizes.TileSize,
+                scale);
+        }
+    }
+
+    private void DrawTextButton(Rectangle bounds, string text)
+    {
+        _api.rectfill(bounds.X, bounds.Y, bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, Constants.Colors.LightGray);
+        _api.print(text, bounds.X + 1, bounds.Y + 1, Constants.Colors.Indigo);
     }
 }
