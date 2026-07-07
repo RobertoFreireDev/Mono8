@@ -76,34 +76,24 @@ public static class ColorPalette
         TransparentColorIndex = id;
     }
 
-    public static Color GetColor(int id) => GetColor(id, 0);
-
-    public static Color GetColor(int id, int transparency)
+    public static Color GetColor(int id)
     {
-        Color color;
-
         if (id == BlackColorIndex)
         {
-            color = Color.Black;
-        }
-        else if (id == WhiteColorIndex)
-        {
-            color = Color.White;
-        }
-        else if (id < Constants.GameDataSizes.ColorPaletteMin || id > Constants.GameDataSizes.ColorPaletteMax)
-        {
-            color = TransparentColor;
-        }
-        else
-        {
-            color = Colors[_drawPalette[id]];
+            return Color.Black;
         }
 
-        if (transparency <= 0) return color;
+        if (id == WhiteColorIndex)
+        {
+            return Color.White;
+        }
 
-        transparency = Math.Min(transparency, 10);
-        int alpha = color.A * (10 - transparency) / 10;
-        return new Color(color.R, color.G, color.B, alpha);
+        if (id < Constants.GameDataSizes.ColorPaletteMin || id > Constants.GameDataSizes.ColorPaletteMax)
+        {
+            return TransparentColor;
+        }
+
+        return Colors[_drawPalette[id]];
     }
 
     public static void SetColorPalette()

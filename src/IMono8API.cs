@@ -22,21 +22,21 @@ public interface IMono8API
     // ============================================================
     void cls(int colorIndex = 0);
 
-    void pixel(int x, int y, int color, int transparency = 0);
+    void pixel(int x, int y, int color);
 
-    void line(int x0, int y0, int x1, int y1, int color, int transparency = 0);
+    void line(int x0, int y0, int x1, int y1, int color);
 
-    void rect(int x0, int y0, int x1, int y1, int color, int transparency = 0);
+    void rect(int x0, int y0, int x1, int y1, int color);
 
-    void rectfill(int x0, int y0, int x1, int y1, int color, int transparency = 0);
+    void rectfill(int x0, int y0, int x1, int y1, int color);
 
-    void circ(int x, int y, int radius, int color, int transparency = 0);
+    void circ(int x, int y, int radius, int color);
 
-    void circfill(int x, int y, int radius, int color, int transparency = 0);
+    void circfill(int x, int y, int radius, int color);
 
-    void oval(int x0, int y0, int x1, int y1, int color, int transparency = 0);
+    void oval(int x0, int y0, int x1, int y1, int color);
 
-    void ovalfill(int x0, int y0, int x1, int y1, int color, int transparency = 0);
+    void ovalfill(int x0, int y0, int x1, int y1, int color);
 
     void spr(
         int spriteId,
@@ -46,15 +46,13 @@ public interface IMono8API
         int height = 1,
         int scale = 1,
         bool flipX = false,
-        bool flipY = false,
-        int transparency = 0);
+        bool flipY = false);
 
     void sspr(
         int sx, int sy, int sw, int sh,
         int dx, int dy,
         int dw = -1, int dh = -1,
-        bool flipX = false, bool flipY = false,
-        int transparency = 0);
+        bool flipX = false, bool flipY = false);
 
     void print(
         string text,
@@ -94,8 +92,8 @@ public interface IMono8API
         int cellY,
         int screenX,
         int screenY,
-        int cellWidth = 40, int cellHeight = 23,
-        int layerMax = 0, int transparency = 0);
+        int cellWidth = 40, int cellHeight = 23, 
+        int layerMax = 0);
 
     // ============================================================
     // SPRITE FLAGS
