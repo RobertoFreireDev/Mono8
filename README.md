@@ -144,3 +144,11 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `9` | Clears all animation frame slots (only when no modifier keys are held). |
 
 Mouse wheel up/down over the sprite canvas zooms the canvas in/out.
+
+## Map Editor Hotkeys
+
+| Key | Description |
+|---|---|
+| `Ctrl+S` | Saves the project. |
+| `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction. |
+| `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction. |
