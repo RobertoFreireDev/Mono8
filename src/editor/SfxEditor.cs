@@ -48,11 +48,14 @@ internal class SfxEditor : IEditor
     private const int GridCols = 4;              // 8 rows x 4 cols = 32 notes
     private const int CellH = 12;
     private const int GridTop = 37;
-    private const int PaletteLabelY = 28;
-    private const int VolFaderX = 2;
-    private const int VolFaderW = 13;
-    private const int FxColX = 18;
-    private const int NoteColStart = 34;
+    private const int PaletteRowY = WaveY;       // horizontal VOL/FX row, right below the header line
+    private const int OctLabelX = 196;           // octave selector sits after the waveform buttons
+    private const int OctBoxX = 210;
+    private const int VolLabelX = 2;
+    private const int VolCellsX = 18;
+    private const int FxLabelX = 93;
+    private const int FxButtonsX = 105;
+    private const int NoteColStart = RegionX;    // centered: VOL/FX no longer occupy the left column
     private const int NoteColGap = 6;
     private static readonly int NoteColW =
         (Constants.Screen.ResolutionX - NoteColStart - 2 - (GridCols - 1) * NoteColGap) / GridCols;
@@ -131,15 +134,15 @@ internal class SfxEditor : IEditor
 
         octBoxes = new Rectangle[OctaveCount];
         for (int i = 0; i < OctaveCount; i++)
-            octBoxes[i] = new Rectangle(94 + i * 9, WaveY, 7, 7);
+            octBoxes[i] = new Rectangle(OctBoxX + i * 9, HeaderY, 7, 7);
 
         volCells = new Rectangle[SfxSheet.MaxVolume + 1];
         for (int v = 0; v <= SfxSheet.MaxVolume; v++)
-            volCells[v] = new Rectangle(VolFaderX, GridTop + (SfxSheet.MaxVolume - v) * CellH, VolFaderW, CellH - 1);
+            volCells[v] = new Rectangle(VolCellsX + v * 9, PaletteRowY, 8, 7);
 
         effectButtons = new Button[EffectCount];
         for (int i = 0; i < EffectCount; i++)
-            effectButtons[i] = new Button(FxColX, GridTop + i * CellH + 2,
+            effectButtons[i] = new Button(FxButtonsX + i * 9, PaletteRowY,
                 Constants.GameDataSizes.TileSize, EffectIconStart + i);
     }
 
@@ -437,38 +440,31 @@ internal class SfxEditor : IEditor
     private void DrawPrimaryView()
     {
         DrawHeader();
+        DrawWaveButtons();
+        DrawPitchRegion();
+        DrawVolumeRegion();
+    }
 
+    private void DrawWaveButtons()
+    {
         for (int i = 0; i < waveButtons.Length; i++)
         {
             if (i == selectedWaveform)
             {
                 var b = waveButtons[i].Bounds;
-                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 1, WaveColor(i));
+                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 2, WaveColor(i));
             }
             waveButtons[i].Draw(_api, i == selectedWaveform);
         }
-
-        DrawPitchRegion();
-        DrawVolumeRegion();
     }
 
     private void DrawAltView()
     {
         DrawHeader();
+        DrawWaveButtons();
 
-        for (int i = 0; i < waveButtons.Length; i++)
-        {
-            if (i == selectedWaveform)
-            {
-                var b = waveButtons[i].Bounds;
-                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 1, WaveColor(i));
-            }
-            waveButtons[i].Draw(_api, i == selectedWaveform);
-        }
-
-
-        // Octave selector, on the same line as the waveforms.
-        _api.print("OCT", 78, WaveY + 1, Constants.Colors.LightGray);
+        // Octave selector, after the waveform buttons on the header line.
+        _api.print("OCT", OctLabelX, HeaderY + 1, Constants.Colors.LightGray);
         for (int i = 0; i < octBoxes.Length; i++)
         {
             bool sel = selectedOctave == i + 1;
@@ -477,8 +473,11 @@ internal class SfxEditor : IEditor
                 sel ? Constants.Colors.Black : Constants.Colors.White);
         }
 
-        // Vertical volume fader (7 at the top, 0 at the bottom).
-        _api.print("VOL", VolFaderX, PaletteLabelY, Constants.Colors.White);
+        // Background bar behind the VOL/FX row.
+        _api.rectfill(0, PaletteRowY - 1, Constants.Screen.ResolutionX - 1, PaletteRowY + 7, Constants.Colors.DarkGray);
+
+        // Horizontal volume fader (0 at the left, 7 at the right).
+        _api.print("VOL", VolLabelX, PaletteRowY + 1, Constants.Colors.White);
         for (int v = 0; v < volCells.Length; v++)
         {
             var c = volCells[v];
@@ -487,10 +486,10 @@ internal class SfxEditor : IEditor
                    : Constants.Colors.Indigo;
             int fg = v == selectedVolume ? Constants.Colors.Black : Constants.Colors.White;
             _api.rectfill(c.X, c.Y, c.X + c.Width - 1, c.Y + c.Height - 1, bg);
-            _api.print(v.ToString(), c.X + 5, c.Y + 3, fg);
+            _api.print(v.ToString(), c.X + 2, c.Y + 1, fg);
         }
 
-        _api.print("FX", FxColX, PaletteLabelY, Constants.Colors.White);
+        _api.print("FX", FxLabelX, PaletteRowY + 1, Constants.Colors.White);
         for (int i = 0; i < effectButtons.Length; i++)
             effectButtons[i].Draw(_api, i == selectedEffect);
 
@@ -535,6 +534,8 @@ internal class SfxEditor : IEditor
 
     private void DrawHeader()
     {
+        _api.rectfill(0, HeaderY - 1, Constants.Screen.ResolutionX - 1, HeaderY + 7, Constants.Colors.DarkGray);
+
         DrawBox(idxPrevBox, "<", Constants.Colors.LightGray, Constants.Colors.Indigo);
         _api.print($"SFX{sfxIndex:D2}", 11, HeaderY + 1, Constants.Colors.White);
         DrawBox(idxNextBox, ">", Constants.Colors.LightGray, Constants.Colors.Indigo);
