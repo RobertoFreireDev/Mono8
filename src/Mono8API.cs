@@ -6,6 +6,7 @@ internal class Mono8API : IMono8API
     private static SfxEngine _sfxEngine = new SfxEngine();
     public static SpriteSheet SpriteSheet = new SpriteSheet();
     public static SfxSheet SfxSheet = new SfxSheet();
+    public static MusicSheet MusicSheet = new MusicSheet();
     public static MapSheet MapSheet = new MapSheet();
     private static string _folder = Constants.File.Folder;
     private EditorMenuBar _menuBar;
@@ -27,7 +28,9 @@ internal class Mono8API : IMono8API
         var sfxLines = FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Sfx, path));
         SfxSheet.LoadSfxs(sfxLines);
         _sfxEngine.LoadSfxs(sfxLines);
-        _sfxEngine.LoadMusicPatterns(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Music, path)));
+        var musicLines = FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Music, path));
+        MusicSheet.LoadMusic(musicLines);
+        _sfxEngine.LoadMusicPatterns(musicLines);
         IconSheet.LoadIcons(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.IconSheet, path)));
         SpriteSheet.LoadSprites(
             FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.SpriteSheet, path)),
@@ -43,13 +46,20 @@ internal class Mono8API : IMono8API
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Flags, string.Join("\n", SpriteSheet.ToFlagLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.MapSheet, string.Join("\n", MapSheet.ToMapLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Sfx, string.Join("\n", SfxSheet.ToSfxLines()), path);
+        FileIO.Write(Constants.File.Name, Constants.File.Extensions.Music, string.Join("\n", MusicSheet.ToMusicLines()), path);
     }
 
     /// <summary>Push the editor's current SFX edits into the live audio engine so previews reflect them.</summary>
     internal void SyncSfx(int index) => _sfxEngine.SetSfx(index, SfxSheet.ToSfxData(index));
 
+    /// <summary>Push the editor's current music-pattern edits into the live audio engine.</summary>
+    internal void SyncMusic(int index) => _sfxEngine.SetMusic(index, MusicSheet.ToMusicData(index));
+
     /// <summary>Note the engine is currently playing for <paramref name="index"/> (-1 if not playing); drives the editor playhead.</summary>
     internal int CurrentSfxNote(int index) => _sfxEngine.CurrentNote(index);
+
+    /// <summary>Music pattern the engine is currently playing (-1 if none); drives the Music editor's playing indicator.</summary>
+    internal int CurrentMusicPattern() => _sfxEngine.CurrentMusicPattern;
 
     public void Update(GameTime gameTime)
     {

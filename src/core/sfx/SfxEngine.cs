@@ -82,6 +82,19 @@ public sealed class SfxEngine : IDisposable
         }
     }
 
+    /// <summary>Replace a single music pattern in the bank (used by the Music editor after an edit).</summary>
+    public void SetMusic(int index, MusicData data)
+    {
+        if (index >= 0 && index < Constants.GameDataSizes.Music)
+            lock (_lock) _musicBank[index] = data;
+    }
+
+    /// <summary>Pattern the engine is currently playing (-1 if none); drives the Music editor's playing indicator.</summary>
+    public int CurrentMusicPattern
+    {
+        get { lock (_lock) return _currentMusicPattern; }
+    }
+
     // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
