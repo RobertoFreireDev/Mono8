@@ -437,7 +437,7 @@ internal class MusicEditor : IEditor
 
             // The currently playing pattern lights up white just below its number.
             if (p == playing)
-                _api.rectfill(box.X, box.Y + box.Height, box.X + box.Width - 1, box.Y + box.Height + 1, Constants.Colors.White);
+                _api.rectfill(box.X, box.Y + box.Height + 1, box.X + box.Width - 1, box.Y + box.Height + 1, Constants.Colors.Orange);
         }
     }
 

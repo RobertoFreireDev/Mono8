@@ -182,7 +182,11 @@ public sealed class SfxEngine : IDisposable
             }
 
             _musicChannelMask = channelMask;
-            _musicLoopStart = -1;
+            // The loop-back target is the nearest loop-start at or before the pattern we're
+            // starting on, not just whichever loop-start pattern happens to have been played —
+            // otherwise starting playback mid-sequence (e.g. at the loop-end pattern itself)
+            // never learns where to loop back to and just keeps counting forward.
+            _musicLoopStart = FindLoopStart(musicId);
             StartMusicPattern(musicId);
         }
     }
@@ -222,6 +226,16 @@ public sealed class SfxEngine : IDisposable
 
             StartMusicPattern(next);
         }
+    }
+
+    private int FindLoopStart(int patternId)
+    {
+        for (int p = patternId; p >= 0; p--)
+        {
+            if (_musicBank.TryGetValue(p, out var pattern) && pattern.IsLoopStart)
+                return p;
+        }
+        return -1;
     }
 
     private void StartMusicPattern(int patternId)
