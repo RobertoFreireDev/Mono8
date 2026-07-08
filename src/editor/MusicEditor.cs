@@ -82,7 +82,7 @@ internal class MusicEditor : IEditor
     private int selectedChannel = 0;
     private int selectedCell = 0;
     private int selectedPart = PartNote;
-    private readonly int[] scroll = new int[ChannelCount];
+    private readonly int[] scroll = new int[ChannelCount];   // each column scrolls independently
     private int playStartPattern = -1;
 
     public MusicEditor(IMono8API api)
@@ -151,6 +151,26 @@ internal class MusicEditor : IEditor
         UpdateChannels(mouse);
         UpdateNoteGrid(mouse);
         UpdateKeyboard();
+        UpdatePlaybackScroll();
+    }
+
+    // While playing, each column independently follows its own SFX playhead: it stays
+    // anchored at the top until the sounding note reaches the middle row, then scrolls
+    // down to keep that note pinned to mid height. When the SFX loops back the note
+    // returns near the top and the column re-centers as it passes the middle again.
+    private void UpdatePlaybackScroll()
+    {
+        if (Playing < 0) return;
+
+        for (int c = 0; c < ChannelCount; c++)
+        {
+            if (!Music.IsChannelOn(patternIndex, c)) continue;
+
+            int playNote = mono8.GameAPI.CurrentSfxNote(ChannelSfx(c));
+            if (playNote < 0) continue;
+
+            scroll[c] = Math.Clamp(playNote - VisibleRows / 2, 0, NoteCount - VisibleRows);
+        }
     }
 
     private void TogglePlayback()
@@ -164,6 +184,7 @@ internal class MusicEditor : IEditor
         {
             SyncAllMusic();
             playStartPattern = patternIndex;
+            Array.Clear(scroll, 0, scroll.Length);   // start each column at the first note of its SFX
             _api.music(patternIndex);
         }
     }
@@ -347,12 +368,11 @@ internal class MusicEditor : IEditor
         EnsureCellVisible();
     }
 
+    // Keep the selected note pinned to mid height of its own column once it scrolls
+    // past the middle row; above the middle the column stays anchored at the top.
     private void EnsureCellVisible()
     {
-        if (selectedCell < scroll[selectedChannel]) scroll[selectedChannel] = selectedCell;
-        else if (selectedCell > scroll[selectedChannel] + VisibleRows - 1)
-            scroll[selectedChannel] = selectedCell - (VisibleRows - 1);
-        scroll[selectedChannel] = Math.Clamp(scroll[selectedChannel], 0, NoteCount - VisibleRows);
+        scroll[selectedChannel] = Math.Clamp(selectedCell - VisibleRows / 2, 0, NoteCount - VisibleRows);
     }
 
     private void OpenSfxEditor(int sfx)
@@ -466,6 +486,14 @@ internal class MusicEditor : IEditor
         {
             int px = r.X + PartX[selectedPart];
             _api.rectfill(px, r.Y, px + PartW[selectedPart] - 1, r.Y + r.Height - 2, Constants.Colors.White);
+        }
+
+        // Playhead: light up the note this channel's SFX is currently sounding.
+        if (note == mono8.GameAPI.CurrentSfxNote(sfx))
+        {
+            int cx = r.X + PartX[PartNote];
+            int cw = PartX[PartFx] + PartW[PartFx] - PartX[PartNote];
+            _api.rectfill(cx, r.Y, cx + cw - 1, r.Y + r.Height - 2, Constants.Colors.Yellow);
         }
 
         int vol = Sfx.GetVolume(sfx, note);

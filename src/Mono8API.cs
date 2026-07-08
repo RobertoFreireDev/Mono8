@@ -23,7 +23,6 @@ internal class Mono8API : IMono8API
 
     internal void Load()
     {
-        _sfxEngine.Sfx(-1);
         var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
         var sfxLines = FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Sfx, path));
         SfxSheet.LoadSfxs(sfxLines);
@@ -37,6 +36,7 @@ internal class Mono8API : IMono8API
             FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Flags, path)));
         MapSheet.LoadMaps(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.MapSheet, path)));
         SaveData.Load(path);
+        _sfxEngine.Sfx(-1);
     }
 
     internal void Save()
