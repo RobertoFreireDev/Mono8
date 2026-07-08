@@ -16,6 +16,7 @@ internal class Mono8API : IMono8API
         Editors.Register(new SpriteEditor(this), 15, "Sprite");
         Editors.Register(new MapEditor(this), 16, "Map");
         Editors.Register(new SfxEditor(this), 17, "Sfx");
+        Editors.Register(new MusicEditor(this), 18, "Music");
         _menuBar = new EditorMenuBar(this, Editors);
     }
 
