@@ -36,8 +36,8 @@ internal class SfxEditor : IEditor
 
     private static readonly int[] WaveColors =
     {
-        Constants.Colors.Blue, Constants.Colors.Green, Constants.Colors.Yellow, Constants.Colors.Orange,
-        Constants.Colors.Red, Constants.Colors.Pink, Constants.Colors.Indigo, Constants.Colors.White,
+        Constants.Colors.Red, Constants.Colors.Orange, Constants.Colors.Yellow, Constants.Colors.Green,
+        Constants.Colors.Blue, Constants.Colors.Indigo, Constants.Colors.Pink, Constants.Colors.Peach,
     };
 
     // ── Alternate (tracker) view ───────────────────────────────────────────────
@@ -92,8 +92,7 @@ internal class SfxEditor : IEditor
     private readonly Rectangle spdBox = new(57, HeaderY, 15, 7);
     private readonly Rectangle loopStartBox = new(85, HeaderY, 12, 7);
     private readonly Rectangle loopEndBox = new(103, HeaderY, 12, 7);
-    private readonly Rectangle playBox = new(206, HeaderY, 20, 7);
-    private readonly Rectangle stopBox = new(228, HeaderY, 20, 7);
+    private const int WaveButtonsX = 122;
 
     private readonly Rectangle pitchRegion = new(RegionX, PitchTop, RegionW, PitchHeight);
     private readonly Rectangle volRegion = new(RegionX, VolTop, RegionW, VolHeight);
@@ -126,7 +125,7 @@ internal class SfxEditor : IEditor
         waveButtons = new Button[SfxSheet.WaveformCount];
         for (int i = 0; i < waveButtons.Length; i++)
         {
-            waveButtons[i] = new Button(2 + i * (Constants.GameDataSizes.TileSize + 1), WaveY,
+            waveButtons[i] = new Button(WaveButtonsX + i * (Constants.GameDataSizes.TileSize + 1), HeaderY,
                 Constants.GameDataSizes.TileSize, WaveformIconStart + i);
         }
 
@@ -414,15 +413,6 @@ internal class SfxEditor : IEditor
             if (_api.mouselp() || _api.mouseup()) { Sheet.SetLoopEnd(sfxIndex, Sheet.GetLoopEnd(sfxIndex) + 1); Sync(); }
             else if (_api.mouserp() || _api.mousedown()) { Sheet.SetLoopEnd(sfxIndex, Sheet.GetLoopEnd(sfxIndex) - 1); Sync(); }
         }
-        else if (playBox.Contains(mouse.x, mouse.y) && _api.mouselp())
-        {
-            Sync();
-            _api.sfx(sfxIndex);
-        }
-        else if (stopBox.Contains(mouse.x, mouse.y) && _api.mouselp())
-        {
-            _api.sfx(-1);
-        }
     }
 
     public void Draw()
@@ -448,29 +438,18 @@ internal class SfxEditor : IEditor
     {
         DrawHeader();
 
-        foreach (var button in waveButtons)
+        for (int i = 0; i < waveButtons.Length; i++)
         {
-            // highlight the selected waveform (Button dims non-selected via pal white->indigo)
-            button.Draw(_api, Array.IndexOf(waveButtons, button) == selectedWaveform);
+            if (i == selectedWaveform)
+            {
+                var b = waveButtons[i].Bounds;
+                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 1, WaveColor(i));
+            }
+            waveButtons[i].Draw(_api, i == selectedWaveform);
         }
 
         DrawPitchRegion();
         DrawVolumeRegion();
-        DrawPlayhead();
-    }
-
-    // White outline around the note the audio engine is currently on. Reading the engine's
-    // note index (instead of a frame counter) keeps it in sync at any FPS or SPD. Drawn last,
-    // full region height, so it shows over both bars and silent (bar-less) notes.
-    private void DrawPlayhead()
-    {
-        int playing = mono8.GameAPI.CurrentSfxNote(sfxIndex);
-        if (playing < 0 || playing >= NoteCount) return;
-
-        int x0 = ColLeft(playing);
-        int x1 = ColRight(playing);
-        _api.rect(x0, PitchTop, x1, PitchBottom, Constants.Colors.White);
-        _api.rect(x0, VolTop, x1, VolBottom, Constants.Colors.White);
     }
 
     private void DrawAltView()
@@ -478,7 +457,15 @@ internal class SfxEditor : IEditor
         DrawHeader();
 
         for (int i = 0; i < waveButtons.Length; i++)
+        {
+            if (i == selectedWaveform)
+            {
+                var b = waveButtons[i].Bounds;
+                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 1, WaveColor(i));
+            }
             waveButtons[i].Draw(_api, i == selectedWaveform);
+        }
+
 
         // Octave selector, on the same line as the waveforms.
         _api.print("OCT", 78, WaveY + 1, Constants.Colors.LightGray);
@@ -559,9 +546,6 @@ internal class SfxEditor : IEditor
         DrawBox(loopStartBox, Sheet.GetLoopStart(sfxIndex).ToString("D2"), Constants.Colors.LightGray, Constants.Colors.Indigo);
         _api.print("-", 98, HeaderY + 1, Constants.Colors.LightGray);
         DrawBox(loopEndBox, Sheet.GetLoopEnd(sfxIndex).ToString("D2"), Constants.Colors.LightGray, Constants.Colors.Indigo);
-
-        DrawBox(playBox, "PLAY", Constants.Colors.Green, Constants.Colors.Black);
-        DrawBox(stopBox, "STOP", Constants.Colors.Red, Constants.Colors.Black);
     }
 
     private void DrawBox(Rectangle b, string text, int bg, int fg)
@@ -574,15 +558,9 @@ internal class SfxEditor : IEditor
     {
         _api.rectfill(RegionX, PitchTop, RegionX + RegionW - 1, PitchBottom, Constants.Colors.Black);
 
-        var mouse = _api.mousexy();
-        if (pitchRegion.Contains(mouse.x, mouse.y))
-        {
-            int n = NoteUnderMouse(mouse.x);
-            _api.rectfill(ColLeft(n), PitchTop, ColRight(n), PitchBottom, Constants.Colors.DarkBlue);
-        }
-
         DrawLoopMarkers();
 
+        int playing = mono8.GameAPI.CurrentSfxNote(sfxIndex);
         for (int n = 0; n < NoteCount; n++)
         {
             int vol = Sheet.GetVolume(sfxIndex, n);
@@ -590,7 +568,8 @@ internal class SfxEditor : IEditor
 
             int pitch = Sheet.GetPitch(sfxIndex, n);
             int barH = (int)Math.Round(pitch / (float)SfxSheet.MaxPitch * (PitchHeight - 1)) + 1;
-            _api.rectfill(ColLeft(n), PitchBottom - barH + 1, ColRight(n) - BarGap, PitchBottom, WaveColor(Sheet.GetWaveform(sfxIndex, n)));
+            int color = n == playing ? Constants.Colors.White : WaveColor(Sheet.GetWaveform(sfxIndex, n));
+            _api.rectfill(ColLeft(n), PitchBottom - barH + 1, ColRight(n) - BarGap, PitchBottom, color);
         }
     }
 
@@ -613,13 +592,15 @@ internal class SfxEditor : IEditor
 
         _api.rectfill(RegionX, VolTop, RegionX + RegionW - 1, VolBottom, Constants.Colors.Black);
 
+        int playing = mono8.GameAPI.CurrentSfxNote(sfxIndex);
         for (int n = 0; n < NoteCount; n++)
         {
             int vol = Sheet.GetVolume(sfxIndex, n);
             if (vol <= 0) continue;
 
             int barH = (int)Math.Round(vol / (float)SfxSheet.MaxVolume * (VolHeight - 1)) + 1;
-            _api.rectfill(ColLeft(n), VolBottom - barH + 1, ColRight(n) - BarGap, VolBottom, WaveColor(Sheet.GetWaveform(sfxIndex, n)));
+            int color = n == playing ? Constants.Colors.White : WaveColor(Sheet.GetWaveform(sfxIndex, n));
+            _api.rectfill(ColLeft(n), VolBottom - barH + 1, ColRight(n) - BarGap, VolBottom, color);
         }
     }
 
