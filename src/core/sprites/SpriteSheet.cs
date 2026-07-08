@@ -210,9 +210,16 @@ internal class SpriteSheet
         x >= 0 && x < Constants.GameDataSizes.SpriteSheetX &&
         y >= 0 && y < Constants.GameDataSizes.SpriteSheetY;
 
+    // Sprite 0's tile (x:0-7, y:0-7) is reserved as the "empty" sentinel used by
+    // the map editor to mean "no sprite", so it's kept permanently blank here
+    // instead of being special-cased in SpriteEditor's input handling.
+    private static bool IsProtectedPos(int x, int y) =>
+        x >= 0 && x < Constants.GameDataSizes.TileSize &&
+        y >= 0 && y < Constants.GameDataSizes.TileSize;
+
     private bool TrySetPixelData(int x, int y, int colorIndex)
     {
-        if (!IsValidPos(x, y)) return false;
+        if (!IsValidPos(x, y) || IsProtectedPos(x, y)) return false;
 
         Data[y, x] = colorIndex;
         return true;
@@ -257,7 +264,7 @@ internal class SpriteSheet
 
     public void SetPixel(int x, int y, int colorIndex)
     {
-        if (!IsValidColor(colorIndex) || !IsValidPos(x, y)) return;
+        if (!IsValidColor(colorIndex) || !IsValidPos(x, y) || IsProtectedPos(x, y)) return;
         if (Data[y, x] == colorIndex) return;
 
         SaveSnapshot();
@@ -317,7 +324,7 @@ internal class SpriteSheet
 
     public void PaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex)
     {
-        if (!IsValidColor(colorIndex) || !IsValidPos(x, y)) return;
+        if (!IsValidColor(colorIndex) || !IsValidPos(x, y) || IsProtectedPos(x, y)) return;
 
         int regionMinX = Math.Max(regionX, 0);
         int regionMinY = Math.Max(regionY, 0);
@@ -336,7 +343,7 @@ internal class SpriteSheet
         void TryEnqueue(int px, int py)
         {
             if (px < regionMinX || px > regionMaxX || py < regionMinY || py > regionMaxY) return;
-            if (!IsValidPos(px, py) || Data[py, px] != targetColor) return;
+            if (!IsValidPos(px, py) || IsProtectedPos(px, py) || Data[py, px] != targetColor) return;
             Data[py, px] = colorIndex;
             queue.Enqueue((px, py));
         }

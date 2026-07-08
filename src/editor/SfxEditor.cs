@@ -188,8 +188,15 @@ internal class SfxEditor : IEditor
 
         if (KeybrdInput.JustPressed(Keys.Space))
         {
-            Sync();
-            _api.sfx(sfxIndex);
+            if (mono8.GameAPI.CurrentSfxNote(sfxIndex) >= 0)
+            {
+                _api.sfx(-1);
+            }
+            else
+            {
+                Sync();
+                _api.sfx(sfxIndex);
+            }
         }
 
         if (AltView)

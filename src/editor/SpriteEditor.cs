@@ -160,6 +160,25 @@ internal class SpriteEditor : IEditor
         }
     }
 
+    private void DrawEmptySpriteCross(int x, int y, int size)
+    {
+        const int steps = 5;
+        int blockW = size / steps;
+        int blockH = size / steps;
+        int offsetX = x + (size - steps * blockW) / 2;
+        int offsetY = y + (size - steps * blockH) / 2;
+        for (int i = 0; i < steps; i++)
+        {
+            int bx = offsetX + i * blockW;
+            // top-left to bottom-right diagonal
+            int by1 = offsetY + i * blockH;
+            _api.rectfill(bx, by1, bx + blockW - 1, by1 + blockH - 1, Constants.Colors.White);
+            // top-right to bottom-left diagonal
+            int by2 = offsetY + (steps - 1 - i) * blockH;
+            _api.rectfill(bx, by2, bx + blockW - 1, by2 + blockH - 1, Constants.Colors.White);
+        }
+    }
+
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
@@ -289,7 +308,7 @@ internal class SpriteEditor : IEditor
                 sprNmbr = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
             }
         }
-        else if (sprcnvsarea.Contains(mouse.x, mouse.y) && sprNmbr != 0)
+        else if (sprcnvsarea.Contains(mouse.x, mouse.y))
         {
             int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
             int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
@@ -587,21 +606,12 @@ internal class SpriteEditor : IEditor
 
         if (sprNmbr == 0)
         {
-            const int steps = 5;
-            int blockW = sprcnvsarea.Width / steps;
-            int blockH = sprcnvsarea.Height / steps;
-            int offsetX = sprcnvsarea.X + (sprcnvsarea.Width - steps * blockW) / 2;
-            int offsetY = sprcnvsarea.Y + (sprcnvsarea.Height - steps * blockH) / 2;
-            for (int i = 0; i < steps; i++)
-            {
-                int x = offsetX + i * blockW;
-                // top-left to bottom-right diagonal
-                int y1 = offsetY + i * blockH;
-                _api.rectfill(x, y1, x + blockW - 1, y1 + blockH - 1, Constants.Colors.Red);
-                // top-right to bottom-left diagonal
-                int y2 = offsetY + (steps - 1 - i) * blockH;
-                _api.rectfill(x, y2, x + blockW - 1, y2 + blockH - 1, Constants.Colors.Red);
-            }
+            DrawEmptySpriteCross(sprcnvsarea.X, sprcnvsarea.Y, Constants.GameDataSizes.TileSize * scale);
+        }
+
+        if (spritePage == 0)
+        {
+            DrawEmptySpriteCross(sprvwrarea.X, sprvwrarea.Y, Constants.GameDataSizes.TileSize);
         }
 
         _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
