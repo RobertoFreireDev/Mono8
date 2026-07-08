@@ -46,7 +46,8 @@ public sealed class SfxData
             int effect = HexNibble(hex, pos + 4);
             notes[i] = new SfxNote(pitch, waveform, volume, effect);
         }
-        return new SfxData(speed, loopStart, loopEnd, notes);
+        int defaultSpeed = 16;
+        return new SfxData(speed == 0 ? defaultSpeed : speed, loopStart, loopEnd, notes);
     }
 
     private static int HexByte(string s, int byteIdx) => Convert.ToInt32(s.Substring(byteIdx * 2, 2), 16);
