@@ -7,6 +7,7 @@ internal class MapEditor : IEditor
         Pixel,
         RectFill,
         RectDelete,
+        Hand,
     }
 
     private readonly IMono8API _api;
@@ -45,6 +46,13 @@ internal class MapEditor : IEditor
     private int dragStartCellX;
     private int dragStartCellY;
 
+    // --- Hand (pan) drag ---
+    private bool panning;
+    private int panStartMouseX;
+    private int panStartMouseY;
+    private int panStartCamX;
+    private int panStartCamY;
+
     // --- Hover position (shown on the tool/sprite-number/page-button row) ---
     private bool hoveringMap;
     private int hoverCellX;
@@ -81,6 +89,7 @@ internal class MapEditor : IEditor
             (new Button(0 * size, labelRowY - 1, size, 25), Tool.Pixel),
             (new Button(1 * size, labelRowY - 1, size, 23), Tool.RectFill),
             (new Button(2 * size, labelRowY - 1, size, 24), Tool.RectDelete),
+            (new Button(3 * size, labelRowY - 1, size, 26), Tool.Hand),
         };
     }
 
@@ -132,6 +141,32 @@ internal class MapEditor : IEditor
         if (dragging && !mapArea.Contains(mouse.x, mouse.y))
         {
             dragging = false;
+        }
+
+        if (selectedTool == Tool.Hand)
+        {
+            if (!panning && mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse) && _api.mouselp())
+            {
+                panning = true;
+                panStartMouseX = mouse.x;
+                panStartMouseY = mouse.y;
+                panStartCamX = camX;
+                panStartCamY = camY;
+            }
+            else if (panning && _api.mousel() && mapArea.Contains(mouse.x, mouse.y))
+            {
+                camX = panStartCamX + (panStartMouseX - mouse.x) / Constants.GameDataSizes.TileSize;
+                camY = panStartCamY + (panStartMouseY - mouse.y) / Constants.GameDataSizes.TileSize;
+                ClampCamera();
+            }
+            else
+            {
+                panning = false;
+            }
+        }
+        else
+        {
+            panning = false;
         }
 
         hoveringMap = mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse);
