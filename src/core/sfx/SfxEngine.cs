@@ -43,6 +43,9 @@ public sealed class SfxEngine : IDisposable
         }
     }
 
+    /// <summary>Replace a single SFX in the bank (used by the SFX editor after an edit).</summary>
+    public void SetSfx(int index, SfxData data) => LoadSfx(index, data);
+
     /// <summary>Parse and register a raw hex SFX string at <paramref name="index"/>.</summary>
     private void LoadSfx(int index, string hexSfx)
         => LoadSfx(index, SfxData.FromHex(hexSfx));
