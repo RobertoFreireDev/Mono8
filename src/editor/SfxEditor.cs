@@ -57,6 +57,19 @@ internal class SfxEditor : IEditor
     private static readonly int NoteColW =
         (Constants.Screen.ResolutionX - NoteColStart - 2 - (GridCols - 1) * NoteColGap) / GridCols;
 
+    // A note cell is split into clickable parts. Selecting a part decides what a key press edits:
+    // the note part is played from the piano keys; the rest take a digit from the number row.
+    private const int PartNote = 0;   // note name (2 chars) -> pitch via piano keys
+    private const int PartOct = 1;   // octave (1 digit)
+    private const int PartVol = 2;   // volume (1 digit)
+    private const int PartWave = 3;   // waveform (1 digit)
+    private const int PartFx = 4;   // effect (1 digit)
+    private const int PartCount = 5;
+
+    // X offset / width of each part inside a cell (relative to the cell's left edge).
+    private static readonly int[] PartX = { 3, 11, 19, 25, 31 };
+    private static readonly int[] PartW = { 8, 5, 6, 6, 6 };
+
     private static readonly string[] NoteNames =
     {
         "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-",
@@ -97,6 +110,7 @@ internal class SfxEditor : IEditor
     private int selectedVolume = DefaultPlaceVolume;
     private int selectedEffect = SfxEffect.None;
     private int selectedCell = 0;
+    private int selectedPart = PartNote;
 
     private int sfxIndex = 0;
 
@@ -263,11 +277,12 @@ internal class SfxEditor : IEditor
         for (int i = 0; i < effectButtons.Length; i++)
             if (effectButtons[i].IsClicked(_api, mouse)) selectedEffect = i;
 
-        // Note grid: left-click selects the cursor cell, right-click clears a note.
+        // Note grid: left-click selects the cursor cell (and the part clicked on),
+        // right-click clears a note.
         for (int cell = 0; cell < NoteCount; cell++)
         {
             if (!CellRect(cell).Contains(mouse.x, mouse.y)) continue;
-            if (_api.mouselp()) selectedCell = cell;
+            if (_api.mouselp()) { selectedCell = cell; selectedPart = PartUnderMouse(cell, mouse.x); }
             else if (_api.mouserp()) { Sheet.ClearNote(sfxIndex, cell); Sync(); }
         }
 
@@ -284,11 +299,58 @@ internal class SfxEditor : IEditor
             selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
         }
 
-        // Piano keys enter a note at the current octave/waveform/volume/effect.
-        foreach (var (key, semitone) in PianoKeys)
+        // Keyboard editing depends on which part of the cell is selected:
+        // the note part plays from the piano keys, every other part takes a number-row digit.
+        if (selectedPart == PartNote)
         {
-            if (KeybrdInput.JustPressed(key)) { EnterNote(semitone); break; }
+            foreach (var (key, semitone) in PianoKeys)
+                if (KeybrdInput.JustPressed(key)) { EnterNote(semitone); break; }
         }
+        else
+        {
+            int digit = JustPressedDigit();
+            if (digit >= 0) SetPartValue(selectedPart, digit);
+        }
+    }
+
+    // Number-row or numpad digit just pressed, or -1 if none.
+    private static int JustPressedDigit()
+    {
+        for (int d = 0; d <= 9; d++)
+            if (KeybrdInput.JustPressed(Keys.D0 + d) || KeybrdInput.JustPressed(Keys.NumPad0 + d))
+                return d;
+        return -1;
+    }
+
+    // Apply a typed digit to the selected part of the current cell. Out-of-range digits are ignored.
+    private void SetPartValue(int part, int digit)
+    {
+        switch (part)
+        {
+            case PartOct:
+                if (digit > SfxSheet.MaxPitch / 12) return;
+                int pitch = Sheet.GetPitch(sfxIndex, selectedCell);
+                Sheet.SetPitch(sfxIndex, selectedCell, Math.Clamp(digit * 12 + pitch % 12, 0, SfxSheet.MaxPitch));
+                break;
+            case PartVol:
+                if (digit > SfxSheet.MaxVolume) return;
+                if (digit > 0 && Sheet.GetVolume(sfxIndex, selectedCell) == 0)
+                    Sheet.SetWaveform(sfxIndex, selectedCell, selectedWaveform);
+                Sheet.SetVolume(sfxIndex, selectedCell, digit);
+                break;
+            case PartWave:
+                if (digit >= SfxSheet.WaveformCount) return;
+                Sheet.SetWaveform(sfxIndex, selectedCell, digit);
+                break;
+            case PartFx:
+                if (digit > SfxSheet.MaxEffect) return;
+                Sheet.SetEffect(sfxIndex, selectedCell, digit);
+                break;
+            default:
+                return;
+        }
+        Sync();
+        _api.sfx(sfxIndex, -1, selectedCell, 1);   // preview just this note
     }
 
     private void EnterNote(int semitone)
@@ -311,7 +373,20 @@ internal class SfxEditor : IEditor
     private Rectangle CellRect(int cell) =>
         new(NoteColX(CellCol(cell)), NoteRowY(CellRow(cell)), NoteColW, CellH);
 
-    private static string NoteLabel(int pitch) => NoteNames[pitch % 12] + (pitch / 12);
+    private Rectangle PartRect(int cell, int part)
+    {
+        var r = CellRect(cell);
+        return new Rectangle(r.X + PartX[part], r.Y, PartW[part], CellH - 1);
+    }
+
+    // Map a click's x within a cell to the nearest part (thresholds fill the gaps between parts).
+    private int PartUnderMouse(int cell, int mouseX)
+    {
+        int relX = mouseX - CellRect(cell).X;
+        for (int p = PartCount - 1; p >= 0; p--)
+            if (relX >= PartX[p]) return p;
+        return PartNote;
+    }
 
     private void UpdateHeader((int x, int y) mouse)
     {
@@ -432,24 +507,36 @@ internal class SfxEditor : IEditor
     private void DrawNoteCell(int cell)
     {
         var r = CellRect(cell);
-        if (cell == selectedCell)
+        bool cellSel = cell == selectedCell;
+        if (cellSel)
             _api.rectfill(r.X, r.Y, r.X + r.Width - 1, r.Y + r.Height - 1, Constants.Colors.DarkBlue);
 
-        int tx = r.X + 3;
-        int ty = r.Y + 3;
+        // Highlight the selected part behind its text.
+        if (cellSel)
+        {
+            var pr = PartRect(cell, selectedPart);
+            _api.rectfill(pr.X, pr.Y, pr.X + pr.Width - 1, pr.Y + pr.Height - 1, Constants.Colors.Blue);
+        }
 
         int vol = Sheet.GetVolume(sfxIndex, cell);
-        if (vol <= 0)
-        {
-            _api.print("---", tx, ty, Constants.Colors.DarkGray);
-            return;
-        }
+        bool active = vol > 0;
 
         int pitch = Sheet.GetPitch(sfxIndex, cell);
         int wf = Sheet.GetWaveform(sfxIndex, cell);
-        _api.print(NoteLabel(pitch), tx, ty, Constants.Colors.White);   // e.g. "G#1"
-        _api.print(wf.ToString(), tx + 12, ty, WaveColor(wf));          // waveform digit
-        _api.print(vol.ToString(), tx + 16, ty, Constants.Colors.LightGray);
+        int fx = Sheet.GetEffect(sfxIndex, cell);
+        int dim = Constants.Colors.DarkGray;
+
+        DrawPart(cell, PartNote, active ? NoteNames[pitch % 12] : "--", active ? Constants.Colors.White : dim);
+        DrawPart(cell, PartOct, active ? (pitch / 12).ToString() : "-", active ? Constants.Colors.White : dim);
+        DrawPart(cell, PartVol, active ? vol.ToString() : "-", active ? Constants.Colors.LightGray : dim);
+        DrawPart(cell, PartWave, active ? wf.ToString() : "-", active ? WaveColor(wf) : dim);
+        DrawPart(cell, PartFx, active ? fx.ToString() : "-", active ? Constants.Colors.LightGray : dim);
+    }
+
+    private void DrawPart(int cell, int part, string text, int color)
+    {
+        var pr = PartRect(cell, part);
+        _api.print(text, pr.X, pr.Y + 3, color);
     }
 
     private void DrawHeader()
