@@ -43,7 +43,7 @@ internal class SfxEditor : IEditor
     // ── Alternate (tracker) view ───────────────────────────────────────────────
     private const int OctaveCount = 4;           // selectable base octaves 1..4
     private const int EffectCount = 8;           // effects 0..7
-    private const int EffectIconStart = 38;      // effect icons occupy icon indices 38..45
+    private const int EffectIconStart = 47;      // effect icons occupy icon indices 47..54
     private const int GridRows = 8;
     private const int GridCols = 4;              // 8 rows x 4 cols = 32 notes
     private const int CellH = 12;
@@ -421,7 +421,6 @@ internal class SfxEditor : IEditor
             _api.print(v.ToString(), c.X + 5, c.Y + 3, fg);
         }
 
-        // Effect selector (icons 38..45).
         _api.print("FX", FxColX, PaletteLabelY, Constants.Colors.White);
         for (int i = 0; i < effectButtons.Length; i++)
             effectButtons[i].Draw(_api, i == selectedEffect);

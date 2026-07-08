@@ -152,3 +152,38 @@ Mouse wheel up/down over the sprite canvas zooms the canvas in/out.
 | `Ctrl+S` | Saves the project. |
 | `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction. |
 | `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction. |
+
+## SFX Editor
+
+Each SFX is 32 notes, and every note stores a pitch, a waveform, a volume and an effect. The editor has two views, toggled by the button in the top-left menu bar (only shown while the SFX editor is active):
+
+- **Primary view** — draw pitch and volume bars directly with the mouse.
+- **Alternate (tracker) view** — enter notes from the keyboard, PICO-8 tracker style.
+
+### Updating a note in the alternate view
+
+The alternate view lays the 32 notes out as an 8-row × 4-column grid, with palettes for the values applied to newly typed notes.
+
+1. **Toggle the alternate view** using the menu-bar button in the top-left.
+2. **Pick the value palettes** for the notes you are about to enter:
+   - Click a **waveform** icon to choose the instrument.
+   - Click an **OCT** box (1–4) to set the base octave.
+   - Click a cell in the **VOL** fader (7 at the top, 0 at the bottom) to set the volume.
+   - Click an **FX** icon (0–7) to set the effect.
+3. **Position the cursor** on the target cell — click a grid cell, or move with the arrow keys (`Up`/`Down` move within a column, `Left`/`Right` jump between columns).
+4. **Type a note** using the piano keys. This writes the note (pitch + selected waveform, volume and effect) into the cursor cell, previews it, then advances the cursor down one cell.
+5. **Clear a note** by right-clicking its cell, or by pressing `Delete`/`Backspace` on the cursor cell (which also advances the cursor).
+
+### SFX Editor Hotkeys
+
+| Key | Description |
+|---|---|
+| `Ctrl+S` | Saves the project. |
+| `Space` | Plays the current SFX. |
+| `Left`/`Right` | Primary view: selects the previous/next SFX index. |
+| `Arrow keys` | Alternate view: moves the note cursor (`Up`/`Down` within a column, `Left`/`Right` between columns). |
+| `Delete`/`Backspace` | Alternate view: clears the note at the cursor and advances it. |
+| `Z S X D C V G B H N J M , L .` | Alternate view: piano keys for the base octave (`Z` = root). |
+| `Q 2 W 3 E R 5 T 6 Y 7 U I` | Alternate view: piano keys one octave above the base. |
+
+The SFX index selector, speed (`SPD`), loop points (`LP`), and `PLAY`/`STOP` controls in the header are shared by both views. `PLAY` and loop/speed boxes also respond to the mouse wheel.
