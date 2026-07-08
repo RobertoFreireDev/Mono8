@@ -113,11 +113,15 @@ internal class MapEditor : IEditor
             eventNotifier.AddEvent("SAVED");
         }
 
-        // Pan the map viewport.
-        if (KeybrdInput.Pressed(Keys.Left)) camX -= 1;
-        if (KeybrdInput.Pressed(Keys.Right)) camX += 1;
-        if (KeybrdInput.Pressed(Keys.Up)) camY -= 1;
-        if (KeybrdInput.Pressed(Keys.Down)) camY += 1;
+        // Pan the map viewport. Holding Control moves 8 tiles at a time instead of one.
+        bool ctrlHeld = KeybrdInput.Pressed(Keys.LeftControl) || KeybrdInput.Pressed(Keys.RightControl);
+        int panStep = ctrlHeld ? 8 : 1;
+        int panStepX = panStep;
+        int panStepY = panStep;
+        if (KeybrdInput.Pressed(Keys.Left)) camX -= panStepX;
+        if (KeybrdInput.Pressed(Keys.Right)) camX += panStepX;
+        if (KeybrdInput.Pressed(Keys.Up)) camY -= panStepY;
+        if (KeybrdInput.Pressed(Keys.Down)) camY += panStepY;
         ClampCamera();
 
         var mouse = _api.mousexy();
