@@ -44,6 +44,11 @@ internal class MapEditor : IEditor
     private int dragStartCellX;
     private int dragStartCellY;
 
+    // --- Hover position (shown on the tool/sprite-number/page-button row) ---
+    private bool hoveringMap;
+    private int hoverCellX;
+    private int hoverCellY;
+
     public MapEditor(IMono8API api)
     {
         _api = api;
@@ -106,10 +111,10 @@ internal class MapEditor : IEditor
         }
 
         // Pan the map viewport.
-        if (KeybrdInput.JustPressed(Keys.Left)) camX -= 1;
-        if (KeybrdInput.JustPressed(Keys.Right)) camX += 1;
-        if (KeybrdInput.JustPressed(Keys.Up)) camY -= 1;
-        if (KeybrdInput.JustPressed(Keys.Down)) camY += 1;
+        if (KeybrdInput.Pressed(Keys.Left)) camX -= 1;
+        if (KeybrdInput.Pressed(Keys.Right)) camX += 1;
+        if (KeybrdInput.Pressed(Keys.Up)) camY -= 1;
+        if (KeybrdInput.Pressed(Keys.Down)) camY += 1;
         ClampCamera();
 
         var mouse = _api.mousexy();
@@ -120,8 +125,11 @@ internal class MapEditor : IEditor
             dragging = false;
         }
 
-        if (mapArea.Contains(mouse.x, mouse.y))
+        hoveringMap = mapArea.Contains(mouse.x, mouse.y);
+
+        if (hoveringMap)
         {
+            (hoverCellX, hoverCellY) = CellUnderMouse(mouse, mapArea);
             UpdateMapPainting(mouse, mapArea);
         }
         else if (!FullMapView && sprvwrarea.Contains(mouse.x, mouse.y))
@@ -206,6 +214,17 @@ internal class MapEditor : IEditor
 
         _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
 
+        if (hoveringMap)
+        {
+            const int charAdvance = 4;
+            const int rightMargin = 2;
+            string hoverText = $"X:{hoverCellX:D3} Y:{hoverCellY:D3}";
+            _api.print(hoverText,
+                Constants.Screen.ResolutionX - rightMargin - hoverText.Length * charAdvance,
+                BottomBarY + 1,
+                Constants.Colors.Indigo);
+        }
+
         if (!FullMapView)
         {
             DrawSpriteNavigator();
@@ -282,6 +301,7 @@ internal class MapEditor : IEditor
         {
             button.Draw(_api, tool == selectedTool);
         }
+
 
         for (int i = 0; i < pageButtons.Length; i++)
         {
