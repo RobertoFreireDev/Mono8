@@ -50,7 +50,7 @@ public static class Constants
 
     public static class File
     {
-        public const string Folder = "";
+        public const string Folder = "data";
 
         public const string Name = "data";
 
