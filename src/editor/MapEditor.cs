@@ -6,6 +6,7 @@ internal class MapEditor : IEditor
     {
         Pixel,
         RectFill,
+        RectDelete,
     }
 
     private readonly IMono8API _api;
@@ -79,6 +80,7 @@ internal class MapEditor : IEditor
         {
             (new Button(0 * size, labelRowY - 1, size, 25), Tool.Pixel),
             (new Button(1 * size, labelRowY - 1, size, 23), Tool.RectFill),
+            (new Button(2 * size, labelRowY - 1, size, 24), Tool.RectDelete),
         };
     }
 
@@ -192,7 +194,7 @@ internal class MapEditor : IEditor
         {
             if (_api.mousel()) _api.mset(cellX, cellY, sprNmbr);
         }
-        else if (selectedTool == Tool.RectFill)
+        else if (selectedTool == Tool.RectFill || selectedTool == Tool.RectDelete)
         {
             if (_api.mouselp())
             {
@@ -202,13 +204,14 @@ internal class MapEditor : IEditor
             }
             else if (dragging && _api.mouselr())
             {
-                ApplyRectFill(dragStartCellX, dragStartCellY, cellX, cellY);
+                int value = selectedTool == Tool.RectDelete ? 0 : sprNmbr;
+                ApplyRectFill(dragStartCellX, dragStartCellY, cellX, cellY, value);
                 dragging = false;
             }
         }
     }
 
-    private void ApplyRectFill(int x0, int y0, int x1, int y1)
+    private void ApplyRectFill(int x0, int y0, int x1, int y1, int value)
     {
         int minX = Math.Min(x0, x1);
         int minY = Math.Min(y0, y1);
@@ -217,7 +220,7 @@ internal class MapEditor : IEditor
 
         for (int y = minY; y <= maxY; y++)
             for (int x = minX; x <= maxX; x++)
-                _api.mset(x, y, sprNmbr);
+                _api.mset(x, y, value);
     }
 
     public void Draw()
@@ -259,7 +262,7 @@ internal class MapEditor : IEditor
         var mouse = _api.mousexy();
         if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
         {
-            if (dragging && selectedTool == Tool.RectFill)
+            if (dragging && (selectedTool == Tool.RectFill || selectedTool == Tool.RectDelete))
             {
                 var (cellX, cellY) = CellUnderMouse(mouse, mapArea);
                 int minX = Math.Min(dragStartCellX, cellX);
@@ -271,7 +274,7 @@ internal class MapEditor : IEditor
                 _api.rectfill(px, py,
                     px + (maxX - minX + 1) * size - 1,
                     py + (maxY - minY + 1) * size - 1,
-                    Constants.Colors.White);
+                    selectedTool == Tool.RectDelete ? Constants.Colors.Red : Constants.Colors.White);
             }
             else
             {
