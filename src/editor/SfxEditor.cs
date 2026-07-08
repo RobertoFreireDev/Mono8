@@ -150,6 +150,13 @@ internal class SfxEditor : IEditor
     {
     }
 
+    /// <summary>Open this editor on a specific SFX in the primary (non-alternate) view.</summary>
+    public void OpenSfx(int index)
+    {
+        AltView = false;
+        sfxIndex = ((index % SfxSheet.Count) + SfxSheet.Count) % SfxSheet.Count;
+    }
+
     private SfxSheet Sheet => Mono8API.SfxSheet;
 
     private void Sync() => mono8.GameAPI.SyncSfx(sfxIndex);
