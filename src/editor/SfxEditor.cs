@@ -34,14 +34,14 @@ internal class SfxEditor : IEditor
     private const int DefaultPlaceVolume = 5;
     private const int WaveformIconStart = 32;   // waveform icons occupy icon indices 32..39
 
-    private static readonly int[] WaveColors =
+    private static readonly int[] PaletteColors =
     {
         Constants.Colors.Red, Constants.Colors.Orange, Constants.Colors.Yellow, Constants.Colors.Green,
         Constants.Colors.Blue, Constants.Colors.Indigo, Constants.Colors.Pink, Constants.Colors.Peach,
     };
 
     // ── Alternate (tracker) view ───────────────────────────────────────────────
-    private const int OctaveCount = 4;           // selectable base octaves 1..4
+    private const int OctaveCount = 5;           // selectable base octaves 1..5
     private const int EffectCount = 8;           // effects 0..7
     private const int EffectIconStart = 47;      // effect icons occupy icon indices 47..54
     private const int GridRows = 8;
@@ -298,8 +298,16 @@ internal class SfxEditor : IEditor
         // Cursor navigation (down a column, then across to the next column).
         if (KeybrdInput.JustPressed(Keys.Up)) selectedCell = Math.Max(0, selectedCell - 1);
         if (KeybrdInput.JustPressed(Keys.Down)) selectedCell = Math.Min(NoteCount - 1, selectedCell + 1);
-        if (KeybrdInput.JustPressed(Keys.Left)) selectedCell = Math.Max(0, selectedCell - GridRows);
-        if (KeybrdInput.JustPressed(Keys.Right)) selectedCell = Math.Min(NoteCount - 1, selectedCell + GridRows);
+        if (KeybrdInput.JustPressed(Keys.Left))
+        {
+            if (selectedPart > 0) selectedPart--;
+            else if (selectedCell - GridRows >= 0) { selectedCell -= GridRows; selectedPart = PartCount - 1; }
+        }
+        if (KeybrdInput.JustPressed(Keys.Right))
+        {
+            if (selectedPart < PartCount - 1) selectedPart++;
+            else if (selectedCell + GridRows < NoteCount) { selectedCell += GridRows; selectedPart = 0; }
+        }
 
         if (KeybrdInput.JustPressed(Keys.Delete) || KeybrdInput.JustPressed(Keys.Back))
         {
@@ -337,7 +345,7 @@ internal class SfxEditor : IEditor
         switch (part)
         {
             case PartOct:
-                if (digit > SfxSheet.MaxPitch / 12) return;
+                if (digit < 1 || digit > OctaveCount) return;
                 int pitch = Sheet.GetPitch(sfxIndex, selectedCell);
                 Sheet.SetPitch(sfxIndex, selectedCell, Math.Clamp(digit * 12 + pitch % 12, 0, SfxSheet.MaxPitch));
                 break;
@@ -452,7 +460,7 @@ internal class SfxEditor : IEditor
             if (i == selectedWaveform)
             {
                 var b = waveButtons[i].Bounds;
-                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 2, WaveColor(i));
+                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 2, PaletteColor(i));
             }
             waveButtons[i].Draw(_api, i == selectedWaveform);
         }
@@ -469,7 +477,7 @@ internal class SfxEditor : IEditor
         {
             bool sel = selectedOctave == i + 1;
             DrawBox(octBoxes[i], (i + 1).ToString(),
-                sel ? Constants.Colors.Green : Constants.Colors.Indigo,
+                sel ? PaletteColor(i) : Constants.Colors.Indigo,
                 sel ? Constants.Colors.Black : Constants.Colors.White);
         }
 
@@ -481,17 +489,23 @@ internal class SfxEditor : IEditor
         for (int v = 0; v < volCells.Length; v++)
         {
             var c = volCells[v];
-            int bg = v == selectedVolume ? Constants.Colors.Green
-                   : v < selectedVolume ? Constants.Colors.DarkGray
-                   : Constants.Colors.Indigo;
-            int fg = v == selectedVolume ? Constants.Colors.Black : Constants.Colors.White;
+            bool sel = v == selectedVolume;
+            int bg = sel ? PaletteColor(v) : Constants.Colors.Indigo;
+            int fg = sel ? Constants.Colors.Black : Constants.Colors.White;
             _api.rectfill(c.X, c.Y, c.X + c.Width - 1, c.Y + c.Height - 1, bg);
             _api.print(v.ToString(), c.X + 2, c.Y + 1, fg);
         }
 
         _api.print("FX", FxLabelX, PaletteRowY + 1, Constants.Colors.White);
         for (int i = 0; i < effectButtons.Length; i++)
+        {
+            if (i == selectedEffect)
+            {
+                var b = effectButtons[i].Bounds;
+                _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 2, PaletteColor(i));
+            }
             effectButtons[i].Draw(_api, i == selectedEffect);
+        }
 
         for (int cell = 0; cell < NoteCount; cell++)
             DrawNoteCell(cell);
@@ -508,22 +522,23 @@ internal class SfxEditor : IEditor
         if (cellSel)
         {
             var pr = PartRect(cell, selectedPart);
-            _api.rectfill(pr.X, pr.Y, pr.X + pr.Width - 1, pr.Y + pr.Height - 1, Constants.Colors.Blue);
+            _api.rectfill(pr.X, pr.Y, pr.X + pr.Width - 1, pr.Y + pr.Height - 1, Constants.Colors.White);
         }
 
         int vol = Sheet.GetVolume(sfxIndex, cell);
         bool active = vol > 0;
 
         int pitch = Sheet.GetPitch(sfxIndex, cell);
+        int oct = pitch / 12;
         int wf = Sheet.GetWaveform(sfxIndex, cell);
         int fx = Sheet.GetEffect(sfxIndex, cell);
         int dim = Constants.Colors.DarkGray;
 
-        DrawPart(cell, PartNote, active ? NoteNames[pitch % 12] : "--", active ? Constants.Colors.White : dim);
-        DrawPart(cell, PartOct, active ? (pitch / 12).ToString() : "-", active ? Constants.Colors.White : dim);
-        DrawPart(cell, PartVol, active ? vol.ToString() : "-", active ? Constants.Colors.LightGray : dim);
-        DrawPart(cell, PartWave, active ? wf.ToString() : "-", active ? WaveColor(wf) : dim);
-        DrawPart(cell, PartFx, active ? fx.ToString() : "-", active ? Constants.Colors.LightGray : dim);
+        DrawPart(cell, PartNote, active ? NoteNames[pitch % 12] : "--", active ? Constants.Colors.Blue : dim);
+        DrawPart(cell, PartOct, active ? oct.ToString() : "-", active ? PaletteColor(oct) : dim);
+        DrawPart(cell, PartVol, active ? vol.ToString() : "-", active ? PaletteColor(vol) : dim);
+        DrawPart(cell, PartWave, active ? wf.ToString() : "-", active ? PaletteColor(wf) : dim);
+        DrawPart(cell, PartFx, active ? fx.ToString() : "-", active ? PaletteColor(fx) : dim);
     }
 
     private void DrawPart(int cell, int part, string text, int color)
@@ -569,7 +584,7 @@ internal class SfxEditor : IEditor
 
             int pitch = Sheet.GetPitch(sfxIndex, n);
             int barH = (int)Math.Round(pitch / (float)SfxSheet.MaxPitch * (PitchHeight - 1)) + 1;
-            int color = n == playing ? Constants.Colors.White : WaveColor(Sheet.GetWaveform(sfxIndex, n));
+            int color = n == playing ? Constants.Colors.White : PaletteColor(Sheet.GetWaveform(sfxIndex, n));
             _api.rectfill(ColLeft(n), PitchBottom - barH + 1, ColRight(n) - BarGap, PitchBottom, color);
         }
     }
@@ -600,10 +615,10 @@ internal class SfxEditor : IEditor
             if (vol <= 0) continue;
 
             int barH = (int)Math.Round(vol / (float)SfxSheet.MaxVolume * (VolHeight - 1)) + 1;
-            int color = n == playing ? Constants.Colors.White : WaveColor(Sheet.GetWaveform(sfxIndex, n));
+            int color = n == playing ? Constants.Colors.White : PaletteColor(Sheet.GetWaveform(sfxIndex, n));
             _api.rectfill(ColLeft(n), VolBottom - barH + 1, ColRight(n) - BarGap, VolBottom, color);
         }
     }
 
-    private static int WaveColor(int waveform) => WaveColors[waveform & 7];
+    private static int PaletteColor(int index) => PaletteColors[index & 7];
 }
