@@ -13,13 +13,15 @@ internal class MusicEditor : IEditor
 
     // ── Pattern-index strip ─────────────────────────────────────────────────────
     private const int HeaderY = 9;
-    private const int VisiblePatterns = 5;
     private const int PatBoxW = 13;
     private const int PatBoxH = 7;
     private const int PatBoxGap = 1;
     private const int PatBoxStartX = 11;   // right after the "<" arrow
+    private const int NextArrowW = 7;
+    private const int StripRightMargin = 4;   // gap kept between the ">" arrow and the loop/stop buttons
+    private readonly int VisiblePatterns;   // computed so the strip fills the space before the loop controls
     private readonly Rectangle prevArrow = new(2, HeaderY, 7, 7);
-    private readonly Rectangle nextArrow = new(PatBoxStartX + VisiblePatterns * (PatBoxW + PatBoxGap), HeaderY, 7, 7);
+    private readonly Rectangle nextArrow;
 
     // ── Loop controls (top-right) ───────────────────────────────────────────────
     private const int LoopStartIcon = 55;
@@ -93,6 +95,11 @@ internal class MusicEditor : IEditor
         int size = Constants.GameDataSizes.TileSize;
         int loopY = HeaderY - 1;
         int startX = Constants.Screen.ResolutionX - 2 - (3 * size + 2);
+
+        int availableW = startX - StripRightMargin - PatBoxStartX - NextArrowW;
+        VisiblePatterns = Math.Max(1, availableW / (PatBoxW + PatBoxGap));
+        nextArrow = new Rectangle(PatBoxStartX + VisiblePatterns * (PatBoxW + PatBoxGap), HeaderY, NextArrowW, 7);
+
         loopStartBtn = new Button(startX, loopY, size, LoopStartIcon);
         loopEndBtn = new Button(startX + size + 1, loopY, size, LoopEndIcon);
         stopBtn = new Button(startX + 2 * (size + 1), loopY, size, StopIcon);
@@ -195,11 +202,20 @@ internal class MusicEditor : IEditor
         }
         else
         {
+            if (!PatternHasActiveChannel(patternIndex)) return;
+
             SyncAllMusic();
             playStartPattern = patternIndex;
             Array.Clear(scroll, 0, scroll.Length);   // start each column at the first note of its SFX
             _api.music(patternIndex);
         }
+    }
+
+    private bool PatternHasActiveChannel(int pattern)
+    {
+        for (int c = 0; c < ChannelCount; c++)
+            if (Music.IsChannelOn(pattern, c)) return true;
+        return false;
     }
 
     private void ChangePattern(int delta)
