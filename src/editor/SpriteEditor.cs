@@ -587,14 +587,21 @@ internal class SpriteEditor : IEditor
 
         if (sprNmbr == 0)
         {
-            _api.line(sprcnvsarea.X, sprcnvsarea.Y,
-                sprcnvsarea.X + sprcnvsarea.Width - 1,
-                sprcnvsarea.Y + sprcnvsarea.Height - 1,
-                Constants.Colors.Red);
-            _api.line(sprcnvsarea.X + sprcnvsarea.Width - 1, sprcnvsarea.Y,
-                sprcnvsarea.X,
-                sprcnvsarea.Y + sprcnvsarea.Height - 1,
-                Constants.Colors.Red);
+            const int steps = 5;
+            int blockW = sprcnvsarea.Width / steps;
+            int blockH = sprcnvsarea.Height / steps;
+            int offsetX = sprcnvsarea.X + (sprcnvsarea.Width - steps * blockW) / 2;
+            int offsetY = sprcnvsarea.Y + (sprcnvsarea.Height - steps * blockH) / 2;
+            for (int i = 0; i < steps; i++)
+            {
+                int x = offsetX + i * blockW;
+                // top-left to bottom-right diagonal
+                int y1 = offsetY + i * blockH;
+                _api.rectfill(x, y1, x + blockW - 1, y1 + blockH - 1, Constants.Colors.Red);
+                // top-right to bottom-left diagonal
+                int y2 = offsetY + (steps - 1 - i) * blockH;
+                _api.rectfill(x, y2, x + blockW - 1, y2 + blockH - 1, Constants.Colors.Red);
+            }
         }
 
         _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
