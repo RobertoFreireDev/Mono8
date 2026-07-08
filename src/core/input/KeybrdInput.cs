@@ -17,6 +17,11 @@ public static class KeybrdInput
         return Released(Keys.F2);
     }
 
+    public static bool IsCtrlPressed()
+    {
+        return Pressed(Keys.LeftControl) || Pressed(Keys.RightControl);
+    }
+
     public static bool IsSaveShortcutPressed()
     {
         return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.S);

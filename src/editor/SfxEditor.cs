@@ -325,15 +325,20 @@ internal class SfxEditor : IEditor
 
         // Keyboard editing depends on which part of the cell is selected:
         // the note part plays from the piano keys, every other part takes a number-row digit.
-        if (selectedPart == PartNote)
+        // Skip while Ctrl is held so shortcut keys (Ctrl+S, Ctrl+Z, ...) that overlap with
+        // piano/digit keys aren't also interpreted as note input.
+        if (!KeybrdInput.IsCtrlPressed())
         {
-            foreach (var (key, semitone) in PianoKeys)
-                if (KeybrdInput.JustPressed(key)) { EnterNote(semitone); break; }
-        }
-        else
-        {
-            int digit = JustPressedDigit();
-            if (digit >= 0) SetPartValue(selectedPart, digit);
+            if (selectedPart == PartNote)
+            {
+                foreach (var (key, semitone) in PianoKeys)
+                    if (KeybrdInput.JustPressed(key)) { EnterNote(semitone); break; }
+            }
+            else
+            {
+                int digit = JustPressedDigit();
+                if (digit >= 0) SetPartValue(selectedPart, digit);
+            }
         }
     }
 

@@ -315,6 +315,10 @@ internal class MusicEditor : IEditor
             return;
         }
 
+        // Skip while Ctrl is held so shortcut keys (Ctrl+S, Ctrl+Z, ...) that overlap with
+        // piano/digit keys aren't also interpreted as note input.
+        if (KeybrdInput.IsCtrlPressed()) return;
+
         if (selectedPart == PartNote)
         {
             foreach (var (key, semitone) in PianoKeys)
