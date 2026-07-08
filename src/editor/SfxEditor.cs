@@ -64,8 +64,8 @@ internal class SfxEditor : IEditor
     // the note part is played from the piano keys; the rest take a digit from the number row.
     private const int PartNote = 0;   // note name (2 chars) -> pitch via piano keys
     private const int PartOct = 1;   // octave (1 digit)
-    private const int PartVol = 2;   // volume (1 digit)
-    private const int PartWave = 3;   // waveform (1 digit)
+    private const int PartWave = 2;   // waveform (1 digit)
+    private const int PartVol = 3;   // volume (1 digit)
     private const int PartFx = 4;   // effect (1 digit)
     private const int PartCount = 5;
 
@@ -368,6 +368,7 @@ internal class SfxEditor : IEditor
         }
         Sync();
         _api.sfx(sfxIndex, -1, selectedCell, 1);   // preview just this note
+        selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
     }
 
     private void EnterNote(int semitone)
@@ -536,8 +537,8 @@ internal class SfxEditor : IEditor
 
         DrawPart(cell, PartNote, active ? NoteNames[pitch % 12] : "--", active ? Constants.Colors.Blue : dim);
         DrawPart(cell, PartOct, active ? oct.ToString() : "-", active ? PaletteColor(oct) : dim);
-        DrawPart(cell, PartVol, active ? vol.ToString() : "-", active ? PaletteColor(vol) : dim);
         DrawPart(cell, PartWave, active ? wf.ToString() : "-", active ? PaletteColor(wf) : dim);
+        DrawPart(cell, PartVol, active ? vol.ToString() : "-", active ? PaletteColor(vol) : dim);
         DrawPart(cell, PartFx, active ? fx.ToString() : "-", active ? PaletteColor(fx) : dim);
     }
 
