@@ -289,7 +289,7 @@ internal class SpriteEditor : IEditor
                 sprNmbr = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
             }
         }
-        else if (sprcnvsarea.Contains(mouse.x, mouse.y))
+        else if (sprcnvsarea.Contains(mouse.x, mouse.y) && sprNmbr != 0)
         {
             int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
             int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
@@ -583,6 +583,18 @@ internal class SpriteEditor : IEditor
         if (shapePreview.HasPixels)
         {
             shapePreview.Draw(_api, regionX, regionY, sprcnvsarea.X, sprcnvsarea.Y, scale);
+        }
+
+        if (sprNmbr == 0)
+        {
+            _api.line(sprcnvsarea.X, sprcnvsarea.Y,
+                sprcnvsarea.X + sprcnvsarea.Width - 1,
+                sprcnvsarea.Y + sprcnvsarea.Height - 1,
+                Constants.Colors.Red);
+            _api.line(sprcnvsarea.X + sprcnvsarea.Width - 1, sprcnvsarea.Y,
+                sprcnvsarea.X,
+                sprcnvsarea.Y + sprcnvsarea.Height - 1,
+                Constants.Colors.Red);
         }
 
         _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
