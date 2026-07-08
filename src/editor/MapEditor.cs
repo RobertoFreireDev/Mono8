@@ -86,9 +86,12 @@ internal class MapEditor : IEditor
     {
     }
 
+    // In split view, this rounds up (+1) so the map fills the gap down to the button row
+    // instead of leaving a partial-tile strip; Update() excludes the button rects from
+    // hoveringMap so that overlapping row still lets clicks reach the tool/page buttons.
     private int MapRows => FullMapView
         ? (BottomBarY - MapTop) / Constants.GameDataSizes.TileSize
-        : (labelRowY - MapTop) / Constants.GameDataSizes.TileSize;
+        : (labelRowY - MapTop + Constants.GameDataSizes.TileSize - 1) / Constants.GameDataSizes.TileSize;
 
     private Rectangle MapArea => new Rectangle(0, MapTop,
         MapCols * Constants.GameDataSizes.TileSize,
@@ -125,7 +128,7 @@ internal class MapEditor : IEditor
             dragging = false;
         }
 
-        hoveringMap = mapArea.Contains(mouse.x, mouse.y);
+        hoveringMap = mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse);
 
         if (hoveringMap)
         {
@@ -164,6 +167,11 @@ internal class MapEditor : IEditor
             }
         }
     }
+
+    // The extra (rounded-up) map row can overlap the dark grey tool/page-button row;
+    // that whole row must keep taking priority over map hover/painting.
+    private bool IsOverButtonRow((int x, int y) mouse) =>
+        !FullMapView && mouse.y >= labelRowY - 1;
 
     private (int cellX, int cellY) CellUnderMouse((int x, int y) mouse, Rectangle mapArea)
     {
@@ -245,7 +253,7 @@ internal class MapEditor : IEditor
         _api.map(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows);
 
         var mouse = _api.mousexy();
-        if (mapArea.Contains(mouse.x, mouse.y))
+        if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
         {
             if (dragging && selectedTool == Tool.RectFill)
             {
@@ -292,11 +300,8 @@ internal class MapEditor : IEditor
                 Constants.Colors.Black);
         }
 
-        // Dark grey backs the tool / sprite-number / page-button row, and is extended
-        // up to the map's actual (tile-aligned) bottom edge to close the leftover gap
-        // without changing any click/hover hit-test rectangles.
-        int mapBottom = MapTop + MapRows * Constants.GameDataSizes.TileSize;
-        _api.rectfill(0, mapBottom,
+        // Dark grey backs only the tool / sprite-number / page-button row.
+        _api.rectfill(0, labelRowY - 1,
             Constants.Screen.ResolutionX, labelRowY - 2 + Constants.GameDataSizes.TileSize,
             Constants.Colors.DarkGray);
 
