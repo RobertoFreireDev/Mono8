@@ -57,6 +57,10 @@ internal class SfxEditor : IEditor
 
     private int sfxIndex = 0;
 
+    // Set by the menu bar toggle (top-left, only shown while the sfx editor is active).
+    // false = primary pitch/volume view (below); true = the alternate view.
+    public bool AltView { get; set; }
+
     public SfxEditor(IMono8API api)
     {
         _api = api;
@@ -120,6 +124,17 @@ internal class SfxEditor : IEditor
             _api.sfx(sfxIndex);
         }
 
+        if (AltView)
+        {
+            UpdateAltView();
+            return;
+        }
+
+        UpdatePrimaryView();
+    }
+
+    private void UpdatePrimaryView()
+    {
         var mouse = _api.mousexy();
 
         if (pitchRegion.Contains(mouse.x, mouse.y))
@@ -171,6 +186,11 @@ internal class SfxEditor : IEditor
         }
     }
 
+    // The alternate view — to be built next.
+    private void UpdateAltView()
+    {
+    }
+
     private void UpdateHeader((int x, int y) mouse)
     {
         if (idxPrevBox.Contains(mouse.x, mouse.y) && _api.mouselp()) ChangeIndex(-1);
@@ -206,6 +226,22 @@ internal class SfxEditor : IEditor
         _api.rectfill(0, Constants.GameDataSizes.TileSize,
             Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Black);
 
+        if (AltView)
+        {
+            DrawAltView();
+        }
+        else
+        {
+            DrawPrimaryView();
+        }
+
+        _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
+
+        eventNotifier.Draw();
+    }
+
+    private void DrawPrimaryView()
+    {
         DrawHeader();
 
         foreach (var button in waveButtons)
@@ -216,10 +252,11 @@ internal class SfxEditor : IEditor
 
         DrawPitchRegion();
         DrawVolumeRegion();
+    }
 
-        _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
-
-        eventNotifier.Draw();
+    // The alternate view — to be built next.
+    private void DrawAltView()
+    {
     }
 
     private void DrawHeader()

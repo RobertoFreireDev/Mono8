@@ -4,11 +4,14 @@ internal class EditorMenuBar
 {
     private const int MapViewSplitIcon = 13;
     private const int MapViewFullIcon = 14;
+    private const int SfxViewPrimaryIcon = 30;
+    private const int SfxViewAltIcon = 31;
 
     private readonly IMono8API _api;
     private readonly EditorRegistry _registry;
     private readonly Button[] _buttons;
     private readonly Button _mapViewToggle;
+    private readonly Button _sfxViewToggle;
 
     public Rectangle Bounds { get; }
 
@@ -19,7 +22,8 @@ internal class EditorMenuBar
 
         int size = Constants.GameDataSizes.TileSize;
         Bounds = new Rectangle(0, 0, Constants.Screen.ResolutionX, size);
-        _mapViewToggle = new Button(0, 0, size, MapViewSplitIcon);
+        _mapViewToggle = new Button(2, 0, size, MapViewSplitIcon);
+        _sfxViewToggle = new Button(2, 0, size, SfxViewPrimaryIcon);
 
         int count = registry.Entries.Count;
         int startX = Constants.Screen.ResolutionX - count * size;
@@ -37,6 +41,12 @@ internal class EditorMenuBar
         if (_registry.Active is MapEditor mapEditor && _mapViewToggle.IsClicked(_api, mouse))
         {
             mapEditor.FullMapView = !mapEditor.FullMapView;
+            return;
+        }
+
+        if (_registry.Active is SfxEditor sfxEditor && _sfxViewToggle.IsClicked(_api, mouse))
+        {
+            sfxEditor.AltView = !sfxEditor.AltView;
             return;
         }
 
@@ -63,6 +73,11 @@ internal class EditorMenuBar
         {
             _mapViewToggle.IconIndex = mapEditor.FullMapView ? MapViewFullIcon : MapViewSplitIcon;
             _mapViewToggle.Draw(_api, mapEditor.FullMapView);
+        }
+        else if (_registry.Active is SfxEditor sfxEditor)
+        {
+            _sfxViewToggle.IconIndex = sfxEditor.AltView ? SfxViewAltIcon : SfxViewPrimaryIcon;
+            _sfxViewToggle.Draw(_api, sfxEditor.AltView);
         }
     }
 }

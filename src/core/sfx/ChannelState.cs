@@ -152,7 +152,9 @@ internal sealed class ChannelState : IDisposable
         _sampleInNote = 0;
         _noteIndex = GetNextNoteIndex(_noteIndex);
 
-        if (_noteIndex >= _noteOffset + _noteLength)
+        // A looping SFX never runs off the end — it wraps in GetNextNoteIndex and
+        // plays until it's explicitly stopped (sfx(-1) / sfx(n,-1) / channel reuse).
+        if (!_sfx.HasLoop && _noteIndex >= _noteOffset + _noteLength)
         {
             Stop();
         }
@@ -162,6 +164,9 @@ internal sealed class ChannelState : IDisposable
     {
         if (_sfx == null) return i + 1;
         int next = i + 1;
+        // Jump back to LoopStart once we pass the (exclusive) LoopEnd bound.
+        if (_sfx.HasLoop && next >= _sfx.LoopEnd)
+            next = _sfx.LoopStart;
         return next;
     }
 
