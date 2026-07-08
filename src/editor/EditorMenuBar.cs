@@ -52,7 +52,7 @@ internal class EditorMenuBar
 
     public void Draw()
     {
-        _api.rectfill(0, 0, Constants.Screen.ResolutionX, Bounds.Height, Constants.Colors.Orange);
+        _api.rectfill(0, 0, Constants.Screen.ResolutionX, Bounds.Height - 1, Constants.Colors.Orange);
 
         for (int i = 0; i < _buttons.Length; i++)
         {

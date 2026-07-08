@@ -292,8 +292,11 @@ internal class MapEditor : IEditor
                 Constants.Colors.Black);
         }
 
-        // Dark grey backs only the tool / sprite-number / page-button row.
-        _api.rectfill(0, labelRowY - 1,
+        // Dark grey backs the tool / sprite-number / page-button row, and is extended
+        // up to the map's actual (tile-aligned) bottom edge to close the leftover gap
+        // without changing any click/hover hit-test rectangles.
+        int mapBottom = MapTop + MapRows * Constants.GameDataSizes.TileSize;
+        _api.rectfill(0, mapBottom,
             Constants.Screen.ResolutionX, labelRowY - 2 + Constants.GameDataSizes.TileSize,
             Constants.Colors.DarkGray);
 

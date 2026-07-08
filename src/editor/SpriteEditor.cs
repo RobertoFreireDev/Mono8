@@ -552,7 +552,7 @@ internal class SpriteEditor : IEditor
              SprY + 1 + Constants.GameDataSizes.TileSize * Zooms[SprSclIdx],
              Constants.Colors.Black);
         }
-        _api.rectfill(0, Constants.GameDataSizes.TileSize + 1,
+        _api.rectfill(0, Constants.GameDataSizes.TileSize,
             Constants.Screen.ResolutionX, 85, Constants.Colors.DarkGray);
         _api.rectfill(sprcnvsarea.X -1, sprcnvsarea.Y - 1,
             sprcnvsarea.X + sprcnvsarea.Width,
