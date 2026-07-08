@@ -275,6 +275,16 @@ public sealed class SfxEngine : IDisposable
             int passNotes = sfxData.HasLoop ? sfxData.LoopEnd : sfxData.Notes.Count;
             _patternLengthSamples = Math.Max(_patternLengthSamples, (long)passNotes * samplesPerNote);
         }
+
+        // A pattern with no channel enabled has nothing to play and no way to measure
+        // elapsed time (_patternLengthSamples stays 0), so it would otherwise advance
+        // every tick instead of stopping.
+        bool anyActive = false;
+        for (int ch = 0; ch < NumChannels; ch++)
+            anyActive |= _musicChannelActive[ch];
+
+        if (!anyActive)
+            StopMusic();
     }
 
     private void StopMusic()

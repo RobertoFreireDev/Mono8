@@ -167,7 +167,16 @@ internal class MusicEditor : IEditor
     // wherever the user last clicked.
     private void UpdatePlaybackPattern()
     {
-        if (Playing < 0 || Playing == patternIndex) return;
+        if (Playing < 0)
+        {
+            // The engine may stop on its own (e.g. a stop-flagged pattern, or a pattern
+            // with no channel enabled) — reflect that instead of assuming only the
+            // editor's own TogglePlayback can end playback.
+            playStartPattern = -1;
+            return;
+        }
+
+        if (Playing == patternIndex) return;
         patternIndex = Playing;
         if (patternIndex < viewStart) viewStart = patternIndex;
         else if (patternIndex > viewStart + VisiblePatterns - 1) viewStart = patternIndex - (VisiblePatterns - 1);
