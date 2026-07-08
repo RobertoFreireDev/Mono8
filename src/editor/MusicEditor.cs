@@ -152,6 +152,19 @@ internal class MusicEditor : IEditor
         UpdateNoteGrid(mouse);
         UpdateKeyboard();
         UpdatePlaybackScroll();
+        UpdatePlaybackPattern();
+    }
+
+    // While playing, follow the engine's current pattern so the selected box and the
+    // visible strip window advance along with playback instead of staying pinned to
+    // wherever the user last clicked.
+    private void UpdatePlaybackPattern()
+    {
+        if (Playing < 0 || Playing == patternIndex) return;
+        patternIndex = Playing;
+        if (patternIndex < viewStart) viewStart = patternIndex;
+        else if (patternIndex > viewStart + VisiblePatterns - 1) viewStart = patternIndex - (VisiblePatterns - 1);
+        viewStart = Math.Clamp(viewStart, 0, MusicSheet.Count - VisiblePatterns);
     }
 
     // While playing, each column independently follows its own SFX playhead: it stays
