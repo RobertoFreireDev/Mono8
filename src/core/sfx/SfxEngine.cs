@@ -24,6 +24,10 @@ public sealed class SfxEngine : IDisposable
     private int _musicChannelMask = 0;
     private readonly bool[] _musicChannelActive = new bool[NumChannels];
 
+    // Length of the current pattern in samples (its longest channel's single pass).
+    // Patterns advance on elapsed time, so a pattern of looping SFX still moves on.
+    private long _patternLengthSamples;
+
     // ── Constructor ──────────────────────────────────────────────────────────
     public SfxEngine()
     {
@@ -189,27 +193,26 @@ public sealed class SfxEngine : IDisposable
         {
             if (_currentMusicPattern < 0) return;
 
-            bool anyPlaying = false;
+            // Advance once the pattern's playing time has elapsed. Channels synthesise
+            // in lockstep, so the furthest-along active channel measures elapsed time —
+            // this keeps counting through SFX loops, unlike a "did every channel stop?"
+            // check which never fires when a channel's SFX loops forever.
+            long elapsed = 0;
             for (int ch = 0; ch < NumChannels; ch++)
-            {
-                if (_musicChannelActive[ch] && _channels[ch].IsPlaying)
-                {
-                    anyPlaying = true;
-                    break;
-                }
-            }
+                if (_musicChannelActive[ch])
+                    elapsed = Math.Max(elapsed, _channels[ch].SamplesPlayed);
 
-            if (anyPlaying) return;
+            if (elapsed < _patternLengthSamples) return;
 
             if (!_musicBank.TryGetValue(_currentMusicPattern, out var current))
             {
-                _currentMusicPattern = -1;
+                StopMusic();
                 return;
             }
 
             if (current.IsStop)
             {
-                _currentMusicPattern = -1;
+                StopMusic();
                 return;
             }
 
@@ -225,7 +228,7 @@ public sealed class SfxEngine : IDisposable
     {
         if (!_musicBank.TryGetValue(patternId, out var pattern))
         {
-            _currentMusicPattern = -1;
+            StopMusic();
             return;
         }
 
@@ -234,18 +237,29 @@ public sealed class SfxEngine : IDisposable
         if (pattern.IsLoopStart)
             _musicLoopStart = patternId;
 
+        _patternLengthSamples = 0;
         for (int ch = 0; ch < NumChannels; ch++)
         {
-            _musicChannelActive[ch] = false;
-
             int raw = pattern.Channels[ch];
-            if ((raw & 0x40) != 0) continue;  // muted
-
             int sfxIndex = raw & 0x3F;
-            if (!_sfxBank.TryGetValue(sfxIndex, out var sfxData)) continue;
+            bool muted = (raw & 0x40) != 0;
+
+            if (muted || !_sfxBank.TryGetValue(sfxIndex, out var sfxData))
+            {
+                // Not used by this pattern — silence any sound carried over from the last one.
+                if (_musicChannelActive[ch]) _channels[ch].Stop();
+                _musicChannelActive[ch] = false;
+                continue;
+            }
 
             _musicChannelActive[ch] = true;
             _channels[ch].Play(sfxIndex, sfxData, 0, sfxData.Notes.Count);
+
+            // Pattern length is its longest channel's single pass. A looping SFX passes
+            // once at its loop point; a non-looping one passes over all its notes.
+            int samplesPerNote = (int)Math.Round((double)sfxData.Speed / TicksPerSec * SampleRate);
+            int passNotes = sfxData.HasLoop ? sfxData.LoopEnd : sfxData.Notes.Count;
+            _patternLengthSamples = Math.Max(_patternLengthSamples, (long)passNotes * samplesPerNote);
         }
     }
 

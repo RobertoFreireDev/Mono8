@@ -21,6 +21,10 @@ internal sealed class ChannelState : IDisposable
     private int _sampleInNote;
     private int _samplesPerNote;
 
+    // Total samples synthesised since the last Play() — keeps counting through SFX
+    // loops, so the music engine can time pattern length even when the SFX never ends.
+    private long _samplesPlayed;
+
     private bool _isPlaying;
 
     // ── Per-note previous-note state (needed for slide) ───────────────────────
@@ -40,6 +44,7 @@ internal sealed class ChannelState : IDisposable
     public int CurrentSfxIndex => _sfxIndex;
     public int CurrentNoteIndex => _noteIndex;
     public bool IsPlaying => _isPlaying;
+    public long SamplesPlayed => _samplesPlayed;
     public float Progress => _sfx == null ? 1f :
         (_noteIndex - _noteOffset) / (float)Math.Max(1, _noteLength);
 
@@ -67,6 +72,7 @@ internal sealed class ChannelState : IDisposable
         _noteLength = length;
         _noteIndex = offset;
         _sampleInNote = 0;
+        _samplesPlayed = 0;
         _phi = 0;
         _prevNoise = 0;
         _isPlaying = true;
@@ -139,6 +145,7 @@ internal sealed class ChannelState : IDisposable
     {
         if (_sfx == null) return;
 
+        _samplesPlayed++;
         _sampleInNote++;
         if (_sampleInNote < _samplesPerNote) return;
 
