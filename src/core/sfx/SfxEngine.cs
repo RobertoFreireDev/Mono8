@@ -46,6 +46,21 @@ public sealed class SfxEngine : IDisposable
     /// <summary>Replace a single SFX in the bank (used by the SFX editor after an edit).</summary>
     public void SetSfx(int index, SfxData data) => LoadSfx(index, data);
 
+    /// <summary>
+    /// Note index a channel is currently synthesising for <paramref name="sfxIndex"/>, or -1 if it
+    /// isn't playing. Sample-accurate, so an editor playhead stays correct at any FPS or SFX speed.
+    /// </summary>
+    public int CurrentNote(int sfxIndex)
+    {
+        lock (_lock)
+        {
+            foreach (var ch in _channels)
+                if (ch.IsPlaying && ch.CurrentSfxIndex == sfxIndex)
+                    return ch.CurrentNoteIndex;
+        }
+        return -1;
+    }
+
     /// <summary>Parse and register a raw hex SFX string at <paramref name="index"/>.</summary>
     private void LoadSfx(int index, string hexSfx)
         => LoadSfx(index, SfxData.FromHex(hexSfx));

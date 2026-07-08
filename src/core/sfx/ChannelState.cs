@@ -38,6 +38,7 @@ internal sealed class ChannelState : IDisposable
     private readonly Random _rng = new();
 
     public int CurrentSfxIndex => _sfxIndex;
+    public int CurrentNoteIndex => _noteIndex;
     public bool IsPlaying => _isPlaying;
     public float Progress => _sfx == null ? 1f :
         (_noteIndex - _noteOffset) / (float)Math.Max(1, _noteLength);

@@ -40,6 +40,39 @@ internal class SfxEditor : IEditor
         Constants.Colors.Red, Constants.Colors.Pink, Constants.Colors.Indigo, Constants.Colors.White,
     };
 
+    // ── Alternate (tracker) view ───────────────────────────────────────────────
+    private const int OctaveCount = 4;           // selectable base octaves 1..4
+    private const int EffectCount = 8;           // effects 0..7
+    private const int EffectIconStart = 38;      // effect icons occupy icon indices 38..45
+    private const int GridRows = 8;
+    private const int GridCols = 4;              // 8 rows x 4 cols = 32 notes
+    private const int CellH = 12;
+    private const int GridTop = 37;
+    private const int PaletteLabelY = 28;
+    private const int VolFaderX = 2;
+    private const int VolFaderW = 13;
+    private const int FxColX = 18;
+    private const int NoteColStart = 34;
+    private const int NoteColGap = 6;
+    private static readonly int NoteColW =
+        (Constants.Screen.ResolutionX - NoteColStart - 2 - (GridCols - 1) * NoteColGap) / GridCols;
+
+    private static readonly string[] NoteNames =
+    {
+        "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-",
+    };
+
+    // Tracker piano: bottom key row plays the base octave, top row one octave up.
+    private static readonly (Keys key, int semitone)[] PianoKeys =
+    {
+        (Keys.Z, 0), (Keys.S, 1), (Keys.X, 2), (Keys.D, 3), (Keys.C, 4), (Keys.V, 5),
+        (Keys.G, 6), (Keys.B, 7), (Keys.H, 8), (Keys.N, 9), (Keys.J, 10), (Keys.M, 11),
+        (Keys.OemComma, 12), (Keys.L, 13), (Keys.OemPeriod, 14),
+        (Keys.Q, 12), (Keys.D2, 13), (Keys.W, 14), (Keys.D3, 15), (Keys.E, 16), (Keys.R, 17),
+        (Keys.D5, 18), (Keys.T, 19), (Keys.D6, 20), (Keys.Y, 21), (Keys.D7, 22), (Keys.U, 23),
+        (Keys.I, 24),
+    };
+
     // ── Header controls ───────────────────────────────────────────────────────
     private readonly Rectangle idxPrevBox = new(2, HeaderY, 7, 7);
     private readonly Rectangle idxNextBox = new(33, HeaderY, 7, 7);
@@ -54,6 +87,16 @@ internal class SfxEditor : IEditor
 
     private readonly Button[] waveButtons;
     private int selectedWaveform = 0;
+
+    // Alternate-view controls / state.
+    private readonly Rectangle[] octBoxes;     // base octave 1..4
+    private readonly Rectangle[] volCells;     // index = volume level 0..7 (top = 7)
+    private readonly Button[] effectButtons;   // effect 0..7
+
+    private int selectedOctave = 2;
+    private int selectedVolume = DefaultPlaceVolume;
+    private int selectedEffect = SfxEffect.None;
+    private int selectedCell = 0;
 
     private int sfxIndex = 0;
 
@@ -72,6 +115,19 @@ internal class SfxEditor : IEditor
             waveButtons[i] = new Button(2 + i * (Constants.GameDataSizes.TileSize + 1), WaveY,
                 Constants.GameDataSizes.TileSize, WaveformIconStart + i);
         }
+
+        octBoxes = new Rectangle[OctaveCount];
+        for (int i = 0; i < OctaveCount; i++)
+            octBoxes[i] = new Rectangle(94 + i * 9, WaveY, 7, 7);
+
+        volCells = new Rectangle[SfxSheet.MaxVolume + 1];
+        for (int v = 0; v <= SfxSheet.MaxVolume; v++)
+            volCells[v] = new Rectangle(VolFaderX, GridTop + (SfxSheet.MaxVolume - v) * CellH, VolFaderW, CellH - 1);
+
+        effectButtons = new Button[EffectCount];
+        for (int i = 0; i < EffectCount; i++)
+            effectButtons[i] = new Button(FxColX, GridTop + i * CellH + 2,
+                Constants.GameDataSizes.TileSize, EffectIconStart + i);
     }
 
     public void Init()
@@ -116,8 +172,6 @@ internal class SfxEditor : IEditor
             eventNotifier.AddEvent("SAVED");
         }
 
-        if (KeybrdInput.JustPressed(Keys.Left)) ChangeIndex(-1);
-        if (KeybrdInput.JustPressed(Keys.Right)) ChangeIndex(+1);
         if (KeybrdInput.JustPressed(Keys.Space))
         {
             Sync();
@@ -129,6 +183,9 @@ internal class SfxEditor : IEditor
             UpdateAltView();
             return;
         }
+
+        if (KeybrdInput.JustPressed(Keys.Left)) ChangeIndex(-1);
+        if (KeybrdInput.JustPressed(Keys.Right)) ChangeIndex(+1);
 
         UpdatePrimaryView();
     }
@@ -186,10 +243,75 @@ internal class SfxEditor : IEditor
         }
     }
 
-    // The alternate view — to be built next.
     private void UpdateAltView()
     {
+        var mouse = _api.mousexy();
+
+        // Shared header + waveform selector (same controls/logic as the primary view).
+        UpdateHeader(mouse);
+
+        for (int i = 0; i < waveButtons.Length; i++)
+            if (waveButtons[i].IsClicked(_api, mouse)) selectedWaveform = i;
+
+        // Octave / volume / effect palettes (values applied to newly typed notes).
+        for (int i = 0; i < octBoxes.Length; i++)
+            if (octBoxes[i].Contains(mouse.x, mouse.y) && _api.mouselp()) selectedOctave = i + 1;
+
+        for (int v = 0; v < volCells.Length; v++)
+            if (volCells[v].Contains(mouse.x, mouse.y) && _api.mousel()) selectedVolume = v;
+
+        for (int i = 0; i < effectButtons.Length; i++)
+            if (effectButtons[i].IsClicked(_api, mouse)) selectedEffect = i;
+
+        // Note grid: left-click selects the cursor cell, right-click clears a note.
+        for (int cell = 0; cell < NoteCount; cell++)
+        {
+            if (!CellRect(cell).Contains(mouse.x, mouse.y)) continue;
+            if (_api.mouselp()) selectedCell = cell;
+            else if (_api.mouserp()) { Sheet.ClearNote(sfxIndex, cell); Sync(); }
+        }
+
+        // Cursor navigation (down a column, then across to the next column).
+        if (KeybrdInput.JustPressed(Keys.Up)) selectedCell = Math.Max(0, selectedCell - 1);
+        if (KeybrdInput.JustPressed(Keys.Down)) selectedCell = Math.Min(NoteCount - 1, selectedCell + 1);
+        if (KeybrdInput.JustPressed(Keys.Left)) selectedCell = Math.Max(0, selectedCell - GridRows);
+        if (KeybrdInput.JustPressed(Keys.Right)) selectedCell = Math.Min(NoteCount - 1, selectedCell + GridRows);
+
+        if (KeybrdInput.JustPressed(Keys.Delete) || KeybrdInput.JustPressed(Keys.Back))
+        {
+            Sheet.ClearNote(sfxIndex, selectedCell);
+            Sync();
+            selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
+        }
+
+        // Piano keys enter a note at the current octave/waveform/volume/effect.
+        foreach (var (key, semitone) in PianoKeys)
+        {
+            if (KeybrdInput.JustPressed(key)) { EnterNote(semitone); break; }
+        }
     }
+
+    private void EnterNote(int semitone)
+    {
+        int pitch = Math.Clamp(selectedOctave * 12 + semitone, 0, SfxSheet.MaxPitch);
+        Sheet.SetPitch(sfxIndex, selectedCell, pitch);
+        Sheet.SetWaveform(sfxIndex, selectedCell, selectedWaveform);
+        Sheet.SetVolume(sfxIndex, selectedCell, selectedVolume);
+        Sheet.SetEffect(sfxIndex, selectedCell, selectedEffect);
+        Sync();
+        _api.sfx(sfxIndex, -1, selectedCell, 1);   // preview just this note
+        selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
+    }
+
+    // ── Alt-view grid geometry ─────────────────────────────────────────────────
+    private int CellCol(int cell) => cell / GridRows;
+    private int CellRow(int cell) => cell % GridRows;
+    private int NoteColX(int col) => NoteColStart + col * (NoteColW + NoteColGap);
+    private int NoteRowY(int row) => GridTop + row * CellH;
+    private Rectangle CellRect(int cell) =>
+        new(NoteColX(CellCol(cell)), NoteRowY(CellRow(cell)), NoteColW, CellH);
+
+    private static string NoteLabel(int pitch) => NoteNames[pitch % 12] + (pitch / 12);
 
     private void UpdateHeader((int x, int y) mouse)
     {
@@ -252,11 +374,83 @@ internal class SfxEditor : IEditor
 
         DrawPitchRegion();
         DrawVolumeRegion();
+        DrawPlayhead();
     }
 
-    // The alternate view — to be built next.
+    // White outline around the note the audio engine is currently on. Reading the engine's
+    // note index (instead of a frame counter) keeps it in sync at any FPS or SPD. Drawn last,
+    // full region height, so it shows over both bars and silent (bar-less) notes.
+    private void DrawPlayhead()
+    {
+        int playing = mono8.GameAPI.CurrentSfxNote(sfxIndex);
+        if (playing < 0 || playing >= NoteCount) return;
+
+        int x0 = ColLeft(playing);
+        int x1 = ColRight(playing);
+        _api.rect(x0, PitchTop, x1, PitchBottom, Constants.Colors.White);
+        _api.rect(x0, VolTop, x1, VolBottom, Constants.Colors.White);
+    }
+
     private void DrawAltView()
     {
+        DrawHeader();
+
+        for (int i = 0; i < waveButtons.Length; i++)
+            waveButtons[i].Draw(_api, i == selectedWaveform);
+
+        // Octave selector, on the same line as the waveforms.
+        _api.print("OCT", 78, WaveY + 1, Constants.Colors.LightGray);
+        for (int i = 0; i < octBoxes.Length; i++)
+        {
+            bool sel = selectedOctave == i + 1;
+            DrawBox(octBoxes[i], (i + 1).ToString(),
+                sel ? Constants.Colors.Green : Constants.Colors.Indigo,
+                sel ? Constants.Colors.Black : Constants.Colors.White);
+        }
+
+        // Vertical volume fader (7 at the top, 0 at the bottom).
+        _api.print("VOL", VolFaderX, PaletteLabelY, Constants.Colors.White);
+        for (int v = 0; v < volCells.Length; v++)
+        {
+            var c = volCells[v];
+            int bg = v == selectedVolume ? Constants.Colors.Green
+                   : v < selectedVolume ? Constants.Colors.DarkGray
+                   : Constants.Colors.Indigo;
+            int fg = v == selectedVolume ? Constants.Colors.Black : Constants.Colors.White;
+            _api.rectfill(c.X, c.Y, c.X + c.Width - 1, c.Y + c.Height - 1, bg);
+            _api.print(v.ToString(), c.X + 5, c.Y + 3, fg);
+        }
+
+        // Effect selector (icons 38..45).
+        _api.print("FX", FxColX, PaletteLabelY, Constants.Colors.White);
+        for (int i = 0; i < effectButtons.Length; i++)
+            effectButtons[i].Draw(_api, i == selectedEffect);
+
+        for (int cell = 0; cell < NoteCount; cell++)
+            DrawNoteCell(cell);
+    }
+
+    private void DrawNoteCell(int cell)
+    {
+        var r = CellRect(cell);
+        if (cell == selectedCell)
+            _api.rectfill(r.X, r.Y, r.X + r.Width - 1, r.Y + r.Height - 1, Constants.Colors.DarkBlue);
+
+        int tx = r.X + 3;
+        int ty = r.Y + 3;
+
+        int vol = Sheet.GetVolume(sfxIndex, cell);
+        if (vol <= 0)
+        {
+            _api.print("---", tx, ty, Constants.Colors.DarkGray);
+            return;
+        }
+
+        int pitch = Sheet.GetPitch(sfxIndex, cell);
+        int wf = Sheet.GetWaveform(sfxIndex, cell);
+        _api.print(NoteLabel(pitch), tx, ty, Constants.Colors.White);   // e.g. "G#1"
+        _api.print(wf.ToString(), tx + 12, ty, WaveColor(wf));          // waveform digit
+        _api.print(vol.ToString(), tx + 16, ty, Constants.Colors.LightGray);
     }
 
     private void DrawHeader()

@@ -47,6 +47,9 @@ internal class Mono8API : IMono8API
     /// <summary>Push the editor's current SFX edits into the live audio engine so previews reflect them.</summary>
     internal void SyncSfx(int index) => _sfxEngine.SetSfx(index, SfxSheet.ToSfxData(index));
 
+    /// <summary>Note the engine is currently playing for <paramref name="index"/> (-1 if not playing); drives the editor playhead.</summary>
+    internal int CurrentSfxNote(int index) => _sfxEngine.CurrentNote(index);
+
     public void Update(GameTime gameTime)
     {
         if (ErrorHandler.HasError()) return;
