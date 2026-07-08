@@ -275,7 +275,7 @@ internal class MapEditor : IEditor
 
         // Dark grey backs only the tool / sprite-number / page-button row.
         _api.rectfill(0, labelRowY - 1,
-            Constants.Screen.ResolutionX, labelRowY - 1 + Constants.GameDataSizes.TileSize,
+            Constants.Screen.ResolutionX, labelRowY - 2 + Constants.GameDataSizes.TileSize,
             Constants.Colors.DarkGray);
 
         foreach (var (button, tool) in toolButtons)
