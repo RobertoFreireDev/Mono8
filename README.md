@@ -215,7 +215,7 @@ Selected via the tool row below the palette:
 
 ### Palette & Navigator
 
-Click a color swatch in the palette (top-right) to select the draw color. Click a sprite in the bottom navigator to select it for editing, or click a page button to switch sprite-sheet pages. Mouse wheel up/down over the canvas zooms it in/out (`x1`-`x8`).
+Click a color swatch in the palette (top-right) to select the draw color. Left-click a sprite in the bottom navigator to select it for editing, right-click a sprite to make it the reference sprite of the one being edited, or click a page button to switch sprite-sheet pages. Mouse wheel up/down over the canvas zooms it in/out (`x1`-`x8`).
 
 ### Sprite Flags
 
@@ -238,10 +238,12 @@ A column of four buttons to the right of the sprite canvas lets you ghost-draw a
 
 | Button | Description |
 |---|---|
-| Number | Right-click to start editing, then type digits (`0`-`9`) to set the reference sprite number (1 to the max sprite index). Click anywhere outside the button to stop editing; press `Delete` while editing to clear it. Shows `--` when unset. |
+| Number | Left-click to start editing, then type digits (`0`-`9`) to set the reference sprite number (1 to the max sprite index). Click anywhere outside the button to stop editing; press `Delete` while editing to clear it. Shows `--` when unset. |
 | Order | Left-click or right-click toggles whether the reference draws **behind** (`BEH`) or **in front** (`FRO`) of the current sprite. |
 | Visualization | Left-click cycles forward, right-click cycles backward through `ORG` (original colors) → `RED` → `GRN` → `BLU`, recoloring the reference sprite via `pal`. |
 | Opacity | Left-click cycles forward, right-click cycles backward through `20`/`40`/`60`/`80`/`100` (percent). |
+
+Instead of typing a number, you can **right-click any sprite in the bottom navigator** to make it the reference of the sprite you are editing. This overwrites whatever reference was already set, or sets one if there was none. Right-clicking sprite `0` (the empty sprite) or the sprite currently being edited clears the reference back to `--`, since neither is a meaningful onion skin.
 
 ### Sprite Editor Hotkeys
 
