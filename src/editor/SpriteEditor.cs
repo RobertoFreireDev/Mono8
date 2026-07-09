@@ -694,7 +694,7 @@ internal class SpriteEditor : IEditor
 
         if (referenceOrder == ReferenceOrder.Behind)
         {
-            DrawReferenceSprite(scale);
+            DrawReferenceSprite(scale, validW, validH);
         }
 
         _api.spr(sprNmbr, sprcnvsarea.X, sprcnvsarea.Y,
@@ -704,7 +704,7 @@ internal class SpriteEditor : IEditor
 
         if (referenceOrder == ReferenceOrder.Front)
         {
-            DrawReferenceSprite(scale);
+            DrawReferenceSprite(scale, validW, validH);
         }
 
         if (shapePreview.HasPixels)
@@ -885,7 +885,7 @@ internal class SpriteEditor : IEditor
         _api.print(text, bounds.X + 1, bounds.Y + 1, Constants.Colors.Indigo);
     }
 
-    private void DrawReferenceSprite(int scale)
+    private void DrawReferenceSprite(int scale, int validW, int validH)
     {
         int refSprite = Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
         if (refSprite < 0) return;
@@ -903,7 +903,9 @@ internal class SpriteEditor : IEditor
                 _api.pal(ci, targetColor);
         }
 
-        _api.spr(refSprite, sprcnvsarea.X, sprcnvsarea.Y, 1, 1, scale, false, false,
+        _api.spr(refSprite, sprcnvsarea.X, sprcnvsarea.Y,
+            validW / Constants.GameDataSizes.TileSize, 
+            validH / Constants.GameDataSizes.TileSize, scale, false, false,
             ReferenceOpacities[referenceOpacityIdx]);
 
         if (referenceVisualization != ReferenceVisualization.Original)
