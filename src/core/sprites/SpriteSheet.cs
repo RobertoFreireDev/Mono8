@@ -136,7 +136,7 @@ internal class SpriteSheet
         {
             var chars = new char[Constants.GameDataSizes.SpriteSheetX];
             for (int c = 0; c < Constants.GameDataSizes.SpriteSheetX; c++)
-                chars[c] = HexChar(Data[r, c]);
+                chars[c] = ColorPalette.IndexToChar(Data[r, c]);
             lines[r] = new string(chars);
         }
         return lines;
@@ -158,8 +158,6 @@ internal class SpriteSheet
         }
         return new[] { new string(line0), new string(line1) };
     }
-
-    private static char HexChar(int value) => (char)(value < 10 ? '0' + value : 'a' + value - 10);
 
     private void CalculateTileRects()
     {
@@ -195,12 +193,7 @@ internal class SpriteSheet
                     ch = char.ToLowerInvariant(sheet[r][c]);
                 }
 
-                if (ch >= '0' && ch <= '9')
-                    Data[r, c] = ch - '0';
-                else if (ch >= 'a' && ch <= 'f')
-                    Data[r, c] = ch - 'a' + 10;
-                else
-                    Data[r, c] = 0;
+                Data[r, c] = ColorPalette.CharToIndex(ch);
             }
         }
     }

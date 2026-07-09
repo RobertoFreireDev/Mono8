@@ -75,6 +75,9 @@ internal class SpriteEditor : IEditor
     private int dragStartY;
     private readonly ShapePreviewGrid shapePreview = new();
 
+    private const int PaletteColumns = 8;
+    private const int PaletteRows = Constants.GameDataSizes.ColorPalette / PaletteColumns;
+
     private const int VisibleRows = 6;
     private const int SpritePages = Constants.GameDataSizes.SpriteSheetRows / VisibleRows;
     private const int PageIconSelected = 45;
@@ -94,8 +97,9 @@ internal class SpriteEditor : IEditor
             VisibleRows * Constants.GameDataSizes.TileSize);
         sprcnvsarea = new Rectangle(100, 15, 8*8, 8 * 8);
         const int rightMargin = 2;
-        int paletteWidth = 8 * Constants.GameDataSizes.TileSize;
-        palettearea = new Rectangle(Constants.Screen.ResolutionX - paletteWidth - rightMargin, 15, paletteWidth, 2 * Constants.GameDataSizes.TileSize);
+        int paletteWidth = PaletteColumns * Constants.GameDataSizes.TileSize;
+        int paletteHeight = PaletteRows * Constants.GameDataSizes.TileSize;
+        palettearea = new Rectangle(Constants.Screen.ResolutionX - paletteWidth - rightMargin, 15, paletteWidth, paletteHeight);
 
         int refBtnX = sprcnvsarea.X + sprcnvsarea.Width + 2;
         int refBtnW = 20;
@@ -409,7 +413,7 @@ internal class SpriteEditor : IEditor
             {
                 int x = (mouse.x - palettearea.X) / Constants.GameDataSizes.TileSize;
                 int y = (mouse.y - palettearea.Y) / Constants.GameDataSizes.TileSize;
-                ColorSelected = x + y * 8;
+                ColorSelected = x + y * PaletteColumns;
             }
         }
         else
@@ -739,8 +743,8 @@ internal class SpriteEditor : IEditor
             palettearea.Y + palettearea.Height, Constants.Colors.Black);
         for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
         {
-            int col = color % 8;
-            int row = color / 8;
+            int col = color % PaletteColumns;
+            int row = color / PaletteColumns;
             int x = palettearea.X + col * Constants.GameDataSizes.TileSize;
             int y = palettearea.Y + row * Constants.GameDataSizes.TileSize;
             _api.rectfill(x, y,
@@ -751,8 +755,8 @@ internal class SpriteEditor : IEditor
 
         for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
         {
-            int col = color % 8;
-            int row = color / 8;
+            int col = color % PaletteColumns;
+            int row = color / PaletteColumns;
             int x = palettearea.X + col * Constants.GameDataSizes.TileSize;
             int y = palettearea.Y + row * Constants.GameDataSizes.TileSize;
             if (color == ColorSelected)

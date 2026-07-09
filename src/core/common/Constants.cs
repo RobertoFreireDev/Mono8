@@ -20,6 +20,23 @@ public static class Constants
         public const int Indigo = 13;
         public const int Pink = 14;
         public const int Peach = 15;
+
+        public const int BrownBlack = 16;
+        public const int DarkerBlue = 17;
+        public const int DarkMaroon = 18;
+        public const int DarkTeal = 19;
+        public const int DarkBrick = 20;
+        public const int DarkTaupe = 21;
+        public const int Tan = 22;
+        public const int LightYellow = 23;
+        public const int DarkCrimson = 24;
+        public const int BrightOrange = 25;
+        public const int LimeGreen = 26;
+        public const int MediumGreen = 27;
+        public const int MediumBlue = 28;
+        public const int Mauve = 29;
+        public const int Salmon = 30;
+        public const int LightPeach = 31;
     }
 
     public static class Screen
@@ -42,9 +59,9 @@ public static class Constants
         public const int MaxSpriteIndex = SpriteSheetColumns * SpriteSheetRows - 1;
         public const int MapSheetX = 512; // 16 * Screen.ResolutionX / TileSize
         public const int MapSheetY = 576; // 32 * Screen.ResolutionY / TileSize
-        public const int ColorPalette = 16;
+        public const int ColorPalette = 32;
         public const int ColorPaletteMin = 0;
-        public const int ColorPaletteMax = 15;
+        public const int ColorPaletteMax = 31;
         public const int SaveDataSlotCount = 64;
     }
 

@@ -39,6 +39,12 @@ public static class ColorPalette
         else if (paletteType == 1) _screenPalette[color1] = color2;
     }
 
+    // A pixel's palette index is stored as a single base-32 digit: '0'-'9' then 'a'-'v'.
+    public static char IndexToChar(int value) => (char)(value < 10 ? '0' + value : 'a' + value - 10);
+
+    public static int CharToIndex(char c) =>
+        c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'v' ? c - 'a' + 10 : 0;
+
     public static void PaltReset() => ResetPaltFlags();
 
     public static void Palt(int colorIndex, bool transparent)

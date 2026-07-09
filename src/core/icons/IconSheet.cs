@@ -31,12 +31,7 @@ internal class IconSheet
                     ch = char.ToLowerInvariant(sheet[r][c]);
                 }
 
-                if (ch >= '0' && ch <= '9')
-                    Data[r, c] = ch - '0';
-                else if (ch >= 'a' && ch <= 'f')
-                    Data[r, c] = ch - 'a' + 10;
-                else
-                    Data[r, c] = 0;
+                Data[r, c] = ColorPalette.CharToIndex(ch);
             }
         }
     }
