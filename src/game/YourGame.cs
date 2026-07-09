@@ -17,21 +17,33 @@ internal class YourGame : IEditor
     {
     }
 
+    private const int Sprite = 1;
+
+    // Every scale spr() honours: 8x/4x/2x smaller through 2x/4x/8x larger.
+    private static readonly float[] Scales = { 0.125f, 0.25f, 0.5f, 1f, 2f, 4f, 8f };
+    private static readonly string[] Labels = { "1/8", "1/4", "1/2", "1", "2", "4", "8" };
+
     public void Draw()
     {
         API.cls(Constants.Colors.DarkBlue);
-        API.print("CREATE YOUR GAME HERE", 8, 8, Constants.Colors.Blue);
+        API.print("SPR SCALE TEST", 8, 2, Constants.Colors.Blue);
 
-        // Example: colorOpaqueness = 0.5 (50% transparent) on every draw function that supports it.
-        API.pixel(20, 20, Constants.Colors.White, colorOpaqueness: 0.5f);
-        API.rect(30, 20, 40, 30, Constants.Colors.Red, colorOpaqueness: 0.5f);
-        API.rectfill(50, 20, 60, 30, Constants.Colors.Red, colorOpaqueness: 0.5f);
-        API.circ(75, 25, 8, Constants.Colors.Yellow, colorOpaqueness: 0.5f);
-        API.circfill(95, 25, 8, Constants.Colors.Yellow, colorOpaqueness: 0.5f);
-        API.oval(20, 40, 40, 55, Constants.Colors.Green, colorOpaqueness: 0.5f);
-        API.ovalfill(50, 40, 70, 55, Constants.Colors.Green, colorOpaqueness: 0.5f);
-        API.spr(1, 80, 40, colorOpaqueness: 0.5f);
-        API.sspr(0, 0, 8, 8, 100, 40, colorOpaqueness: 0.5f);
-        API.map(0, 0, 0, 60, 5, 3, colorOpaqueness: 0.5f);
+        // Shrunk sprites on the top row, grown ones below: an 8x sprite is 64px
+        // tall and would swallow the small end of the range on a shared baseline.
+        DrawRow(0, 4, 8, 48, 40);
+        DrawRow(4, 7, 8, 130, 50);
+    }
+
+    /// <summary>Draws <c>Scales[from..to)</c> bottom-aligned on <paramref name="baselineY"/>, labelled underneath.</summary>
+    private static void DrawRow(int from, int to, int startX, int baselineY, int columnWidth)
+    {
+        for (int i = from; i < to; i++)
+        {
+            int size = (int)(Constants.GameDataSizes.TileSize * Scales[i]);
+            int x = startX + (i - from) * columnWidth;
+
+            API.spr(Sprite, x, baselineY - size, 1, 1, scale: Scales[i]);
+            API.print(Labels[i], x, baselineY + 3, Constants.Colors.White);
+        }
     }
 }

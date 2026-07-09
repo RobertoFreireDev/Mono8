@@ -191,7 +191,7 @@ internal class Mono8API : IMono8API
         => _sfxEngine.Sfx(sfxId, channel, offset, length);
 
     public void spr(int spriteId, int x, int y, int width = 1, int height = 1,
-        int scale = 1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
+        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
         SpriteSheet.Draw(spriteId, x, y, width, height, scale, flipX, flipY, colorOpaqueness);
     }

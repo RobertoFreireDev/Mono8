@@ -847,12 +847,6 @@ internal class SpriteEditor : IEditor
             animPreviewArea.X + animPreviewArea.Width,
             animPreviewArea.Y + animPreviewArea.Height, Constants.Colors.Black);
 
-        const int previewGap = 1;
-        int previewBarX = animPreviewArea.X + animPreviewArea.Width + previewGap;
-        _api.rectfill(previewBarX, animPreviewArea.Y,
-            previewBarX, animPreviewArea.Y + animPreviewArea.Height - 1,
-            Constants.Colors.LightGray);
-
         if (AnimFrames[animCurrentFrame] != -1)
         {
             var (regionX, regionY, regionW, regionH) = AnimCanvasRegion(AnimFrames[animCurrentFrame]);

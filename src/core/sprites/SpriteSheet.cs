@@ -554,10 +554,16 @@ internal class SpriteSheet
         }
     }
 
+    /// <summary>Smallest and largest <c>scale</c> honoured by <see cref="Draw"/>; values outside are clamped.</summary>
+    public const float MinScale = 0.125f;
+    public const float MaxScale = 8f;
+
     public void Draw(
         int n, int x, int y, int w = 1, int h = 1,
-        int scale = 1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
+        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
+        scale = Math.Clamp(scale, MinScale, MaxScale);
+
         var source = new Rectangle(
             (n % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize,
             (n / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize,
@@ -565,8 +571,8 @@ internal class SpriteSheet
             h * Constants.GameDataSizes.TileSize);
         var destination = new Rectangle(
             x, y,
-            w * Constants.GameDataSizes.TileSize * scale,
-            h * Constants.GameDataSizes.TileSize * scale);
+            Math.Max(1, (int)Math.Round(w * Constants.GameDataSizes.TileSize * scale)),
+            Math.Max(1, (int)Math.Round(h * Constants.GameDataSizes.TileSize * scale)));
 
         SpriteEffects effects = SpriteEffects.None;
         if (flipX) effects |= SpriteEffects.FlipHorizontally;

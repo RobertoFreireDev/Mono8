@@ -44,7 +44,7 @@ public interface IMono8API
         int y,
         int width = 1,
         int height = 1,
-        int scale = 1,
+        float scale = 1f,
         bool flipX = false,
         bool flipY = false,
         float colorOpaqueness = 1f);
