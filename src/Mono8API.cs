@@ -122,6 +122,7 @@ internal class Mono8API : IMono8API
                 Editors.Active.Draw();
                 _menuBar.Draw();
             }
+            print(stat(7).ToString("D2"), 40, 0, Constants.Colors.Brown);
             camera(0, 0);
             Menu.Draw();
         }
@@ -295,15 +296,29 @@ internal class Mono8API : IMono8API
         MapSheet.SetTile(cellX, cellY, spriteId);
     }
 
-    public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, int layerMax = 0, float colorOpaqueness = 1f)
+    public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, float colorOpaqueness = 1f, int layerMax = 0)
     {
-        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, layerMax, colorOpaqueness);
+        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, colorOpaqueness, layerMax);
     }
 
-    public void smap(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, int layerMax = 0,
-        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
+    private static readonly float[] SmapScales = { 0.5f, 1f, 2f };
+
+    // Unlike spr, smap only supports these three scales; anything else snaps to the
+    // nearest one rather than drawing at an unsupported size.
+    private static float SnapSmapScale(float scale)
     {
-        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, layerMax, scale, flipX, flipY, colorOpaqueness);
+        float nearest = SmapScales[0];
+        foreach (float candidate in SmapScales)
+        {
+            if (Math.Abs(scale - candidate) < Math.Abs(scale - nearest)) nearest = candidate;
+        }
+        return nearest;
+    }
+
+    public void smap(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23,
+        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f, int layerMax = 0)
+    {
+        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, SnapSmapScale(scale), flipX, flipY, colorOpaqueness, layerMax);
     }
 
     public int fget(int spriteId) => SpriteSheet.GetFlags(spriteId);

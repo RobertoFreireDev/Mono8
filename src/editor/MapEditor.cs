@@ -16,9 +16,9 @@ internal class MapEditor : IEditor
     // --- Map viewport ---
     private const int MapTop = Constants.GameDataSizes.TileSize;
     private static readonly int BottomBarY = Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize;
-    // Cell sizes on screen: 2px, 4px, 8px (native), 16px.
-    private static readonly float[] Zooms = { 0.25f, 0.5f, 1f, 2f };
-    private const int DefaultZoomIdx = 2;
+    // Cell sizes on screen: 4px, 8px (native), 16px.
+    private static readonly float[] Zooms = { 0.5f, 1f, 2f };
+    private const int DefaultZoomIdx = 1;
     private int zoomIdx = DefaultZoomIdx;
     private int camX;
     private int camY;
@@ -102,7 +102,6 @@ internal class MapEditor : IEditor
 
     private string ZoomLabel => Zooms[zoomIdx] switch
     {
-        0.25f => "x1/4",
         0.5f => "x1/2",
         var z => "x" + (int)z,
     };
@@ -336,7 +335,7 @@ internal class MapEditor : IEditor
             mapArea.X + mapArea.Width - 1, mapArea.Y + mapArea.Height - 1,
             Constants.Colors.Black);
 
-        _api.smap(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, 0, Zooms[zoomIdx]);
+        _api.smap(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
 
         var mouse = _api.mousexy();
         if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))

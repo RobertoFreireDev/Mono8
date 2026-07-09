@@ -79,8 +79,8 @@ internal class MapSheet
         int mapX, int mapY,   // starting tile in map
         int px, int py,       // screen position to draw at
         int width, int height, // how many tiles wide/tall to draw
-        int layerMax,
-        float colorOpaqueness = 1f)
+        float colorOpaqueness = 1f,
+        int layerMax = 0)
     {
         for (int y = 0; y < height; y++)
         {
@@ -110,11 +110,11 @@ internal class MapSheet
         int mapX, int mapY,   // starting tile in map
         int px, int py,       // screen position to draw at
         int width, int height, // how many tiles wide/tall to draw
-        int layerMax,
         float scale,
         bool flipX,           // mirrors tile placement across the map, not the tiles themselves
         bool flipY,
-        float colorOpaqueness = 1f)
+        float colorOpaqueness = 1f,
+        int layerMax = 0)
     {
         scale = Math.Clamp(scale, SpriteSheet.MinScale, SpriteSheet.MaxScale);
 
