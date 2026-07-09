@@ -111,8 +111,6 @@ internal class MapSheet
         int px, int py,       // screen position to draw at
         int width, int height, // how many tiles wide/tall to draw
         float scale,
-        bool flipX,           // mirrors tile placement across the map, not the tiles themselves
-        bool flipY,
         float colorOpaqueness = 1f,
         int layerMax = 0)
     {
@@ -131,9 +129,8 @@ internal class MapSheet
             int mapYIndex = mapY + y;
             if (mapYIndex < 0 || mapYIndex >= Constants.GameDataSizes.MapSheetY) continue;
 
-            int slotY = flipY ? height - 1 - y : y;
-            int top = py + Edge(slotY);
-            int destHeight = Math.Max(1, Edge(slotY + 1) - Edge(slotY));
+            int top = py + Edge(y);
+            int destHeight = Math.Max(1, Edge(y + 1) - Edge(y));
 
             for (int x = 0; x < width; x++)
             {
@@ -145,9 +142,8 @@ internal class MapSheet
 
                 if (layerMax != 0 && (Mono8API.SpriteSheet.GetFlags(tileIndex) & layerMax) == 0) continue;
 
-                int slotX = flipX ? width - 1 - x : x;
-                int left = px + Edge(slotX);
-                int destWidth = Math.Max(1, Edge(slotX + 1) - Edge(slotX));
+                int left = px + Edge(x);
+                int destWidth = Math.Max(1, Edge(x + 1) - Edge(x));
 
                 Mono8API.SpriteSheet.DrawSub(
                     (tileIndex % columns) * tileSize,

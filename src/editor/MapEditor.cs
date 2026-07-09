@@ -335,7 +335,7 @@ internal class MapEditor : IEditor
             mapArea.X + mapArea.Width - 1, mapArea.Y + mapArea.Height - 1,
             Constants.Colors.Black);
 
-        _api.smap(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
+        _api.map(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
 
         var mouse = _api.mousexy();
         if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))

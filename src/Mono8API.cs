@@ -296,29 +296,31 @@ internal class Mono8API : IMono8API
         MapSheet.SetTile(cellX, cellY, spriteId);
     }
 
-    public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, float colorOpaqueness = 1f, int layerMax = 0)
-    {
-        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, colorOpaqueness, layerMax);
-    }
+    private static readonly float[] MapScales = { 0.5f, 1f, 2f };
 
-    private static readonly float[] SmapScales = { 0.5f, 1f, 2f };
-
-    // Unlike spr, smap only supports these three scales; anything else snaps to the
+    // Unlike spr, map only supports these three scales; anything else snaps to the
     // nearest one rather than drawing at an unsupported size.
-    private static float SnapSmapScale(float scale)
+    private static float SnapMapScale(float scale)
     {
-        float nearest = SmapScales[0];
-        foreach (float candidate in SmapScales)
+        float nearest = MapScales[0];
+        foreach (float candidate in MapScales)
         {
             if (Math.Abs(scale - candidate) < Math.Abs(scale - nearest)) nearest = candidate;
         }
         return nearest;
     }
 
-    public void smap(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23,
-        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f, int layerMax = 0)
+    public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23,
+        float scale = 1f, float colorOpaqueness = 1f, int layerMax = 0)
     {
-        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, SnapSmapScale(scale), flipX, flipY, colorOpaqueness, layerMax);
+        scale = SnapMapScale(scale);
+        if (scale == 1f)
+        {
+            MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, colorOpaqueness, layerMax);
+            return;
+        }
+
+        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, scale, colorOpaqueness, layerMax);
     }
 
     public int fget(int spriteId) => SpriteSheet.GetFlags(spriteId);

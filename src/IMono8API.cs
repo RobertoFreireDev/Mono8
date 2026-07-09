@@ -89,30 +89,17 @@ public interface IMono8API
         int cellY,
         int spriteId);
 
+    /// <summary>
+    /// Draws a region of the map, optionally scaled as a whole.
+    /// <paramref name="scale"/> supports only 0.5, 1 and 2; other values snap to the nearest.
+    /// </summary>
     void map(
         int cellX,
         int cellY,
         int screenX,
         int screenY,
         int cellWidth = 40, int cellHeight = 23,
-        float colorOpaqueness = 1f,
-        int layerMax = 0);
-
-    /// <summary>
-    /// Like <see cref="map"/>, but scaled and/or mirrored as a whole.
-    /// <paramref name="flipX"/> and <paramref name="flipY"/> mirror the tile layout
-    /// across the drawn region; individual sprites keep their original orientation.
-    /// <paramref name="scale"/> supports only 0.5, 1 and 2; other values snap to the nearest.
-    /// </summary>
-    void smap(
-        int cellX,
-        int cellY,
-        int screenX,
-        int screenY,
-        int cellWidth = 40, int cellHeight = 23,
         float scale = 1f,
-        bool flipX = false,
-        bool flipY = false,
         float colorOpaqueness = 1f,
         int layerMax = 0);
 
