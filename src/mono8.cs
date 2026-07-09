@@ -82,10 +82,13 @@ public class mono8 : Game
             Screen.ToggleFullScreen(_graphics, GraphicsDevice);
         }
 
-        Menu.Update();
-        Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);        
+        if (GameAPI.IsPlayingGame)
+        {
+            Menu.Update();
+        }
+        Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);
         InputStateManager.Update();
-        GameAPI.Update(gameTime);      
+        GameAPI.Update(gameTime);
         base.Update(gameTime);
     }
 

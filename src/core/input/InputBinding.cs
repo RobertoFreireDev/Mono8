@@ -129,7 +129,7 @@ public static class ButtonInput
 /// </summary>
 public static class StartInputBinding
 {
-    private static readonly Keys[] _startKeys = [Keys.Enter, Keys.Escape];
+    private static readonly Keys[] _startKeys = [Keys.Enter];
 
     public static bool JustPressed(PlayerIndex player = PlayerIndex.One)
         => _startKeys.Any(KeybrdInput.JustPressed)

@@ -13,6 +13,8 @@ internal class Mono8API : IMono8API
     private YourGame _game;
     private bool _playingGame;
 
+    public bool IsPlayingGame => _playingGame;
+
     public Mono8API()
     {
         Load();
