@@ -356,6 +356,16 @@ internal class SpriteEditor : IEditor
                 SprY = y * Constants.GameDataSizes.TileSize + sprvwrarea.Y;
                 sprNmbr = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
             }
+            else if (_api.mouserp())
+            {
+                int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
+                int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
+                int picked = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
+
+                // Sprite 0 is the empty sprite, and a sprite cannot reference itself.
+                int reference = (picked == 0 || picked == sprNmbr) ? -1 : picked;
+                Mono8API.SpriteSheet.SetReferenceSprite(sprNmbr, reference);
+            }
         }
         else if (sprcnvsarea.Contains(mouse.x, mouse.y))
         {
