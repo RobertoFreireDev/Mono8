@@ -186,6 +186,17 @@ An 8-slot animation frame strip (top-left) with playback controls and a live pre
 | Speed button | Left-click cycles playback speed up; right-click cycles it down. |
 | Loop-mode button | Left-click cycles Pause → Forward → Reverse → Ping-pong; right-click cycles the same list in reverse. |
 
+### Reference Sprite (Onion Skinning)
+
+A column of four buttons to the right of the sprite canvas lets you ghost-draw another sprite behind or in front of the one you're editing, useful for tracing over an adjacent animation frame. The reference sprite assignment is per-sprite (each sprite remembers its own reference) and is not saved to disk.
+
+| Button | Description |
+|---|---|
+| Number | Right-click to start editing, then type digits (`0`-`9`) to set the reference sprite number (1 to the max sprite index). Click anywhere outside the button to stop editing; press `Delete` while editing to clear it. Shows `--` when unset. |
+| Order | Left-click or right-click toggles whether the reference draws **behind** (`BEH`) or **in front** (`FRO`) of the current sprite. |
+| Visualization | Left-click cycles forward, right-click cycles backward through `ORG` (original colors) → `RED` → `GRN` → `BLU`, recoloring the reference sprite via `pal`. |
+| Opacity | Left-click cycles forward, right-click cycles backward through `20`/`40`/`60`/`80`/`100` (percent). |
+
 ### Sprite Editor Hotkeys
 
 | Key | Description |
@@ -196,7 +207,7 @@ An 8-slot animation frame strip (top-left) with playback controls and a live pre
 | `Ctrl+C` | Copies the current sprite region. |
 | `Ctrl+V` | Pastes the copied region at the current sprite's position. |
 | `Arrow Left/Right/Up/Down` | Shifts the pixels of the current sprite by one pixel in that direction. |
-| `Delete` | Clears the current sprite region. |
+| `Delete` | Clears the current sprite region (or, while editing the reference-sprite number, clears the reference instead). |
 | `F` | Flips the current sprite horizontally. |
 | `V` | Flips the current sprite vertically. |
 | `R` | Rotates the current sprite 90° clockwise. |
