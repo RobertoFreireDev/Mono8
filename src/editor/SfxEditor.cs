@@ -538,6 +538,14 @@ internal class SfxEditor : IEditor
             _api.rectfill(pr.X, pr.Y, pr.X + pr.Width - 1, pr.Y + pr.Height - 1, Constants.Colors.White);
         }
 
+        // Playhead: light up the note currently sounding.
+        if (cell == mono8.GameAPI.CurrentSfxNote(sfxIndex))
+        {
+            var pn = PartRect(cell, PartNote);
+            var pf = PartRect(cell, PartFx);
+            _api.rectfill(pn.X, r.Y, pf.X + pf.Width - 1, r.Y + r.Height - 1, Constants.Colors.Yellow);
+        }
+
         int vol = Sheet.GetVolume(sfxIndex, cell);
         bool active = vol > 0;
 
