@@ -1,6 +1,26 @@
 # Mono8
 
-- dotnet publish mono8.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+A PICO-8 style fantasy console built on MonoGame (.NET 8), with built-in sprite, map, SFX and music editors. The screen is 256×144 pixels with a 16-color palette.
+
+## Building
+
+The project file lives in [src/](src/), so run from the repository root:
+
+```
+dotnet build src/mono8.csproj
+dotnet publish src/mono8.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+```
+
+## Editors
+
+On launch a short splash screen plays, then the Sprite editor opens. The icon buttons at the **top-right of the menu bar** switch between the four editors: **Sprite**, **Map**, **Sfx** and **Music**. The button at the top-left is context-sensitive — it toggles the full-screen map view in the Map editor and the alternate (tracker) view in the SFX editor.
+
+### Global Keys
+
+| Key | Description |
+|---|---|
+| `F2` | Toggles fullscreen. |
+| `Alt+F4` | Quits the application. |
 
 ## Running Your Game
 
@@ -21,10 +41,12 @@ While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) ope
 | `Up`/`Down` | Moves the menu selection. |
 | `B`/`X` (button 5) | Confirms the selected entry. |
 
+Entries are laid out in this order: **Continue**, then any custom entries, then **Restart** and **Exit**.
+
 - **Continue** resumes the game.
-- **Restart** reinitializes the current game/editor.
+- **Restart** reinitializes the active editor via `Init()`.
 - **Exit** quits the application.
-- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected.
+- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected. `index` is `0`-`2`, and labels longer than 16 characters are truncated.
 
 ## API Reference
 
@@ -34,9 +56,9 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 
 | Function | Parameters | Description |
 |---|---|---|
-| `time` | — | Returns elapsed time in seconds since start. |
-| `stat` | `id` | Returns a system statistic identified by `id`. |
-| `menuitem` | `index, label, callback` | Adds/updates a custom menu item with a label and callback. |
+| `time` | — | Returns the wall-clock time of day in seconds (seconds since midnight). |
+| `stat` | `id` | Returns a system statistic. Only `id` `7` is implemented (current FPS); any other `id` returns `0`. |
+| `menuitem` | `index, label, callback` | Adds/updates a custom menu item (`index` `0`-`2`; `label` truncated to 16 chars). |
 | `menuitem` | `index` | Removes the custom menu item at `index`. |
 
 ### Graphics
@@ -86,12 +108,12 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | Function | Parameters | Description |
 |---|---|---|
 | `btn` | `button` | Returns whether a button is currently held (player 0). |
-| `btn` | `button, player` | Returns whether a button is currently held for a given player. |
-| `btnp` | `button` | Returns whether a button was just pressed (player 0), with repeat. |
-| `btnp` | `button, player` | Returns whether a button was just pressed for a given player, with repeat. |
-| `btnr` | `button` | Returns whether a button was just released. |
-| `mouseup` | — | Returns whether the mouse scroll/direction is up. |
-| `mousedown` | — | Returns whether the mouse scroll/direction is down. |
+| `btn` | `button, player` | Returns whether a button is currently held for a given player (`player` `0` or `1`). |
+| `btnp` | `button` | Returns whether a button was just pressed this frame (player 0). No key repeat. |
+| `btnp` | `button, player` | Returns whether a button was just pressed this frame for a given player. |
+| `btnr` | `button` | Returns whether a button was just released. Player 0 only — pass `8`-`15` for player 1. |
+| `mouseup` | — | Returns whether the mouse wheel scrolled up this frame. |
+| `mousedown` | — | Returns whether the mouse wheel scrolled down this frame. |
 | `mouselp` | — | Returns whether the left mouse button was just pressed. |
 | `mouselr` | — | Returns whether the left mouse button was just released. |
 | `mousel` | — | Returns whether the left mouse button is held. |
@@ -99,6 +121,23 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `mouserr` | — | Returns whether the right mouse button was just released. |
 | `mouser` | — | Returns whether the right mouse button is held. |
 | `mousexy` | — | Returns the current mouse position as `(x, y)`. |
+
+#### Button Indices
+
+Indices `0`-`7` are player 0 and `8`-`15` are player 1; `btn(button, player)` is shorthand for `btn(player * 8 + button)`. Out-of-range indices return `false`.
+
+| Index | Button | Player 0 keyboard | Player 1 keyboard | Gamepad |
+|---|---|---|---|---|
+| `0` | Left | `Left` | `A` | D-Pad / left stick |
+| `1` | Right | `Right` | `D` | D-Pad / left stick |
+| `2` | Up | `Up` | `W` | D-Pad / left stick |
+| `3` | Down | `Down` | `S` | D-Pad / left stick |
+| `4` | A (O) | `Z` | `G` | `A` |
+| `5` | B (X) | `X` | `H` | `B` |
+| `6` | X | `C` | `J` | `X` |
+| `7` | Y | `V` | `K` | `Y` |
+
+The left analog stick also drives indices `0`-`3`, with a `0.5` deadzone.
 
 ### Sprite Editor
 
@@ -115,8 +154,10 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 
 | Function | Parameters | Description |
 |---|---|---|
-| `sfx` | `sfxId, channel = -1, offset = 0, length = -1` | Plays a sound effect on a channel. |
-| `music` | `musicId, fadeLength = 0, channelMask = 0` | Plays a music track, with optional fade-in and channel mask. |
+| `sfx` | `sfxId, channel = -1, offset = 0, length = -1` | Plays a sound effect. `channel = -1` restarts the sfx (stopping any channel already playing it) on the first free channel. `offset`/`length` select a note range; `length = -1` plays to the end. |
+| `music` | `musicId, fadeLength = 0, channelMask = 0` | Plays a music pattern, with optional fade-in and channel mask. |
+
+There are 4 audio channels (`0`-`3`). `sfx(-1)` stops every channel, `sfx(-2, channel)` stops just that channel, and a negative `musicId` stops the music.
 
 ### Random
 
@@ -129,12 +170,14 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 
 ### Math
 
+Following PICO-8, angles are measured in **turns** (`0` to `1`), not radians, and `sin` is negated to match the screen's downward y-axis.
+
 | Function | Parameters | Description |
 |---|---|---|
 | `abs` | `value` | Returns the absolute value. |
-| `atan2` | `dy, dx` | Returns the angle of the vector `(dx, dy)`. |
-| `cos` | `angle` | Returns the cosine of an angle. |
-| `sin` | `angle` | Returns the sine of an angle. |
+| `atan2` | `dy, dx` | Returns the angle of the vector `(dx, dy)`, in turns. |
+| `cos` | `angle` | Returns the cosine of an angle given in turns. |
+| `sin` | `angle` | Returns the *negated* sine of an angle given in turns. |
 | `sqrt` | `value` | Returns the square root. |
 | `min` | `a, b` | Returns the smaller of two values. |
 | `max` | `a, b` | Returns the larger of two values. |
@@ -146,10 +189,12 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 
 ### Persistence
 
+There are 64 integer slots (`index` `0`-`63`), persisted to disk on every `dset`. Out-of-range reads return `0` and out-of-range writes are ignored.
+
 | Function | Parameters | Description |
 |---|---|---|
 | `dget` | `index` | Reads a persisted value at `index`. |
-| `dset` | `index, value` | Writes a persisted value at `index`. |
+| `dset` | `index, value` | Writes a persisted value at `index` and saves to disk. |
 
 ## Sprite Editor
 
@@ -247,8 +292,8 @@ The current zoom level is always shown on the bottom bar, immediately left of th
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project. |
-| `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction. |
-| `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction. |
+| `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction, repeating while held. |
+| `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction, repeating while held. |
 
 
 ## SFX Editor
