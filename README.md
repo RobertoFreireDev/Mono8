@@ -145,13 +145,56 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 
 Mouse wheel up/down over the sprite canvas zooms the canvas in/out.
 
-## Map Editor Hotkeys
+## Map Editor
+
+The map editor paints tile indices onto the map grid using the sprite currently selected in the bottom sprite navigator (the same sprite sheet used by the Sprite Editor).
+
+### Tools
+
+Selected via the tool row (left of the sprite-number label and page buttons):
+
+| Tool | Description |
+|---|---|
+| Pixel | Left-click a cell to set it to the selected sprite. |
+| RectFill | Drag from one cell to another to fill the rectangular region with the selected sprite. |
+| RectDelete | Drag from one cell to another to clear the rectangular region (sets cells to 0). |
+| Hand | Drag to pan the map viewport with the mouse. |
+
+### Sprite Navigator
+
+Click a sprite in the bottom navigator panel to select it for painting; click a page button to switch between sprite-sheet pages. The toggle in the top-left menu bar (only shown while the Map Editor is active) switches to a full-screen map view, hiding the tool row and sprite navigator.
+
+### Map Editor Hotkeys
 
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project. |
 | `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction. |
 | `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction. |
+
+## Running Your Game
+
+Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`).
+
+| Key | Description |
+|---|---|
+| `Ctrl+R` | Runs your game, calling `Init()` and switching out of the editor. |
+| `Esc` | Stops the game and returns to whichever editor was active before. |
+
+### Start (Pause) Menu
+
+While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) opens a pause menu with **Continue**, **Restart** and **Exit**, plus up to three custom entries set via `menuitem`.
+
+| Key | Description |
+|---|---|
+| `Enter` / gamepad `Start` | Toggles the pause menu. |
+| `Up`/`Down` | Moves the menu selection. |
+| `B`/`X` (button 5) | Confirms the selected entry. |
+
+- **Continue** resumes the game.
+- **Restart** reinitializes the current game/editor.
+- **Exit** quits the application.
+- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected.
 
 ## SFX Editor
 
@@ -187,3 +230,27 @@ The alternate view lays the 32 notes out as an 8-row × 4-column grid, with pale
 | `Q 2 W 3 E R 5 T 6 Y 7 U I` | Alternate view: piano keys one octave above the base. |
 
 The SFX index selector, speed (`SPD`), loop points (`LP`), and `PLAY`/`STOP` controls in the header are shared by both views. `PLAY` and loop/speed boxes also respond to the mouse wheel.
+
+## Music Editor
+
+A pattern bank where each pattern plays up to four SFX at once, one per channel. Each channel column shows a tracker-style note grid for the SFX assigned to it — editing a note here edits the underlying SFX directly.
+
+- **Pattern strip** (top) — click a pattern box, or the `<`/`>` arrows, to select it. The selected pattern is highlighted white; the currently playing pattern lights up orange below its number, and its index is shown in green.
+- **Loop/Stop controls** (top-right) — click to toggle loop-start, loop-end and stop flags on the selected pattern.
+- **Channel header** (per column) — click the toggle box to enable/disable the channel for this pattern; while enabled, click the SFX number to scroll wheel through it (left-click +1, right-click -1), or click the pencil icon to jump to that SFX in the SFX Editor.
+- **Note grid** (per enabled channel) — a scrollable 32-note tracker column (note, octave, waveform, volume, effect), identical semantics to the SFX editor's alternate view. Mouse wheel over a column scrolls it; while playing, each column auto-scrolls to keep the currently sounding note (highlighted yellow) centered.
+
+### Music Editor Hotkeys
+
+| Key | Description |
+|---|---|
+| `Ctrl+S` | Saves the project. |
+| `Space` | Plays/stops the selected pattern. |
+| `Up`/`Down` | Moves the note cursor within the selected channel's column. |
+| `Left`/`Right` | Moves between note parts (note, octave, waveform, volume, effect). |
+| `Delete`/`Backspace` | Clears the note at the cursor and advances it. |
+| `Z S X D C V G B H N J M , L .` | Piano keys for the base octave (`Z` = root) — writes a note when the note part is selected. |
+| `Q 2 W 3 E R 5 T 6 Y 7 U I` | Piano keys one octave above the base. |
+| `0`-`9` | When an octave/waveform/volume/effect part is selected, sets that part's value. |
+
+Left-click a note cell to select it (and the part clicked); right-click a note cell to clear it.
