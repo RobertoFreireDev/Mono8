@@ -2,6 +2,30 @@
 
 - dotnet publish mono8.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 
+## Running Your Game
+
+Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`).
+
+| Key | Description |
+|---|---|
+| `Ctrl+R` | Runs your game, calling `Init()` and switching out of the editor. |
+| `Esc` | Stops the game and returns to whichever editor was active before. |
+
+### Start (Pause) Menu
+
+While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) opens a pause menu with **Continue**, **Restart** and **Exit**, plus up to three custom entries set via `menuitem`.
+
+| Key | Description |
+|---|---|
+| `Enter` / gamepad `Start` | Toggles the pause menu. |
+| `Up`/`Down` | Moves the menu selection. |
+| `B`/`X` (button 5) | Confirms the selected entry. |
+
+- **Continue** resumes the game.
+- **Restart** reinitializes the current game/editor.
+- **Exit** quits the application.
+- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected.
+
 ## API Reference
 
 PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
@@ -126,7 +150,43 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `dget` | `index` | Reads a persisted value at `index`. |
 | `dset` | `index, value` | Writes a persisted value at `index`. |
 
-## Sprite Editor Hotkeys
+## Sprite Editor
+
+Edits sprites in the sprite sheet, plus per-sprite flags and an 8-frame animation preview.
+
+### Tools
+
+Selected via the tool row below the palette:
+
+| Tool | Description |
+|---|---|
+| Pixel | Left-click a pixel in the canvas to set it to the selected color. |
+| Rect | Drag across the canvas to draw a rectangle outline. |
+| RectFill | Drag across the canvas to draw a filled rectangle. |
+| Oval | Drag across the canvas to draw an oval outline. |
+| OvalFill | Drag across the canvas to draw a filled oval. |
+| PaintBucket | Left-click to flood-fill the sprite region with the selected color. |
+
+### Palette & Navigator
+
+Click a color swatch in the palette (top-right) to select the draw color. Click a sprite in the bottom navigator to select it for editing, or click a page button to switch sprite-sheet pages. Mouse wheel up/down over the canvas zooms it in/out (`x1`-`x8`).
+
+### Sprite Flags
+
+Eight flag toggle buttons below the tool row — click to toggle each of the 8 flag bits on the current sprite (equivalent to `fget`/`fset`).
+
+### Animation Panel
+
+An 8-slot animation frame strip (top-left) with playback controls and a live preview:
+
+| Control | Description |
+|---|---|
+| Frame slots | Left-click a slot to assign the current sprite to it; right-click to clear it (mirrors the `1`-`8` digit-key toggle below). |
+| Zoom button | Left-click cycles the preview zoom up (`x1`→`x2`→`x4`→`x8`); right-click cycles it down. |
+| Speed button | Left-click cycles playback speed up; right-click cycles it down. |
+| Loop-mode button | Left-click cycles Pause → Forward → Reverse → Ping-pong; right-click cycles the same list in reverse. |
+
+### Sprite Editor Hotkeys
 
 | Key | Description |
 |---|---|
@@ -172,29 +232,6 @@ Click a sprite in the bottom navigator panel to select it for painting; click a 
 | `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction. |
 | `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction. |
 
-## Running Your Game
-
-Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`).
-
-| Key | Description |
-|---|---|
-| `Ctrl+R` | Runs your game, calling `Init()` and switching out of the editor. |
-| `Esc` | Stops the game and returns to whichever editor was active before. |
-
-### Start (Pause) Menu
-
-While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) opens a pause menu with **Continue**, **Restart** and **Exit**, plus up to three custom entries set via `menuitem`.
-
-| Key | Description |
-|---|---|
-| `Enter` / gamepad `Start` | Toggles the pause menu. |
-| `Up`/`Down` | Moves the menu selection. |
-| `B`/`X` (button 5) | Confirms the selected entry. |
-
-- **Continue** resumes the game.
-- **Restart** reinitializes the current game/editor.
-- **Exit** quits the application.
-- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected.
 
 ## SFX Editor
 
