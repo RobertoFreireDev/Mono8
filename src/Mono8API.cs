@@ -305,6 +305,12 @@ internal class Mono8API : IMono8API
         MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, layerMax, colorOpaqueness);
     }
 
+    public void smap(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, int layerMax = 0,
+        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
+    {
+        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, layerMax, scale, flipX, flipY, colorOpaqueness);
+    }
+
     public int fget(int spriteId) => SpriteSheet.GetFlags(spriteId);
 
     public bool fget(int spriteId, int flag) => SpriteSheet.GetFlag(spriteId, flag);

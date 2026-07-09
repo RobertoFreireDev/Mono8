@@ -98,6 +98,24 @@ public interface IMono8API
         int layerMax = 0,
         float colorOpaqueness = 1f);
 
+    /// <summary>
+    /// Like <see cref="map"/>, but scaled and/or mirrored as a whole.
+    /// <paramref name="flipX"/> and <paramref name="flipY"/> mirror the tile layout
+    /// across the drawn region; individual sprites keep their original orientation.
+    /// <paramref name="scale"/> follows the same 1/8..8 range as <see cref="spr"/>.
+    /// </summary>
+    void smap(
+        int cellX,
+        int cellY,
+        int screenX,
+        int screenY,
+        int cellWidth = 40, int cellHeight = 23,
+        int layerMax = 0,
+        float scale = 1f,
+        bool flipX = false,
+        bool flipY = false,
+        float colorOpaqueness = 1f);
+
     // ============================================================
     // SPRITE FLAGS
     // ============================================================

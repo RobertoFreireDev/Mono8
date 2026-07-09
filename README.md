@@ -70,6 +70,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `mget` | `cellX, cellY` | Gets the sprite id at a map cell. |
 | `mset` | `cellX, cellY, spriteId` | Sets the sprite id at a map cell. |
 | `map` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, layerMax = 0, colorOpaqueness = 1f` | Draws a region of the map to the screen. |
+| `smap` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, layerMax = 0, scale = 1f, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a region of the map scaled and/or mirrored. `scale` follows the same `1/8`–`8` range as `spr`. `flipX`/`flipY` mirror the tile *layout* across the drawn region; the sprites themselves keep their original orientation. |
 
 ### Sprite Flags
 

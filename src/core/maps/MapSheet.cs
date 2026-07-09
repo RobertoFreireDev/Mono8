@@ -105,4 +105,59 @@ internal class MapSheet
             }
         }
     }
+
+    public void DrawMap(
+        int mapX, int mapY,   // starting tile in map
+        int px, int py,       // screen position to draw at
+        int width, int height, // how many tiles wide/tall to draw
+        int layerMax,
+        float scale,
+        bool flipX,           // mirrors tile placement across the map, not the tiles themselves
+        bool flipY,
+        float colorOpaqueness = 1f)
+    {
+        scale = Math.Clamp(scale, SpriteSheet.MinScale, SpriteSheet.MaxScale);
+
+        int tileSize = Constants.GameDataSizes.TileSize;
+        int columns = Constants.GameDataSizes.SpriteSheetColumns;
+
+        // Tile edges are snapped from the unscaled grid so neighbours share an edge:
+        // rounding each tile's size independently would leave seams or overlaps at
+        // fractional scales.
+        int Edge(int slot) => (int)Math.Round(slot * tileSize * scale);
+
+        for (int y = 0; y < height; y++)
+        {
+            int mapYIndex = mapY + y;
+            if (mapYIndex < 0 || mapYIndex >= Constants.GameDataSizes.MapSheetY) continue;
+
+            int slotY = flipY ? height - 1 - y : y;
+            int top = py + Edge(slotY);
+            int destHeight = Math.Max(1, Edge(slotY + 1) - Edge(slotY));
+
+            for (int x = 0; x < width; x++)
+            {
+                int mapXIndex = mapX + x;
+                if (mapXIndex < 0 || mapXIndex >= Constants.GameDataSizes.MapSheetX) continue;
+
+                int tileIndex = Data[mapYIndex, mapXIndex];
+                if (tileIndex <= 0) continue;
+
+                if (layerMax != 0 && (Mono8API.SpriteSheet.GetFlags(tileIndex) & layerMax) == 0) continue;
+
+                int slotX = flipX ? width - 1 - x : x;
+                int left = px + Edge(slotX);
+                int destWidth = Math.Max(1, Edge(slotX + 1) - Edge(slotX));
+
+                Mono8API.SpriteSheet.DrawSub(
+                    (tileIndex % columns) * tileSize,
+                    (tileIndex / columns) * tileSize,
+                    tileSize, tileSize,
+                    left, top,
+                    destWidth, destHeight,
+                    flipX: false, flipY: false,
+                    colorOpaqueness: colorOpaqueness);
+            }
+        }
+    }
 }
