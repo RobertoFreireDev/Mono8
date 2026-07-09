@@ -311,12 +311,6 @@ internal class MapEditor : IEditor
                     py + (maxY - minY + 1) * size - 1,
                     selectedTool == Tool.RectDelete ? Constants.Colors.Red : Constants.Colors.White);
             }
-            else
-            {
-                int hx = mapArea.X + ((mouse.x - mapArea.X) / size) * size;
-                int hy = mapArea.Y + ((mouse.y - mapArea.Y) / size) * size;
-                _api.rectfill(hx, hy, hx + size - 1, hy + size - 1, Constants.Colors.White);
-            }
         }
     }
 
