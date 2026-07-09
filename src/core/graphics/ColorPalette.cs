@@ -53,8 +53,7 @@ public static class ColorPalette
         return _paltFlags[_drawPalette[colorIndex]];
     }
 
-    // "#000000,#20315a,#74285a,#0a7e56,#9b583d,#625b53,#bebfc4,#f8ede5,#e61b5c,#f0a029,#f2dd3f,#22d24f,#3baeff,#827798,#f285b0,#f0bf9f"
-    private static string Palette = "#000000,#23345d,#7b2e61,#117d58,#95583f,#645d55,#bfc0c8,#f5eae2,#db2962,#e9a135,#ecd949,#31c757,#46aaf1,#84789a,#ed88af,#edc0a2";
+    private static string Palette = "#000000,#1d2b53,#7e2553,#008751,#ab5236,#5f574f,#c2c3c7,#fff1e8,#ff004d,#ffa300,#ffec27,#00e436,#29adff,#83769c,#ff77a8,#ffccaa,#291814,#111d35,#422136,#125359,#742f29,#49333b,#a28879,#f3ef7d,#be1250,#ff6c24,#a8e72e,#00b543,#065ab5,#754665,#ff6e59,#ff9d81";
 
     public static void SetTransparentColorIndex(int id)
     {
