@@ -628,8 +628,7 @@ internal class SfxEditor : IEditor
             if (vol <= 0) continue;
 
             int barH = (int)Math.Round(vol / (float)SfxSheet.MaxVolume * (VolHeight - 1)) + 1;
-            int color = n == playing ? Constants.Colors.White : PaletteColor(Sheet.GetWaveform(sfxIndex, n));
-            _api.rectfill(ColLeft(n), VolBottom - barH + 1, ColRight(n) - BarGap, VolBottom, color);
+            _api.rectfill(ColLeft(n), VolBottom - barH + 1, ColRight(n) - BarGap, VolBottom, Constants.Colors.DarkBlue);
         }
     }
 
