@@ -191,15 +191,15 @@ internal class Mono8API : IMono8API
         => _sfxEngine.Sfx(sfxId, channel, offset, length);
 
     public void spr(int spriteId, int x, int y, int width = 1, int height = 1,
-        int scale = 1, bool flipX = false, bool flipY = false)
+        int scale = 1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
-        SpriteSheet.Draw(spriteId, x, y, width, height, scale, flipX, flipY);
+        SpriteSheet.Draw(spriteId, x, y, width, height, scale, flipX, flipY, colorOpaqueness);
     }
 
     public void sspr(int sx, int sy, int sw, int sh, int dx, int dy,
-        int dw = -1, int dh = -1, bool flipX = false, bool flipY = false)
+        int dw = -1, int dh = -1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
-        SpriteSheet.DrawSub(sx, sy, sw, sh, dx, dy, dw < 0 ? sw : dw, dh < 0 ? sh : dh, flipX, flipY);
+        SpriteSheet.DrawSub(sx, sy, sw, sh, dx, dy, dw < 0 ? sw : dw, dh < 0 ? sh : dh, flipX, flipY, colorOpaqueness);
     }
 
     public void cls(int colorIndex = 0)
@@ -218,9 +218,9 @@ internal class Mono8API : IMono8API
         return 0;
     }
 
-    public void pixel(int x, int y, int color)
+    public void pixel(int x, int y, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawPixel(x, y, color);
+        mono8.SpriteBatch.DrawPixel(x, y, color, colorOpaqueness);
     }
 
     public void line(int x0, int y0, int x1, int y1, int color)
@@ -228,16 +228,16 @@ internal class Mono8API : IMono8API
         mono8.SpriteBatch.DrawLine(x0, y0, x1, y1, color);
     }
 
-    public void rect(int x0, int y0, int x1, int y1, int color)
+    public void rect(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
         (int x, int y, int w, int h) = ToRect(x0, y0, x1, y1);
-        mono8.SpriteBatch.DrawRect(x0, y0, w, h, color);
+        mono8.SpriteBatch.DrawRect(x0, y0, w, h, color, colorOpaqueness);
     }
 
-    public void rectfill(int x0, int y0, int x1, int y1, int color)
+    public void rectfill(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
         (int x, int y, int w, int h) = ToRect(x0, y0, x1, y1);
-        mono8.SpriteBatch.DrawRectFill(x0, y0, w, h, color);
+        mono8.SpriteBatch.DrawRectFill(x0, y0, w, h, color, colorOpaqueness);
     }
 
     public (int x, int y, int w, int h) ToRect(int x0, int y0,int x1, int y1)
@@ -245,24 +245,24 @@ internal class Mono8API : IMono8API
         return (Math.Min(x0, x1), Math.Min(y0, y1), Math.Abs(x1 - x0) + 1, Math.Abs(y1 - y0) + 1);
     }
 
-    public void circ(int x, int y, int radius, int color)
+    public void circ(int x, int y, int radius, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawCirc(x, y, radius, color);
+        mono8.SpriteBatch.DrawCirc(x, y, radius, color, colorOpaqueness);
     }
 
-    public void circfill(int x, int y, int radius, int color)
+    public void circfill(int x, int y, int radius, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawCircFill(x, y, radius, color);
+        mono8.SpriteBatch.DrawCircFill(x, y, radius, color, colorOpaqueness);
     }
 
-    public void oval(int x0, int y0, int x1, int y1, int color)
+    public void oval(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawOval(x0, y0, x1, y1, color);
+        mono8.SpriteBatch.DrawOval(x0, y0, x1, y1, color, colorOpaqueness);
     }
 
-    public void ovalfill(int x0, int y0, int x1, int y1, int color)
+    public void ovalfill(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawOvalFill(x0, y0, x1, y1, color);
+        mono8.SpriteBatch.DrawOvalFill(x0, y0, x1, y1, color, colorOpaqueness);
     }
 
     public void palt()
@@ -300,9 +300,9 @@ internal class Mono8API : IMono8API
         MapSheet.SetTile(cellX, cellY, spriteId);
     }
 
-    public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, int layerMax = 0)
+    public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23, int layerMax = 0, float colorOpaqueness = 1f)
     {
-        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, layerMax);
+        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, layerMax, colorOpaqueness);
     }
 
     public int fget(int spriteId) => SpriteSheet.GetFlags(spriteId);

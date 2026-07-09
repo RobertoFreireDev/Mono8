@@ -517,7 +517,7 @@ internal class SpriteSheet
         UpdateTextureRegion(x, y, w, h);
     }
 
-    public void DrawSub(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY)
+    public void DrawSub(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY, float colorOpaqueness = 1f)
     {
         var source = new Rectangle(sx, sy, sw, sh);
         var destination = new Rectangle(dx, dy, dw, dh);
@@ -530,13 +530,13 @@ internal class SpriteSheet
         {
             if (ColorPalette.IsDrawTransparent(ci)) continue;
             if (ColorTextures[ci] == null) continue;
-            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci);
+            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci, colorOpaqueness);
         }
     }
 
     public void Draw(
         int n, int x, int y, int w = 1, int h = 1,
-        int scale = 1, bool flipX = false, bool flipY = false)
+        int scale = 1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
         var source = new Rectangle(
             (n % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize,
@@ -556,7 +556,7 @@ internal class SpriteSheet
         {
             if (ColorPalette.IsDrawTransparent(ci)) continue;
             if (ColorTextures[ci] == null) continue;
-            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci);
+            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci, colorOpaqueness);
         }
     }
 }

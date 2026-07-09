@@ -66,7 +66,7 @@ public static class ColorPalette
         TransparentColorIndex = id;
     }
 
-    public static Color GetColor(int id)
+    public static Color GetColor(int id, float colorOpaqueness = 1f)
     {
         if (id == BlackColorIndex)
         {
@@ -83,7 +83,7 @@ public static class ColorPalette
             return TransparentColor;
         }
 
-        return Colors[_drawPalette[id]];
+        return Colors[_drawPalette[id]] * colorOpaqueness;
     }
 
     public static void SetColorPalette()

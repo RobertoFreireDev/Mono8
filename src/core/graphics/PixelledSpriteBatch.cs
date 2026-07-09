@@ -33,22 +33,22 @@ public class PixelledSpriteBatch
         _spriteBatch.End();
     }
 
-    public void DrawPixel(int x, int y, int colorIndex)
+    public void DrawPixel(int x, int y, int colorIndex, float colorOpaqueness = 1f)
     {
-        _spriteBatch.Draw(PixelTexture, new Rectangle(x, y, 1, 1), ColorPalette.GetColor(colorIndex));
+        _spriteBatch.Draw(PixelTexture, new Rectangle(x, y, 1, 1), ColorPalette.GetColor(colorIndex, colorOpaqueness));
     }
 
-    public void DrawRect(int x, int y, int width, int height, int colorIndex)
+    public void DrawRect(int x, int y, int width, int height, int colorIndex, float colorOpaqueness = 1f)
     {
         var thickness = 1;
         // Top
-        DrawRectFill(x, y, width, thickness, colorIndex);
+        DrawRectFill(x, y, width, thickness, colorIndex, colorOpaqueness);
         // Bottom
-        DrawRectFill(x, y + height - thickness, width, thickness, colorIndex);
+        DrawRectFill(x, y + height - thickness, width, thickness, colorIndex, colorOpaqueness);
         // Left
-        DrawRectFill(x, y + 1, thickness, height - 2, colorIndex);
+        DrawRectFill(x, y + 1, thickness, height - 2, colorIndex, colorOpaqueness);
         // Right
-        DrawRectFill(x + width - thickness, y + 1, thickness, height - 2, colorIndex);
+        DrawRectFill(x + width - thickness, y + 1, thickness, height - 2, colorIndex, colorOpaqueness);
     }
 
     public void DrawBaseBox(int colorIndex)
@@ -62,15 +62,15 @@ public class PixelledSpriteBatch
             ColorPalette.GetColor(colorIndex));
     }
 
-    public void DrawRectFill(int x, int y, int width, int height, int colorIndex)
+    public void DrawRectFill(int x, int y, int width, int height, int colorIndex, float colorOpaqueness = 1f)
     {
-        _spriteBatch.Draw(PixelTexture, new Rectangle(x, y, width, height), ColorPalette.GetColor(colorIndex));
+        _spriteBatch.Draw(PixelTexture, new Rectangle(x, y, width, height), ColorPalette.GetColor(colorIndex, colorOpaqueness));
     }
 
-    public void Draw(Texture2D texture, Rectangle destination, Rectangle source, SpriteEffects effects, int colorId)
+    public void Draw(Texture2D texture, Rectangle destination, Rectangle source, SpriteEffects effects, int colorId, float colorOpaqueness = 1f)
     {
         _spriteBatch.Draw(
-            texture, destination, source, ColorPalette.GetColor(colorId), 0f, Vector2.Zero, effects, 0f);
+            texture, destination, source, ColorPalette.GetColor(colorId, colorOpaqueness), 0f, Vector2.Zero, effects, 0f);
     }
 
     public void Draw(RenderTarget2D sceneTarget, Rectangle boxToDraw, int colorIndex)
@@ -93,21 +93,21 @@ public class PixelledSpriteBatch
         }
     }
 
-    public void DrawCirc(int cx, int cy, int r, int colorIndex)
+    public void DrawCirc(int cx, int cy, int r, int colorIndex, float colorOpaqueness = 1f)
     {
         int x = 0, y = r, d = 3 - 2 * r;
         while (y >= x)
         {
-            DrawPixel(cx + x, cy + y, colorIndex); DrawPixel(cx - x, cy + y, colorIndex);
-            DrawPixel(cx + x, cy - y, colorIndex); DrawPixel(cx - x, cy - y, colorIndex);
-            DrawPixel(cx + y, cy + x, colorIndex); DrawPixel(cx - y, cy + x, colorIndex);
-            DrawPixel(cx + y, cy - x, colorIndex); DrawPixel(cx - y, cy - x, colorIndex);
+            DrawPixel(cx + x, cy + y, colorIndex, colorOpaqueness); DrawPixel(cx - x, cy + y, colorIndex, colorOpaqueness);
+            DrawPixel(cx + x, cy - y, colorIndex, colorOpaqueness); DrawPixel(cx - x, cy - y, colorIndex, colorOpaqueness);
+            DrawPixel(cx + y, cy + x, colorIndex, colorOpaqueness); DrawPixel(cx - y, cy + x, colorIndex, colorOpaqueness);
+            DrawPixel(cx + y, cy - x, colorIndex, colorOpaqueness); DrawPixel(cx - y, cy - x, colorIndex, colorOpaqueness);
             if (d > 0) { y--; d += 4 * (x - y) + 10; } else { d += 4 * x + 6; }
             x++;
         }
     }
 
-    public void DrawCircFill(int cx, int cy, int r, int colorIndex)
+    public void DrawCircFill(int cx, int cy, int r, int colorIndex, float colorOpaqueness = 1f)
     {
         int[] minX = new int[r * 2 + 1];
         int[] maxX = new int[r * 2 + 1];
@@ -134,18 +134,18 @@ public class PixelledSpriteBatch
 
         for (int row = 0; row < minX.Length; row++)
             if (maxX[row] >= minX[row])
-                DrawRectFill(minX[row], cy - r + row, maxX[row] - minX[row] + 1, 1, colorIndex);
+                DrawRectFill(minX[row], cy - r + row, maxX[row] - minX[row] + 1, 1, colorIndex, colorOpaqueness);
     }
 
-    public void DrawOval(int x0, int y0, int x1, int y1, int colorIndex)
+    public void DrawOval(int x0, int y0, int x1, int y1, int colorIndex, float colorOpaqueness = 1f)
     {
-        OvalMath.DrawOutline(x0, y0, x1, y1, (px, py) => DrawPixel(px, py, colorIndex));
+        OvalMath.DrawOutline(x0, y0, x1, y1, (px, py) => DrawPixel(px, py, colorIndex, colorOpaqueness));
     }
 
-    public void DrawOvalFill(int x0, int y0, int x1, int y1, int colorIndex)
+    public void DrawOvalFill(int x0, int y0, int x1, int y1, int colorIndex, float colorOpaqueness = 1f)
     {
         OvalMath.DrawFill(x0, y0, x1, y1, (row, leftX, rightX) =>
-            DrawRectFill(leftX, row, rightX - leftX + 1, 1, colorIndex));
+            DrawRectFill(leftX, row, rightX - leftX + 1, 1, colorIndex, colorOpaqueness));
     }
 
     public void Draw(Texture2D texture, Vector2 vector, int colorIndex)
