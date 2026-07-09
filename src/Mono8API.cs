@@ -10,6 +10,8 @@ internal class Mono8API : IMono8API
     public static MapSheet MapSheet = new MapSheet();
     private static string _folder = Constants.File.Folder;
     private EditorMenuBar _menuBar;
+    private YourGame _game;
+    private bool _playingGame;
 
     public Mono8API()
     {
@@ -19,6 +21,7 @@ internal class Mono8API : IMono8API
         Editors.Register(new SfxEditor(this), 17, "Sfx");
         Editors.Register(new MusicEditor(this), 18, "Music");
         _menuBar = new EditorMenuBar(this, Editors);
+        _game = new YourGame(this);
     }
 
     internal void Load()
@@ -72,12 +75,31 @@ internal class Mono8API : IMono8API
             _sfxEngine.UpdateMusic();
             if (!Menu.IsPaused())
             {
-                _menuBar.Update();
-
-                var mouse = mousexy();
-                if (!_menuBar.Bounds.Contains(mouse.x, mouse.y))
+                if (_playingGame)
                 {
-                    Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                    if (KeybrdInput.IsEscJustPressed())
+                    {
+                        _playingGame = false;
+                    }
+                    else
+                    {
+                        _game.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                    }
+                }
+                else if (KeybrdInput.IsRunGameShortcutPressed())
+                {
+                    _playingGame = true;
+                    _game.Init();
+                }
+                else
+                {
+                    _menuBar.Update();
+
+                    var mouse = mousexy();
+                    if (!_menuBar.Bounds.Contains(mouse.x, mouse.y))
+                    {
+                        Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                    }
                 }
             }
         }
@@ -94,8 +116,15 @@ internal class Mono8API : IMono8API
 
         try
         {
-            Editors.Active.Draw();
-            _menuBar.Draw();
+            if (_playingGame)
+            {
+                _game.Draw();
+            }
+            else
+            {
+                Editors.Active.Draw();
+                _menuBar.Draw();
+            }
             camera(0, 0);
             Menu.Draw();
         }
