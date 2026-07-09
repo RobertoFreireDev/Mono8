@@ -44,16 +44,16 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | Function | Parameters | Description |
 |---|---|---|
 | `cls` | `colorIndex = 0` | Clears the screen with the given color. |
-| `pixel` | `x, y, color` | Sets a single pixel's color. |
+| `pixel` | `x, y, color, colorOpaqueness = 1f` | Sets a single pixel's color. |
 | `line` | `x0, y0, x1, y1, color` | Draws a line between two points. |
-| `rect` | `x0, y0, x1, y1, color` | Draws a rectangle outline. |
-| `rectfill` | `x0, y0, x1, y1, color` | Draws a filled rectangle. |
-| `circ` | `x, y, radius, color` | Draws a circle outline. |
-| `circfill` | `x, y, radius, color` | Draws a filled circle. |
-| `oval` | `x0, y0, x1, y1, color` | Draws an oval outline within the given bounds. |
-| `ovalfill` | `x0, y0, x1, y1, color` | Draws a filled oval within the given bounds. |
-| `spr` | `spriteId, x, y, width = 1, height = 1, scale = 1, flipX = false, flipY = false` | Draws a sprite at the given position, with optional size, scale and flipping. |
-| `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false` | Draws a rectangular region of the sprite sheet, scaled and/or flipped, to the screen. |
+| `rect` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws a rectangle outline. |
+| `rectfill` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws a filled rectangle. |
+| `circ` | `x, y, radius, color, colorOpaqueness = 1f` | Draws a circle outline. |
+| `circfill` | `x, y, radius, color, colorOpaqueness = 1f` | Draws a filled circle. |
+| `oval` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws an oval outline within the given bounds. |
+| `ovalfill` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws a filled oval within the given bounds. |
+| `spr` | `spriteId, x, y, width = 1, height = 1, scale = 1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a sprite at the given position, with optional size, scale, flipping and opaqueness. |
+| `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a rectangular region of the sprite sheet, scaled and/or flipped, to the screen. |
 | `print` | `text, x, y, color = 7` | Prints text at the given position with the given color. |
 | `icon` | `n, x, y` | Draws icon `n` at the given position. |
 | `camera` | `x = 0, y = 0` | Sets the camera offset applied to subsequent draw calls. |
@@ -69,7 +69,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 |---|---|---|
 | `mget` | `cellX, cellY` | Gets the sprite id at a map cell. |
 | `mset` | `cellX, cellY, spriteId` | Sets the sprite id at a map cell. |
-| `map` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, layerMax = 0` | Draws a region of the map to the screen. |
+| `map` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, layerMax = 0, colorOpaqueness = 1f` | Draws a region of the map to the screen. |
 
 ### Sprite Flags
 
