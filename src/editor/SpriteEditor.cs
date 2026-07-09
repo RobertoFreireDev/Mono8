@@ -820,7 +820,14 @@ internal class SpriteEditor : IEditor
             var bounds = animFrameSlots[i];
             if (AnimFrames[i] != -1)
             {
-                _api.spr(AnimFrames[i], bounds.X, bounds.Y, 1, 1, 1);
+                var (regionX, regionY, regionW, regionH) = AnimCanvasRegion(AnimFrames[i]);
+                int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
+                int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
+
+                _api.spr(AnimFrames[i], bounds.X, bounds.Y,
+                    validW / Constants.GameDataSizes.TileSize,
+                    validH / Constants.GameDataSizes.TileSize,
+                    1f / Zooms[AnimSclIdx]);
             }
             else if (first != -1 && i > first && i < last)
             {
