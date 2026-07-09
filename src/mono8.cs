@@ -12,6 +12,7 @@ public class mono8 : Game
     private double _elapsedTime = 0;
     public int _fpsCounter = 0;
     public double FPS30 = 30.0;
+    private Intro _intro = new Intro();
 
     public mono8()
     {
@@ -82,6 +83,13 @@ public class mono8 : Game
             Screen.ToggleFullScreen(_graphics, GraphicsDevice);
         }
 
+        if (!_intro.IsFinished)
+        {
+            _intro.Update(gameTime);
+            base.Update(gameTime);
+            return;
+        }
+
         if (GameAPI.IsPlayingGame)
         {
             Menu.Update();
@@ -98,7 +106,14 @@ public class mono8 : Game
         GraphicsDevice.Clear(Color.Black);
         Camera2D.Camera(0, 0);
         SpriteBatch.Begin();
-        GameAPI.Draw();
+        if (_intro.IsFinished)
+        {
+            GameAPI.Draw();
+        }
+        else
+        {
+            _intro.Draw(GameAPI);
+        }
         SpriteBatch.End();
         GraphicsDevice.SetRenderTarget(null);
         GraphicsDevice.Clear(Color.Black);
