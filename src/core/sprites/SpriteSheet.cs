@@ -12,6 +12,17 @@ internal class SpriteSheet
 
     public byte[] Flags = new byte[TotalSprites];
 
+    // Onion-skinning: each sprite may reference another sprite to ghost-draw
+    // behind/in front of it in the editor. -1 means "no reference set".
+    public int[] ReferenceSprite = CreateFilledArray(TotalSprites, -1);
+
+    private static int[] CreateFilledArray(int size, int value)
+    {
+        var arr = new int[size];
+        Array.Fill(arr, value);
+        return arr;
+    }
+
     private int[,] _copy;
 
     private const int MaxUndoSteps = 50;
@@ -72,6 +83,15 @@ internal class SpriteSheet
     public void SetFlags(int spriteId, int value)
     {
         if (spriteId >= 0 && spriteId < TotalSprites) Flags[spriteId] = (byte)value;
+    }
+
+    public int GetReferenceSprite(int spriteId) =>
+        spriteId >= 0 && spriteId < TotalSprites ? ReferenceSprite[spriteId] : -1;
+
+    public void SetReferenceSprite(int spriteId, int referenceSpriteId)
+    {
+        if (spriteId < 0 || spriteId >= TotalSprites) return;
+        ReferenceSprite[spriteId] = referenceSpriteId;
     }
 
     public void LoadSprites(string[] sheet, string[] flags)

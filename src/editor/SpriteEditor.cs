@@ -25,6 +25,21 @@ internal class SpriteEditor : IEditor
     private int ColorSelected = Constants.Colors.White;
     private readonly EventNotifier eventNotifier;
 
+    private enum ReferenceOrder { Behind, Front }
+    private enum ReferenceVisualization { Original, Red, Green, Blue }
+
+    private bool editingReferenceNumber;
+    private int referenceNumberInput = -1;
+    private ReferenceOrder referenceOrder = ReferenceOrder.Behind;
+    private ReferenceVisualization referenceVisualization = ReferenceVisualization.Original;
+    private static readonly float[] ReferenceOpacities = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
+    private int referenceOpacityIdx = ReferenceOpacities.Length - 1;
+
+    private Rectangle refNumberBtn;
+    private Rectangle refOrderBtn;
+    private Rectangle refVisualizationBtn;
+    private Rectangle refOpacityBtn;
+
     private enum LoopMode
     {
         Pause,
@@ -81,6 +96,15 @@ internal class SpriteEditor : IEditor
         const int rightMargin = 2;
         int paletteWidth = 8 * Constants.GameDataSizes.TileSize;
         palettearea = new Rectangle(Constants.Screen.ResolutionX - paletteWidth - rightMargin, 15, paletteWidth, 2 * Constants.GameDataSizes.TileSize);
+
+        int refBtnX = sprcnvsarea.X + sprcnvsarea.Width + 2;
+        int refBtnW = 20;
+        int refBtnH = Constants.GameDataSizes.TileSize;
+        refNumberBtn = new Rectangle(refBtnX, sprcnvsarea.Y, refBtnW, refBtnH);
+        refOrderBtn = new Rectangle(refBtnX, sprcnvsarea.Y + (refBtnH + 1), refBtnW, refBtnH);
+        refVisualizationBtn = new Rectangle(refBtnX, sprcnvsarea.Y + 2 * (refBtnH + 1), refBtnW, refBtnH);
+        refOpacityBtn = new Rectangle(refBtnX, sprcnvsarea.Y + 3 * (refBtnH + 1), refBtnW, refBtnH);
+
         sprNmbr = 0;
         SprX = 0;
         SprY = Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize;
@@ -212,7 +236,7 @@ internal class SpriteEditor : IEditor
             Mono8API.SpriteSheet.MoveGrid(regionX, regionY, regionW, regionH, moveX, moveY);
         }
 
-        if (KeybrdInput.JustPressed(Keys.Delete))
+        if (KeybrdInput.JustPressed(Keys.Delete) && !editingReferenceNumber)
         {
             var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
             Mono8API.SpriteSheet.ClearGrid(regionX, regionY, regionW, regionH);
@@ -258,7 +282,7 @@ internal class SpriteEditor : IEditor
             && !KeybrdInput.Pressed(Keys.LeftShift) && !KeybrdInput.Pressed(Keys.RightShift)
             && !KeybrdInput.Pressed(Keys.LeftAlt) && !KeybrdInput.Pressed(Keys.RightAlt);
 
-        if (noModifiers)
+        if (noModifiers && !editingReferenceNumber)
         {
             Keys[] digitKeys = { Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8 };
             for (int i = 0; i < digitKeys.Length; i++)
@@ -275,9 +299,34 @@ internal class SpriteEditor : IEditor
             }
         }
 
+        if (editingReferenceNumber && !KeybrdInput.IsCtrlPressed())
+        {
+            int digit = JustPressedDigit();
+            if (digit >= 0)
+            {
+                int candidate = (referenceNumberInput < 1 ? 0 : referenceNumberInput) * 10 + digit;
+                if (candidate >= 1 && candidate <= Constants.GameDataSizes.MaxSpriteIndex)
+                {
+                    referenceNumberInput = candidate;
+                    Mono8API.SpriteSheet.SetReferenceSprite(sprNmbr, referenceNumberInput);
+                }
+            }
+
+            if (KeybrdInput.JustPressed(Keys.Delete))
+            {
+                referenceNumberInput = -1;
+                Mono8API.SpriteSheet.SetReferenceSprite(sprNmbr, -1);
+            }
+        }
+
         UpdateAnimationPlayback(elapsedSeconds);
 
         var mouse = _api.mousexy();
+
+        if (editingReferenceNumber && (_api.mouselp() || _api.mouserp()) && !refNumberBtn.Contains(mouse.x, mouse.y))
+        {
+            editingReferenceNumber = false;
+        }
 
         if (_api.mousedown())
         {
@@ -434,7 +483,41 @@ internal class SpriteEditor : IEditor
                     _ => LoopMode.PingPong,
                 };
             }
+            else if (refNumberBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                editingReferenceNumber = true;
+                referenceNumberInput = Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
+            }
+            else if (refOrderBtn.Contains(mouse.x, mouse.y) && (_api.mouselp() || _api.mouserp()))
+            {
+                referenceOrder = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
+            }
+            else if (refVisualizationBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                referenceVisualization = (ReferenceVisualization)(((int)referenceVisualization + 1) % 4);
+            }
+            else if (refVisualizationBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
+            {
+                referenceVisualization = (ReferenceVisualization)(((int)referenceVisualization + 3) % 4);
+            }
+            else if (refOpacityBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                referenceOpacityIdx = (referenceOpacityIdx + 1) % ReferenceOpacities.Length;
+            }
+            else if (refOpacityBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
+            {
+                referenceOpacityIdx = (referenceOpacityIdx - 1 + ReferenceOpacities.Length) % ReferenceOpacities.Length;
+            }
         }
+    }
+
+    // Number-row or numpad digit just pressed, or -1 if none.
+    private static int JustPressedDigit()
+    {
+        for (int d = 0; d <= 9; d++)
+            if (KeybrdInput.JustPressed(Keys.D0 + d) || KeybrdInput.JustPressed(Keys.NumPad0 + d))
+                return d;
+        return -1;
     }
 
     private (int first, int last) GetAnimFilledRange()
@@ -609,10 +692,20 @@ internal class SpriteEditor : IEditor
                 validW * scale, (regionH - validH) * scale);
         }
 
+        if (referenceOrder == ReferenceOrder.Behind)
+        {
+            DrawReferenceSprite(scale);
+        }
+
         _api.spr(sprNmbr, sprcnvsarea.X, sprcnvsarea.Y,
              validW / Constants.GameDataSizes.TileSize,
              validH / Constants.GameDataSizes.TileSize,
              scale);
+
+        if (referenceOrder == ReferenceOrder.Front)
+        {
+            DrawReferenceSprite(scale);
+        }
 
         if (shapePreview.HasPixels)
         {
@@ -669,6 +762,8 @@ internal class SpriteEditor : IEditor
         {
             button.Draw(_api, tool == selectedTool);
         }
+
+        DrawReferenceButtons();
 
         for (int i = 0; i < flagButtons.Length; i++)
         {
@@ -788,5 +883,54 @@ internal class SpriteEditor : IEditor
     {
         _api.rectfill(bounds.X, bounds.Y, bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, Constants.Colors.LightGray);
         _api.print(text, bounds.X + 1, bounds.Y + 1, Constants.Colors.Indigo);
+    }
+
+    private void DrawReferenceSprite(int scale)
+    {
+        int refSprite = Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
+        if (refSprite < 0) return;
+
+        if (referenceVisualization != ReferenceVisualization.Original)
+        {
+            int targetColor = referenceVisualization switch
+            {
+                ReferenceVisualization.Red => Constants.Colors.Red,
+                ReferenceVisualization.Green => Constants.Colors.Green,
+                ReferenceVisualization.Blue => Constants.Colors.Blue,
+                _ => Constants.Colors.White,
+            };
+            for (int ci = 1; ci < Constants.GameDataSizes.ColorPalette; ci++)
+                _api.pal(ci, targetColor);
+        }
+
+        _api.spr(refSprite, sprcnvsarea.X, sprcnvsarea.Y, 1, 1, scale, false, false,
+            ReferenceOpacities[referenceOpacityIdx]);
+
+        if (referenceVisualization != ReferenceVisualization.Original)
+        {
+            _api.pal();
+        }
+    }
+
+    private void DrawReferenceButtons()
+    {
+        int displayValue = editingReferenceNumber ? referenceNumberInput : Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
+        string numberText = displayValue < 0 ? "--" : displayValue.ToString("D3");
+        int numberBg = editingReferenceNumber ? Constants.Colors.White : Constants.Colors.LightGray;
+        _api.rectfill(refNumberBtn.X, refNumberBtn.Y, refNumberBtn.X + refNumberBtn.Width - 1, refNumberBtn.Y + refNumberBtn.Height - 1, numberBg);
+        _api.print(numberText, refNumberBtn.X + 1, refNumberBtn.Y + 1, Constants.Colors.Indigo);
+
+        DrawTextButton(refOrderBtn, referenceOrder == ReferenceOrder.Behind ? "BEH" : "FRO");
+
+        string visText = referenceVisualization switch
+        {
+            ReferenceVisualization.Red => "RED",
+            ReferenceVisualization.Green => "GRN",
+            ReferenceVisualization.Blue => "BLU",
+            _ => "ORG",
+        };
+        DrawTextButton(refVisualizationBtn, visText);
+
+        DrawTextButton(refOpacityBtn, ((int)(ReferenceOpacities[referenceOpacityIdx] * 100)).ToString());
     }
 }
