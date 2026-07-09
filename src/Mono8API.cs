@@ -96,12 +96,7 @@ internal class Mono8API : IMono8API
                 else
                 {
                     _menuBar.Update();
-
-                    var mouse = mousexy();
-                    if (!_menuBar.Bounds.Contains(mouse.x, mouse.y))
-                    {
-                        Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
-                    }
+                    Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
                 }
             }
         }
