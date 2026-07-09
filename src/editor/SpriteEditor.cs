@@ -383,6 +383,21 @@ internal class SpriteEditor : IEditor
                 }
             }
 
+            for (int i = 0; i < animFrameSlots.Length; i++)
+            {
+                if (!animFrameSlots[i].Contains(mouse.x, mouse.y)) continue;
+
+                if (_api.mouselp())
+                {
+                    AnimFrames[i] = sprNmbr;
+                }
+                else if (_api.mouserp())
+                {
+                    AnimFrames[i] = -1;
+                }
+                break;
+            }
+
             if (animZoomBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
             {
                 AnimSclIdx = (AnimSclIdx + 1) % Zooms.Length;
@@ -698,6 +713,13 @@ internal class SpriteEditor : IEditor
     {
         var (first, last) = GetAnimFilledRange();
 
+        var firstSlot = animFrameSlots[0];
+        var lastSlot = animFrameSlots[animFrameSlots.Length - 1];
+        _api.rectfill(firstSlot.X, firstSlot.Y,
+            lastSlot.X + lastSlot.Width - 1,
+            lastSlot.Y + lastSlot.Height - 1,
+            Constants.Colors.Black);
+
         for (int i = 0; i < animFrameSlots.Length; i++)
         {
             var bounds = animFrameSlots[i];
@@ -729,6 +751,12 @@ internal class SpriteEditor : IEditor
         _api.rectfill(animPreviewArea.X - 1, animPreviewArea.Y - 1,
             animPreviewArea.X + animPreviewArea.Width,
             animPreviewArea.Y + animPreviewArea.Height, Constants.Colors.Black);
+
+        const int previewGap = 1;
+        int previewBarX = animPreviewArea.X + animPreviewArea.Width + previewGap;
+        _api.rectfill(previewBarX, animPreviewArea.Y,
+            previewBarX, animPreviewArea.Y + animPreviewArea.Height - 1,
+            Constants.Colors.LightGray);
 
         if (AnimFrames[animCurrentFrame] != -1)
         {
