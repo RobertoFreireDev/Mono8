@@ -16,7 +16,10 @@ internal class MapEditor : IEditor
     // --- Map viewport ---
     private const int MapTop = Constants.GameDataSizes.TileSize;
     private static readonly int BottomBarY = Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize;
-    private static readonly int MapCols = Constants.Screen.ResolutionX / Constants.GameDataSizes.TileSize; // 32
+    // Cell sizes on screen: 2px, 4px, 8px (native), 16px.
+    private static readonly float[] Zooms = { 0.25f, 0.5f, 1f, 2f };
+    private const int DefaultZoomIdx = 2;
+    private int zoomIdx = DefaultZoomIdx;
     private int camX;
     private int camY;
 
@@ -97,21 +100,49 @@ internal class MapEditor : IEditor
     {
     }
 
+    private string ZoomLabel => Zooms[zoomIdx] switch
+    {
+        0.25f => "x1/4",
+        0.5f => "x1/2",
+        var z => "x" + (int)z,
+    };
+
+    // On-screen size of one map cell at the current zoom. Every zoom level divides
+    // TileSize evenly, so this stays an exact integer.
+    private int CellPx => (int)(Constants.GameDataSizes.TileSize * Zooms[zoomIdx]);
+
+    private int MapCols => Constants.Screen.ResolutionX / CellPx;
+
     // In split view, this rounds up (+1) so the map fills the gap down to the button row
     // instead of leaving a partial-tile strip; Update() excludes the button rects from
     // hoveringMap so that overlapping row still lets clicks reach the tool/page buttons.
     private int MapRows => FullMapView
-        ? (BottomBarY - MapTop) / Constants.GameDataSizes.TileSize
-        : (labelRowY - MapTop + Constants.GameDataSizes.TileSize - 1) / Constants.GameDataSizes.TileSize;
+        ? (BottomBarY - MapTop) / CellPx
+        : (labelRowY - MapTop + CellPx - 1) / CellPx;
 
-    private Rectangle MapArea => new Rectangle(0, MapTop,
-        MapCols * Constants.GameDataSizes.TileSize,
-        MapRows * Constants.GameDataSizes.TileSize);
+    private Rectangle MapArea => new Rectangle(0, MapTop, MapCols * CellPx, MapRows * CellPx);
 
     private void ClampCamera()
     {
         camX = Math.Clamp(camX, 0, Math.Max(0, Constants.GameDataSizes.MapSheetX - MapCols));
         camY = Math.Clamp(camY, 0, Math.Max(0, Constants.GameDataSizes.MapSheetY - MapRows));
+    }
+
+    // Zoom about the cursor: the cell under the mouse stays under the mouse.
+    private void UpdateZoom((int x, int y) mouse, Rectangle mapArea)
+    {
+        int delta = _api.mouseup() ? 1 : _api.mousedown() ? -1 : 0;
+        if (delta == 0) return;
+
+        int next = Math.Clamp(zoomIdx + delta, 0, Zooms.Length - 1);
+        if (next == zoomIdx) return;
+
+        var (anchorX, anchorY) = CellUnderMouse(mouse, mapArea);
+        zoomIdx = next;
+
+        camX = anchorX - (mouse.x - mapArea.X) / CellPx;
+        camY = anchorY - (mouse.y - mapArea.Y) / CellPx;
+        ClampCamera();
     }
 
     public void Update(float elapsedSeconds)
@@ -138,6 +169,12 @@ internal class MapEditor : IEditor
         var mouse = _api.mousexy();
         var mapArea = MapArea;
 
+        if (!dragging && !panning && mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
+        {
+            UpdateZoom(mouse, mapArea);
+            mapArea = MapArea;   // a zoom step resizes the viewport
+        }
+
         if (dragging && !mapArea.Contains(mouse.x, mouse.y))
         {
             dragging = false;
@@ -155,8 +192,8 @@ internal class MapEditor : IEditor
             }
             else if (panning && _api.mousel() && mapArea.Contains(mouse.x, mouse.y))
             {
-                camX = panStartCamX + (panStartMouseX - mouse.x) / Constants.GameDataSizes.TileSize;
-                camY = panStartCamY + (panStartMouseY - mouse.y) / Constants.GameDataSizes.TileSize;
+                camX = panStartCamX + (panStartMouseX - mouse.x) / CellPx;
+                camY = panStartCamY + (panStartMouseY - mouse.y) / CellPx;
                 ClampCamera();
             }
             else
@@ -216,8 +253,8 @@ internal class MapEditor : IEditor
 
     private (int cellX, int cellY) CellUnderMouse((int x, int y) mouse, Rectangle mapArea)
     {
-        int cellX = camX + (mouse.x - mapArea.X) / Constants.GameDataSizes.TileSize;
-        int cellY = camY + (mouse.y - mapArea.Y) / Constants.GameDataSizes.TileSize;
+        int cellX = camX + (mouse.x - mapArea.X) / CellPx;
+        int cellY = camY + (mouse.y - mapArea.Y) / CellPx;
         return (cellX, cellY);
     }
 
@@ -264,15 +301,22 @@ internal class MapEditor : IEditor
 
         _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
 
+        const int charAdvance = 4;
+        const int rightMargin = 2;
+        const int labelGap = 4;
+        const int hoverTextChars = 11;   // "X:000 Y:000" — fixed so the zoom label never shifts
+
+        int hoverTextX = Constants.Screen.ResolutionX - rightMargin - hoverTextChars * charAdvance;
+
+        string zoomText = ZoomLabel;
+        _api.print(zoomText,
+            hoverTextX - labelGap - zoomText.Length * charAdvance,
+            BottomBarY + 1,
+            Constants.Colors.Indigo);
+
         if (hoveringMap)
         {
-            const int charAdvance = 4;
-            const int rightMargin = 2;
-            string hoverText = $"X:{hoverCellX:D3} Y:{hoverCellY:D3}";
-            _api.print(hoverText,
-                Constants.Screen.ResolutionX - rightMargin - hoverText.Length * charAdvance,
-                BottomBarY + 1,
-                Constants.Colors.Indigo);
+            _api.print($"X:{hoverCellX:D3} Y:{hoverCellY:D3}", hoverTextX, BottomBarY + 1, Constants.Colors.Indigo);
         }
 
         if (!FullMapView)
@@ -286,13 +330,13 @@ internal class MapEditor : IEditor
     private void DrawMap()
     {
         var mapArea = MapArea;
-        int size = Constants.GameDataSizes.TileSize;
+        int size = CellPx;
 
         _api.rectfill(mapArea.X, mapArea.Y,
             mapArea.X + mapArea.Width - 1, mapArea.Y + mapArea.Height - 1,
             Constants.Colors.Black);
 
-        _api.map(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows);
+        _api.smap(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, 0, Zooms[zoomIdx]);
 
         var mouse = _api.mousexy();
         if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
@@ -316,6 +360,12 @@ internal class MapEditor : IEditor
 
     private void DrawSpriteNavigator()
     {
+        // MapRows rounds up, so the bottom map row can spill past the button row and show
+        // through the sprite sheet's transparent pixels. Blank the whole panel first.
+        _api.rectfill(0, labelRowY - 1,
+            Constants.Screen.ResolutionX, BottomBarY - 1,
+            Constants.Colors.Black);
+
         _api.spr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
             sprvwrarea.X,
             sprvwrarea.Y,

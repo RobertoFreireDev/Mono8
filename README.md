@@ -236,6 +236,12 @@ Selected via the tool row (left of the sprite-number label and page buttons):
 
 Click a sprite in the bottom navigator panel to select it for painting; click a page button to switch between sprite-sheet pages. The toggle in the top-left menu bar (only shown while the Map Editor is active) switches to a full-screen map view, hiding the tool row and sprite navigator.
 
+### Zoom
+
+Mouse wheel up/down over the map viewport zooms in/out through four levels — `x1/4`, `x1/2`, `x1` (default) and `x2` — in both split and full-screen map views. Zooming keeps the cell under the cursor anchored in place, and the wheel is ignored while a RectFill/RectDelete drag or a Hand pan is in progress. Zooming out shows more of the map at once (at `x1/4` each cell is 2 pixels), which is useful for navigating large maps; painting, panning and the rectangle tools all operate on cells at whatever zoom is active.
+
+The current zoom level is always shown on the bottom bar, immediately left of the `X:nnn Y:nnn` cell coordinates (which only appear while the cursor is over the map).
+
 ### Map Editor Hotkeys
 
 | Key | Description |
