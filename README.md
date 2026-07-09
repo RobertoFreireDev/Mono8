@@ -52,7 +52,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `circfill` | `x, y, radius, color, colorOpaqueness = 1f` | Draws a filled circle. |
 | `oval` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws an oval outline within the given bounds. |
 | `ovalfill` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws a filled oval within the given bounds. |
-| `spr` | `spriteId, x, y, width = 1, height = 1, scale = 1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a sprite at the given position, with optional size, scale, flipping and opaqueness. |
+| `spr` | `spriteId, x, y, width = 1, height = 1, scale = 1f, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a sprite at the given position, with optional size, scale (float; e.g. `0.5f` shrinks, `4f` enlarges), flipping and opaqueness. |
 | `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a rectangular region of the sprite sheet, scaled and/or flipped, to the screen. |
 | `print` | `text, x, y, color = 7` | Prints text at the given position with the given color. |
 | `icon` | `n, x, y` | Draws icon `n` at the given position. |
