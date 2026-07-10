@@ -15,9 +15,7 @@ internal class MapEditor : IEditor
     private enum BackgroundMode
     {
         None,
-        RightBehind,
         BottomBehind,
-        RightInFront,
         BottomInFront,
     }
 
@@ -89,14 +87,13 @@ internal class MapEditor : IEditor
 
     private int BackgroundIcon => backgroundMode switch
     {
-        BackgroundMode.RightBehind or BackgroundMode.RightInFront => 11,
         BackgroundMode.BottomBehind or BackgroundMode.BottomInFront => 10,
         _ => 14,
     };
 
     // Dark grey marks the modes where the other half sits behind the map being edited.
     private bool BackgroundIsBehind =>
-        backgroundMode is BackgroundMode.RightBehind or BackgroundMode.BottomBehind;
+        backgroundMode is BackgroundMode.BottomBehind;
 
     private void CycleBackgroundMode(int delta)
     {
@@ -365,17 +362,9 @@ internal class MapEditor : IEditor
 
         switch (backgroundMode)
         {
-            case BackgroundMode.RightBehind:
-                Layer(camX + HalfMapX, camY);
-                Layer(camX, camY);
-                break;
             case BackgroundMode.BottomBehind:
                 Layer(camX, camY + HalfMapY);
                 Layer(camX, camY);
-                break;
-            case BackgroundMode.RightInFront:
-                Layer(camX, camY);
-                Layer(camX + HalfMapX, camY);
                 break;
             case BackgroundMode.BottomInFront:
                 Layer(camX, camY);
