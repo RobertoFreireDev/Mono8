@@ -2,6 +2,18 @@
 
 A PICO-8 style fantasy console built on MonoGame (.NET 8), with built-in sprite, map, SFX and music editors. The screen is 256×144 pixels with a 32-color palette.
 
+## Specs
+
+| | |
+|---|---|
+| Screen | 256×144 pixels, 32 colors |
+| Sprite sheet | 256×240 pixels — 32×30 tiles of 8×8, so sprite ids `0`-`959` |
+| Map | 512×576 cells |
+| Sound | 64 SFX, 64 music patterns, 4 channels |
+| Persistence | 64 integer slots |
+
+Color indices `0`-`31` have names in `Constants.Colors` (`Constants.Colors.DarkBlue` is `1`, and so on). Sprite `0` is the empty sprite: `map` never draws it, and color `0` is transparent by default.
+
 ## Building
 
 The project file lives in [src/](src/), so run from the repository root:
@@ -22,14 +34,30 @@ On launch a short splash screen plays, then the Sprite editor opens. The icon bu
 | `F2` | Toggles fullscreen. |
 | `Alt+F4` | Quits the application. |
 
+## Project Data
+
+Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes all of them at once.
+
+| File | Contents |
+|---|---|
+| `data.gfx` | Sprite sheet pixels. |
+| `data.gff` | Per-sprite flag bits. |
+| `data.map` | Map cells, as two hex digits per cell. |
+| `data.sfx` | The 64 sound effects. |
+| `data.music` | The 64 music patterns. |
+| `data.icons` | The editors' icon sheet. |
+| `data.save` | The 64 `dget`/`dset` slots, rewritten on every `dset`. |
+
 ## Running Your Game
 
-Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`).
+Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`). It ships with a small demo that draws the map at each supported scale; delete the body of `Draw` to start from scratch.
 
 | Key | Description |
 |---|---|
 | `Ctrl+R` | Runs your game, calling `Init()` and switching out of the editor. |
 | `Esc` | Stops the game and returns to whichever editor was active before. |
+
+An exception thrown from your `Init`, `Update` or `Draw` does not crash the process. Audio stops and the message is drawn over a blank screen, where it stays until you restart the application.
 
 ### Start (Pause) Menu
 
@@ -93,9 +121,13 @@ Both `spr` and `sspr` draw one pass per palette color, so they respect the curre
 
 | Function | Parameters | Description |
 |---|---|---|
-| `mget` | `cellX, cellY` | Gets the sprite id at a map cell. |
-| `mset` | `cellX, cellY, spriteId` | Sets the sprite id at a map cell. |
+| `mget` | `cellX, cellY` | Gets the sprite id at a map cell. Out-of-range cells read as `0`. |
+| `mset` | `cellX, cellY, spriteId` | Sets the sprite id at a map cell. Out-of-range writes are ignored. |
 | `map` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, scale = 1f, colorOpaqueness = 1f, layerMax = 0` | Draws a region of the map to the screen, optionally scaled. `scale` only supports `0.5`, `1` and `2`; other values snap to the nearest. Ignores `pal` and `palt`; color `0` is always transparent (see [Graphics](#graphics)). |
+
+Cells holding sprite `0` are skipped, so the background shows through them.
+
+`layerMax` filters which tiles are drawn, using the sprite flags as layer bits. The default of `0` draws every tile. Any other value is a bitmask: a tile is drawn only if at least one of its flags is set in the mask, i.e. `fget(tile) & layerMax` is non-zero. So if you set flag `0` on your background tiles and flag `1` on your foreground tiles, `map(..., layerMax: 1)` draws just the background and `map(..., layerMax: 2)` just the foreground — call `map` twice, with your sprites drawn in between, to get sprites sandwiched between two map layers.
 
 ### Sprite Flags
 
@@ -105,6 +137,8 @@ Both `spr` and `sspr` draw one pass per palette color, so they respect the curre
 | `fget` | `spriteId, flag` | Gets whether a specific flag is set for a sprite. |
 | `fset` | `spriteId, flag, value` | Sets a specific flag on a sprite. |
 | `fset` | `spriteId, value` | Sets all flag bits for a sprite. |
+
+Each sprite has 8 flags (`flag` `0`-`7`), free for you to use as collision, terrain type or anything else. `map` also reads them as layer bits when you pass `layerMax` (see [Map](#map)).
 
 ### Input
 
