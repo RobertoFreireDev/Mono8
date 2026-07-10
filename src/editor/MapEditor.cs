@@ -101,6 +101,23 @@ internal class MapEditor : IEditor
         backgroundMode = (BackgroundMode)(((int)backgroundMode + delta + count) % count);
     }
 
+    private bool CameraInTopHalf => camY < HalfMapY;
+
+    // Camera row of the same window taken from the sheet half the camera is not looking at.
+    private int OtherHalfCamY => CameraInTopHalf ? camY + HalfMapY : camY - HalfMapY;
+
+    // Jump the camera to the matching window in the other half of the sheet. Only meaningful
+    // while a background layer is shown, since that layer is what the camera swaps with.
+    private void ToggleMapHalf()
+    {
+        if (backgroundMode == BackgroundMode.None) return;
+
+        camY = OtherHalfCamY;
+        ClampCamera();
+
+        eventNotifier.AddEvent(CameraInTopHalf ? "TOP HALF" : "BOTTOM HALF");
+    }
+
     public void Init()
     {
     }
@@ -158,6 +175,8 @@ internal class MapEditor : IEditor
             Mono8Game.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
         }
+
+        if (KeybrdInput.JustPressed(Keys.Q)) ToggleMapHalf();
 
         // Pan the map viewport. Holding Control moves 8 tiles at a time instead of one.
         int panStep = KeybrdInput.IsCtrlPressed() ? 8 : 1;
@@ -363,12 +382,12 @@ internal class MapEditor : IEditor
         switch (backgroundMode)
         {
             case BackgroundMode.BottomBehind:
-                Layer(camX, camY + HalfMapY);
+                Layer(camX, OtherHalfCamY);
                 Layer(camX, camY);
                 break;
             case BackgroundMode.BottomInFront:
                 Layer(camX, camY);
-                Layer(camX, camY + HalfMapY);
+                Layer(camX, OtherHalfCamY);
                 break;
             default:
                 Layer(camX, camY);
