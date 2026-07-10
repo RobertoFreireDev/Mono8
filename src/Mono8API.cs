@@ -198,6 +198,18 @@ internal class Mono8API : IMono8API
         SpriteSheet.DrawSub(false, sx, sy, sw, sh, dx, dy, dw < 0 ? sw : dw, dh < 0 ? sh : dh, flipX, flipY, colorOpaqueness);
     }
 
+    public void sprr(int spriteId, int x, int y, int width = 1, int height = 1,
+        float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
+    {
+        SpriteSheet.Draw(true, spriteId, x, y, width, height, scale, flipX, flipY, colorOpaqueness);
+    }
+
+    public void ssprr(int sx, int sy, int sw, int sh, int dx, int dy,
+        int dw = -1, int dh = -1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
+    {
+        SpriteSheet.DrawSub(true, sx, sy, sw, sh, dx, dy, dw < 0 ? sw : dw, dh < 0 ? sh : dh, flipX, flipY, colorOpaqueness);
+    }
+
     public void cls(int colorIndex = 0)
     {
         mono8.SpriteBatch.DrawBaseBox(colorIndex);

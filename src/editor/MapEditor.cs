@@ -365,7 +365,7 @@ internal class MapEditor : IEditor
             Constants.Screen.ResolutionX, BottomBarY - 1,
             Constants.Colors.Black);
 
-        _api.spr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
+        _api.sprr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
             sprvwrarea.X,
             sprvwrarea.Y,
             Constants.GameDataSizes.SpriteSheetColumns,

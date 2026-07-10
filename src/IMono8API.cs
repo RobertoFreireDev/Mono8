@@ -38,6 +38,24 @@ public interface IMono8API
 
     void ovalfill(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f);
 
+    void sprr(
+        int spriteId,
+        int x,
+        int y,
+        int width = 1,
+        int height = 1,
+        float scale = 1f,
+        bool flipX = false,
+        bool flipY = false,
+        float colorOpaqueness = 1f);
+
+    void ssprr(
+        int sx, int sy, int sw, int sh,
+        int dx, int dy,
+        int dw = -1, int dh = -1,
+        bool flipX = false, bool flipY = false,
+        float colorOpaqueness = 1f);
+
     void spr(
         int spriteId,
         int x,

@@ -664,7 +664,7 @@ internal class SpriteEditor : IEditor
 
     public void Draw()
     {
-        _api.spr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
+        _api.sprr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
             sprvwrarea.X,
             sprvwrarea.Y,
             Constants.GameDataSizes.SpriteSheetColumns,
@@ -711,7 +711,7 @@ internal class SpriteEditor : IEditor
             DrawReferenceSprite(scale, validW, validH);
         }
 
-        _api.spr(sprNmbr, sprcnvsarea.X, sprcnvsarea.Y,
+        _api.sprr(sprNmbr, sprcnvsarea.X, sprcnvsarea.Y,
              validW / Constants.GameDataSizes.TileSize,
              validH / Constants.GameDataSizes.TileSize,
              scale);
@@ -838,7 +838,7 @@ internal class SpriteEditor : IEditor
                 int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
                 int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
 
-                _api.spr(AnimFrames[i], bounds.X, bounds.Y,
+                _api.sprr(AnimFrames[i], bounds.X, bounds.Y,
                     validW / Constants.GameDataSizes.TileSize,
                     validH / Constants.GameDataSizes.TileSize,
                     1f / Zooms[AnimSclIdx]);
@@ -887,7 +887,7 @@ internal class SpriteEditor : IEditor
                     validW * scale, (regionH - validH) * scale);
             }
 
-            _api.spr(AnimFrames[animCurrentFrame], animPreviewArea.X, animPreviewArea.Y,
+            _api.sprr(AnimFrames[animCurrentFrame], animPreviewArea.X, animPreviewArea.Y,
                 validW / Constants.GameDataSizes.TileSize,
                 validH / Constants.GameDataSizes.TileSize,
                 scale);
