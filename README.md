@@ -106,7 +106,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws the `sw`×`sh` pixel region of the sprite sheet at `sx, sy` into the `dw`×`dh` rectangle at `dx, dy` on screen, stretching it to fit. `dw`/`dh` default to `-1`, meaning "use `sw`/`sh`" — i.e. draw at 1:1 with no scaling. Unlike `spr`, the destination size is arbitrary and is not clamped, so `sspr` can stretch non-uniformly (a different factor horizontally and vertically). |
 | `sprr` | same as `spr` | Fast `spr`. Draws in a single pass, so it ignores `pal` and `palt` (see below). |
 | `ssprr` | same as `sspr` | Fast `sspr`. Draws in a single pass, so it ignores `pal` and `palt` (see below). |
-| `print` | `text, x, y, color = 7` | Prints text at the given position with the given color. |
+| `print` | `text, x, y, color = 7, colorOpaqueness = 1f` | Prints text at the given position with the given color. `colorOpaqueness` (`0f`-`1f`) fades the text, useful for blend-in/out effects. |
 | `icon` | `n, x, y` | Draws icon `n` at the given position. |
 | `camera` | `x = 0, y = 0` | Sets the camera offset applied to subsequent draw calls. |
 | `pal` | — | Resets the palette to its default state. |
