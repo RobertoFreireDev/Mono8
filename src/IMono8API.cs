@@ -78,7 +78,8 @@ public interface IMono8API
         string text,
         int x,
         int y,
-        int color = 7);
+        int color = 7,
+        float colorOpaqueness = 1f);
 
     void icon(int n, int x, int y);
 

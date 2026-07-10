@@ -141,8 +141,8 @@ public class PixelledSpriteBatch
             DrawRectFill(leftX, row, rightX - leftX + 1, 1, colorIndex, colorOpaqueness));
     }
 
-    public void Draw(Texture2D texture, Vector2 vector, int colorIndex)
+    public void Draw(Texture2D texture, Vector2 vector, int colorIndex, float colorOpaqueness = 1f)
     {
-        _spriteBatch.Draw(texture, vector, null, ColorPalette.GetColor(colorIndex), 0f, new Vector2(0, 0), 1.0f, SpriteEffects.None, 0f);
+        _spriteBatch.Draw(texture, vector, null, ColorPalette.GetColor(colorIndex, colorOpaqueness), 0f, new Vector2(0, 0), 1.0f, SpriteEffects.None, 0f);
     }
 }

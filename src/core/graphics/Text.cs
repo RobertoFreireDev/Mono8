@@ -53,7 +53,7 @@ public static class Text
         }
     }
 
-    public static void DrawText(string text, Vector2 position, int colorIndex, bool wraptext = false, int wrapLimit = 0)
+    public static void DrawText(string text, Vector2 position, int colorIndex, bool wraptext = false, int wrapLimit = 0, float colorOpaqueness = 1f)
     {
         string[] lines = text.ToUpper().Split('\n');
         var copyPos = new Vector2(position.X, position.Y);
@@ -94,7 +94,8 @@ public static class Text
                 Mono8Game.SpriteBatch.Draw(
                     charTexture,
                     new Vector2((int)position.X, (int)position.Y),
-                    colorIndex);
+                    colorIndex,
+                    colorOpaqueness);
 
                 position += new Vector2((charTexture.Width - 1), 0);
             }
