@@ -320,21 +320,40 @@ Selected via the tool row (left of the sprite-number label and page buttons):
 | RectDelete | Drag from one cell to another to clear the rectangular region (sets cells to 0). |
 | Hand | Drag to pan the map viewport with the mouse. |
 
+The button immediately right of the Hand tool is not a tool — it toggles the background layer (see below).
+
 ### Sprite Navigator
 
 Click a sprite in the bottom navigator panel to select it for painting; click a page button to switch between sprite-sheet pages. The toggle in the top-left menu bar (only shown while the Map Editor is active) switches to a full-screen map view, hiding the tool row and sprite navigator.
 
 ### Zoom
 
-Mouse wheel up/down over the map viewport zooms in/out through four levels — `x1/4`, `x1/2`, `x1` (default) and `x2` — in both split and full-screen map views. Zooming keeps the cell under the cursor anchored in place, and the wheel is ignored while a RectFill/RectDelete drag or a Hand pan is in progress. Zooming out shows more of the map at once (at `x1/4` each cell is 2 pixels), which is useful for navigating large maps; painting, panning and the rectangle tools all operate on cells at whatever zoom is active.
+Mouse wheel up/down over the map viewport zooms in/out through three levels — `x1/2`, `x1` (default) and `x2` — in both split and full-screen map views. Zooming keeps the cell under the cursor anchored in place, and the wheel is ignored while a RectFill/RectDelete drag or a Hand pan is in progress. Zooming out shows more of the map at once (at `x1/2` each cell is 4 pixels), which is useful for navigating large maps; painting, panning and the rectangle tools all operate on cells at whatever zoom is active.
 
 The current zoom level is always shown on the bottom bar, immediately left of the `X:nnn Y:nnn` cell coordinates (which only appear while the cursor is over the map).
+
+### Background Layer (Map Halves)
+
+The map is 576 cells tall, and its two halves — rows `0`-`287` and rows `288`-`575` — can be treated as two layers of the same scene. The button just right of the Hand tool draws the half you are *not* looking at as a companion layer, at the same camera offset, so you can line the two up against each other. Left-click cycles the mode forward, right-click cycles it backward:
+
+| Mode | Description |
+|---|---|
+| Off | Only the half the camera is in is drawn. |
+| Behind | The other half is drawn underneath the map you are editing. The button icon is greyed. |
+| In front | The other half is drawn on top of the map you are editing. The button icon is white. |
+
+The companion layer is only ever drawn, never painted — the tools always write to the half the camera is in. Press `Q` to jump the camera to the matching window in the other half, which swaps which layer you are editing while keeping the view identical; a `TOP HALF` / `BOTTOM HALF` notice confirms the move. `Q` does nothing while the mode is Off, since there is no second layer on screen to swap with.
+
+This pairs with the `layerMax` parameter of [`map`](#map): author your background in one half and your foreground in the other, flag the tiles accordingly, and draw them as two `map` calls at runtime.
+
+The button lives on the tool row, so it is hidden in the full-screen map view — but a background layer you turned on stays visible there, and `Q` keeps working.
 
 ### Map Editor Hotkeys
 
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project. |
+| `Q` | Jumps the camera between the top and bottom halves of the map (only while a background layer is shown). |
 | `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction, repeating while held. |
 | `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction, repeating while held. |
 
