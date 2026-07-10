@@ -157,6 +157,20 @@ internal class SpriteSheet
         // + 1 to avoid drawing issues in the border
         Data = PixelGrid.Load(sheet,
             Constants.GameDataSizes.SpriteSheetX, Constants.GameDataSizes.SpriteSheetY, padding: 1);
+
+        ClearProtectedPixels();
+    }
+
+    /// <summary>
+    /// A .gfx file written by an older build (or by hand) may carry pixels inside sprite 0's
+    /// reserved tile. Blank them on load so the sentinel holds for data the editor never wrote.
+    /// The bounds here mirror <see cref="IsProtectedPos"/>.
+    /// </summary>
+    private void ClearProtectedPixels()
+    {
+        for (int y = 0; y < Constants.GameDataSizes.TileSize; y++)
+            for (int x = 0; x < Constants.GameDataSizes.TileSize; x++)
+                Data[y, x] = 0;
     }
 
     public void DataToTexture()
