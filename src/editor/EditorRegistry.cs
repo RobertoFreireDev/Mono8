@@ -19,6 +19,7 @@ internal class EditorRegistry
     public void SwitchTo(int index)
     {
         if (index < 0 || index >= _entries.Count || index == _activeIndex) return;
+        if (_initialized[_activeIndex]) _entries[_activeIndex].Editor.Exit();
         _activeIndex = index;
         EnsureActiveInitialized();
     }

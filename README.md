@@ -315,12 +315,14 @@ Selected via the tool row (left of the sprite-number label and page buttons):
 
 | Tool | Description |
 |---|---|
-| Pixel | Left-click a cell to set it to the selected sprite. |
+| Pixel | Left-click (or drag) to set cells to the selected sprite. A whole drag stroke is a single undo step. |
 | RectFill | Drag from one cell to another to fill the rectangular region with the selected sprite. |
-| RectDelete | Drag from one cell to another to clear the rectangular region (sets cells to 0). |
+| Select | Drag from one cell to another to mark an area. The area stays highlighted with an animated marching-ants border until you right-click to cancel, pick another tool, or leave the editor. With a selection active: `Del` clears it, `Ctrl+C` copies it, and `Ctrl+V` pastes the copied tiles at the selection's top-left. |
 | Hand | Drag to pan the map viewport with the mouse. |
 
 The button immediately right of the Hand tool is not a tool — it toggles the background layer (see below).
+
+Map edits support undo/redo with `Ctrl+Z` / `Ctrl+Shift+Z` (up to 50 steps; history is cleared when a cart is loaded).
 
 ### Sprite Navigator
 
@@ -328,7 +330,7 @@ Click a sprite in the bottom navigator panel to select it for painting; click a 
 
 ### Zoom
 
-Mouse wheel up/down over the map viewport zooms in/out through three levels — `x1/2`, `x1` (default) and `x2` — in both split and full-screen map views. Zooming keeps the cell under the cursor anchored in place, and the wheel is ignored while a RectFill/RectDelete drag or a Hand pan is in progress. Zooming out shows more of the map at once (at `x1/2` each cell is 4 pixels), which is useful for navigating large maps; painting, panning and the rectangle tools all operate on cells at whatever zoom is active.
+Mouse wheel up/down over the map viewport zooms in/out through three levels — `x1/2`, `x1` (default) and `x2` — in both split and full-screen map views. Zooming keeps the cell under the cursor anchored in place, and the wheel is ignored while a RectFill/Select drag or a Hand pan is in progress. Zooming out shows more of the map at once (at `x1/2` each cell is 4 pixels), which is useful for navigating large maps; painting, panning and the rectangle tools all operate on cells at whatever zoom is active.
 
 The current zoom level is always shown on the bottom bar, immediately left of the `X:nnn Y:nnn` cell coordinates (which only appear while the cursor is over the map).
 

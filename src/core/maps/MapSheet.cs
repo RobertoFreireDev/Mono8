@@ -4,9 +4,54 @@ internal class MapSheet
 {
     public int[,] Data;
 
+    private int[,] _copy;
+
+    private const int MaxUndoSteps = 50;
+    private readonly Stack<int[,]> _undoStack = new Stack<int[,]>();
+    private readonly Stack<int[,]> _redoStack = new Stack<int[,]>();
+
+    public bool CanUndo => _undoStack.Count > 0;
+    public bool CanRedo => _redoStack.Count > 0;
+    public bool HasClipboard => _copy != null;
+
+    // Public (unlike SpriteSheet's) so MapEditor can snapshot once at the start of a
+    // paint stroke and then paint many tiles under that single undo step.
+    public void SaveSnapshot()
+    {
+        _undoStack.Push((int[,])Data.Clone());
+        _redoStack.Clear();
+
+        if (_undoStack.Count > MaxUndoSteps)
+        {
+            var items = _undoStack.ToArray();
+            _undoStack.Clear();
+            for (int i = MaxUndoSteps - 1; i >= 0; i--)
+                _undoStack.Push(items[i]);
+        }
+    }
+
+    public void Undo()
+    {
+        if (!CanUndo) return;
+
+        _redoStack.Push((int[,])Data.Clone());
+        Data = _undoStack.Pop();
+    }
+
+    public void Redo()
+    {
+        if (!CanRedo) return;
+
+        _undoStack.Push((int[,])Data.Clone());
+        Data = _redoStack.Pop();
+    }
+
+    public static bool IsValidTile(int tileIndex) =>
+        tileIndex >= 0 && tileIndex <= Constants.GameDataSizes.MaxSpriteIndex;
+
     public void SetTile(int x, int y, int tileIndex)
     {
-        if (InvalidGridPos(x, y))
+        if (InvalidGridPos(x, y) || !IsValidTile(tileIndex))
         {
             return;
         }
@@ -25,13 +70,70 @@ internal class MapSheet
 
     public bool InvalidGridPos(int x, int y)
     {
-        return x < 0 || y < 0 || 
+        return x < 0 || y < 0 ||
             x >= Constants.GameDataSizes.MapSheetX ||
             y >= Constants.GameDataSizes.MapSheetY;
     }
 
+    /// <summary>
+    /// Clips an arbitrary rectangle to the map's bounds. Returns false when nothing
+    /// of it remains, which every region operation treats as "nothing to do".
+    /// </summary>
+    private static bool TryClampRegion(int x, int y, int w, int h, out Rectangle region)
+    {
+        int left = Math.Max(x, 0);
+        int top = Math.Max(y, 0);
+        int right = Math.Min(x + w, Constants.GameDataSizes.MapSheetX);
+        int bottom = Math.Min(y + h, Constants.GameDataSizes.MapSheetY);
+
+        region = new Rectangle(left, top, right - left, bottom - top);
+        return region.Width > 0 && region.Height > 0;
+    }
+
+    public void FillRegion(int x, int y, int w, int h, int tileIndex)
+    {
+        if (!IsValidTile(tileIndex) || !TryClampRegion(x, y, w, h, out var r)) return;
+
+        SaveSnapshot();
+        for (int row = 0; row < r.Height; row++)
+            for (int col = 0; col < r.Width; col++)
+                Data[r.Y + row, r.X + col] = tileIndex;
+    }
+
+    public void ClearRegion(int x, int y, int w, int h) => FillRegion(x, y, w, h, 0);
+
+    public void CopyRegion(int x, int y, int w, int h)
+    {
+        if (!TryClampRegion(x, y, w, h, out var r)) return;
+
+        _copy = new int[r.Height, r.Width];
+        for (int row = 0; row < r.Height; row++)
+            for (int col = 0; col < r.Width; col++)
+                _copy[row, col] = Data[r.Y + row, r.X + col];
+    }
+
+    public void PasteRegion(int x, int y)
+    {
+        if (_copy == null) return;
+        if (!TryClampRegion(x, y, _copy.GetLength(1), _copy.GetLength(0), out var r)) return;
+
+        SaveSnapshot();
+        WriteRegion(r, _copy);
+    }
+
+    private void WriteRegion(Rectangle region, int[,] source)
+    {
+        for (int row = 0; row < region.Height; row++)
+            for (int col = 0; col < region.Width; col++)
+                Data[region.Y + row, region.X + col] = source[row, col];
+    }
+
     public void LoadMaps(string[] sheet)
     {
+        _undoStack.Clear();
+        _redoStack.Clear();
+        _copy = null;
+
         Data = new int[Constants.GameDataSizes.MapSheetY, Constants.GameDataSizes.MapSheetX];
 
         for (int r = 0; r < Constants.GameDataSizes.MapSheetY; r++)

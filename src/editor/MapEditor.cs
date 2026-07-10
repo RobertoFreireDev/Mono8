@@ -6,7 +6,7 @@ internal class MapEditor : IEditor
     {
         Pixel,
         RectFill,
-        RectDelete,
+        Select,
         Hand,
     }
 
@@ -46,10 +46,22 @@ internal class MapEditor : IEditor
     private readonly Rectangle backgroundButton;
     private BackgroundMode backgroundMode = BackgroundMode.None;
 
-    // --- RectFill drag ---
+    // --- RectFill / Select drag ---
     private bool dragging;
     private int dragStartCellX;
     private int dragStartCellY;
+
+    // --- Selection (Select tool): a committed area, kept in map-cell space so it stays
+    // anchored to the map as the camera pans and zooms. ---
+    private bool hasSelection;
+    private Rectangle selection;
+
+    // Marching-ants border animation.
+    private const float AntsFrameSeconds = 0.12f;
+    private static readonly int[] AntsPalette =
+        { Constants.Colors.White, Constants.Colors.LightGray, Constants.Colors.DarkGray };
+    private float antsElapsed;
+    private int antsPhase;
 
     // --- Hand (pan) drag ---
     private bool panning;
@@ -75,7 +87,7 @@ internal class MapEditor : IEditor
         {
             (new Button(0 * size, labelRowY - 1, size, 25), Tool.Pixel),
             (new Button(1 * size, labelRowY - 1, size, 23), Tool.RectFill),
-            (new Button(2 * size, labelRowY - 1, size, 24), Tool.RectDelete),
+            (new Button(2 * size, labelRowY - 1, size, 24), Tool.Select),
             (new Button(3 * size, labelRowY - 1, size, 26), Tool.Hand),
         };
 
@@ -166,15 +178,35 @@ internal class MapEditor : IEditor
         ClampCamera();
     }
 
+    public void Exit()
+    {
+        ClearSelection();
+    }
+
+    private void ClearSelection()
+    {
+        hasSelection = false;
+        dragging = false;
+    }
+
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
+
+        antsElapsed += elapsedSeconds;
+        while (antsElapsed >= AntsFrameSeconds)
+        {
+            antsElapsed -= AntsFrameSeconds;
+            antsPhase = (antsPhase + 1) % AntsPalette.Length;
+        }
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
             Mono8Game.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
         }
+
+        UpdateEditShortcuts();
 
         if (KeybrdInput.JustPressed(Keys.Q)) ToggleMapHalf();
 
@@ -250,6 +282,7 @@ internal class MapEditor : IEditor
             {
                 if (button.IsClicked(_api, mouse))
                 {
+                    if (tool != selectedTool) ClearSelection();
                     selectedTool = tool;
                     break;
                 }
@@ -271,15 +304,63 @@ internal class MapEditor : IEditor
         return (cellX, cellY);
     }
 
+    private void UpdateEditShortcuts()
+    {
+        var map = Mono8API.MapSheet;
+
+        if (KeybrdInput.IsUndoShortcutPressed() && map.CanUndo)
+        {
+            map.Undo();
+            eventNotifier.AddEvent("UNDO");
+        }
+        else if (KeybrdInput.IsRedoShortcutPressed() && map.CanRedo)
+        {
+            map.Redo();
+            eventNotifier.AddEvent("REDO");
+        }
+
+        if (!hasSelection) return;
+
+        if (KeybrdInput.JustPressed(Keys.Delete))
+        {
+            map.ClearRegion(selection.X, selection.Y, selection.Width, selection.Height);
+            eventNotifier.AddEvent("DELETE");
+        }
+
+        if (KeybrdInput.IsCopyShortcutPressed())
+        {
+            map.CopyRegion(selection.X, selection.Y, selection.Width, selection.Height);
+            eventNotifier.AddEvent("COPY");
+        }
+
+        if (KeybrdInput.IsPasteShortcutPressed() && map.HasClipboard)
+        {
+            map.PasteRegion(selection.X, selection.Y);
+            eventNotifier.AddEvent("PASTE");
+        }
+    }
+
     private void UpdateMapPainting((int x, int y) mouse, Rectangle mapArea)
     {
         var (cellX, cellY) = CellUnderMouse(mouse, mapArea);
 
+        // Right-click anywhere on the map cancels the current selection / drag.
+        if (_api.mouserp() && (hasSelection || dragging))
+        {
+            ClearSelection();
+            eventNotifier.AddEvent("CANCEL");
+            return;
+        }
+
         if (selectedTool == Tool.Pixel)
         {
+            if (!MapSheet.IsValidTile(navigator.SelectedSprite)) return;
+
+            // One snapshot per stroke: taken on press, then paint under it while held.
+            if (_api.mouselp()) Mono8API.MapSheet.SaveSnapshot();
             if (_api.mousel()) _api.mset(cellX, cellY, navigator.SelectedSprite);
         }
-        else if (selectedTool == Tool.RectFill || selectedTool == Tool.RectDelete)
+        else if (selectedTool == Tool.RectFill)
         {
             if (_api.mouselp())
             {
@@ -289,23 +370,39 @@ internal class MapEditor : IEditor
             }
             else if (dragging && _api.mouselr())
             {
-                int value = selectedTool == Tool.RectDelete ? 0 : navigator.SelectedSprite;
-                ApplyRectFill(dragStartCellX, dragStartCellY, cellX, cellY, value);
+                int minX = Math.Min(dragStartCellX, cellX);
+                int minY = Math.Min(dragStartCellY, cellY);
+                int w = Math.Abs(cellX - dragStartCellX) + 1;
+                int h = Math.Abs(cellY - dragStartCellY) + 1;
+                Mono8API.MapSheet.FillRegion(minX, minY, w, h, navigator.SelectedSprite);
+                dragging = false;
+            }
+        }
+        else if (selectedTool == Tool.Select)
+        {
+            if (_api.mouselp())
+            {
+                dragStartCellX = cellX;
+                dragStartCellY = cellY;
+                dragging = true;
+            }
+            else if (dragging && _api.mouselr())
+            {
+                CommitSelection(dragStartCellX, dragStartCellY, cellX, cellY);
                 dragging = false;
             }
         }
     }
 
-    private void ApplyRectFill(int x0, int y0, int x1, int y1, int value)
+    private void CommitSelection(int x0, int y0, int x1, int y1)
     {
-        int minX = Math.Min(x0, x1);
-        int minY = Math.Min(y0, y1);
-        int maxX = Math.Max(x0, x1);
-        int maxY = Math.Max(y0, y1);
+        int minX = Math.Clamp(Math.Min(x0, x1), 0, Constants.GameDataSizes.MapSheetX - 1);
+        int minY = Math.Clamp(Math.Min(y0, y1), 0, Constants.GameDataSizes.MapSheetY - 1);
+        int maxX = Math.Clamp(Math.Max(x0, x1), 0, Constants.GameDataSizes.MapSheetX - 1);
+        int maxY = Math.Clamp(Math.Max(y0, y1), 0, Constants.GameDataSizes.MapSheetY - 1);
 
-        for (int y = minY; y <= maxY; y++)
-            for (int x = minX; x <= maxX; x++)
-                _api.mset(x, y, value);
+        selection = new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        hasSelection = true;
     }
 
     public void Draw()
@@ -352,24 +449,56 @@ internal class MapEditor : IEditor
 
         DrawMapLayers(mapArea);
 
-        var mouse = _api.mousexy();
-        if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
+        // A committed selection is drawn wherever the camera is; it stays anchored to cells.
+        if (hasSelection)
         {
-            if (dragging && (selectedTool == Tool.RectFill || selectedTool == Tool.RectDelete))
+            DrawMarchingAntsCells(mapArea, selection.X, selection.Y, selection.Width, selection.Height);
+        }
+
+        var mouse = _api.mousexy();
+        if (dragging && mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
+        {
+            var (cellX, cellY) = CellUnderMouse(mouse, mapArea);
+            int minX = Math.Min(dragStartCellX, cellX);
+            int minY = Math.Min(dragStartCellY, cellY);
+            int w = Math.Abs(cellX - dragStartCellX) + 1;
+            int h = Math.Abs(cellY - dragStartCellY) + 1;
+
+            if (selectedTool == Tool.RectFill)
             {
-                var (cellX, cellY) = CellUnderMouse(mouse, mapArea);
-                int minX = Math.Min(dragStartCellX, cellX);
-                int minY = Math.Min(dragStartCellY, cellY);
-                int maxX = Math.Max(dragStartCellX, cellX);
-                int maxY = Math.Max(dragStartCellY, cellY);
                 int px = mapArea.X + (minX - camX) * size;
                 int py = mapArea.Y + (minY - camY) * size;
-                _api.rectfill(px, py,
-                    px + (maxX - minX + 1) * size - 1,
-                    py + (maxY - minY + 1) * size - 1,
-                    selectedTool == Tool.RectDelete ? Constants.Colors.Red : Constants.Colors.White);
+                _api.rectfill(px, py, px + w * size - 1, py + h * size - 1, Constants.Colors.White);
+            }
+            else if (selectedTool == Tool.Select)
+            {
+                DrawMarchingAntsCells(mapArea, minX, minY, w, h);
             }
         }
+    }
+
+    // Converts a cell-space rectangle to screen space at the current camera/zoom and outlines
+    // it with an animated white / light-grey / dark-grey border, clipped to the map viewport.
+    private void DrawMarchingAntsCells(Rectangle mapArea, int cellX, int cellY, int cellW, int cellH)
+    {
+        int size = CellPx;
+        int x0 = mapArea.X + (cellX - camX) * size;
+        int y0 = mapArea.Y + (cellY - camY) * size;
+        int x1 = x0 + cellW * size - 1;
+        int y1 = y0 + cellH * size - 1;
+
+        void Ant(int x, int y, int t)
+        {
+            if (x < mapArea.X || x >= mapArea.X + mapArea.Width ||
+                y < mapArea.Y || y >= mapArea.Y + mapArea.Height) return;
+            _api.pixel(x, y, AntsPalette[(t + antsPhase) % AntsPalette.Length]);
+        }
+
+        int step = 0;
+        for (int x = x0; x <= x1; x++) Ant(x, y0, step++);       // top, L->R
+        for (int y = y0 + 1; y <= y1; y++) Ant(x1, y, step++);   // right, T->B
+        for (int x = x1 - 1; x >= x0; x--) Ant(x, y1, step++);   // bottom, R->L
+        for (int y = y1 - 1; y > y0; y--) Ant(x0, y, step++);    // left, B->T
     }
 
     // The companion layer is the same camera window taken from the other half of the map sheet,
