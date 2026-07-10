@@ -15,6 +15,10 @@ internal class MapEditor : IEditor
 
     // --- Map viewport ---
     private const int MapTop = Constants.GameDataSizes.TileSize;
+    // One game screen spans this many map cells; the reference grid marks screen boundaries.
+    // The map sheet is an exact multiple of a screen (512x576 cells = 16x32 screens).
+    private const int ScreenCols = Constants.Screen.ResolutionX / Constants.GameDataSizes.TileSize; // 32
+    private const int ScreenRows = Constants.Screen.ResolutionY / Constants.GameDataSizes.TileSize; // 18
     // Cell sizes on screen: 4px, 8px (native), 16px.
     private static readonly float[] Zooms = { 0.5f, 1f, 2f };
     private const int DefaultZoomIdx = 1;
@@ -387,6 +391,8 @@ internal class MapEditor : IEditor
             mapArea.X + mapArea.Width - 1, mapArea.Y + mapArea.Height - 1,
             Constants.Colors.Black);
 
+        DrawScreenGrid(mapArea);
+
         _api.map(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
 
         // A committed selection is drawn wherever the camera is; it stays anchored to cells.
@@ -414,6 +420,34 @@ internal class MapEditor : IEditor
             {
                 DrawMarchingAntsCells(mapArea, minX, minY, w, h);
             }
+        }
+    }
+
+    // Draws a 1px dark-blue reference line on every game-screen boundary that falls inside the
+    // viewport. Grid lines sit in map-cell space, so they stay anchored to the map as it pans and
+    // zooms; drawn after the black background but before the tiles so tiles paint over them.
+    private void DrawScreenGrid(Rectangle mapArea)
+    {
+        int size = CellPx;
+        int right = mapArea.X + mapArea.Width - 1;
+        int bottom = mapArea.Y + mapArea.Height - 1;
+
+        // Vertical lines at every screen column boundary (cellX a multiple of ScreenCols).
+        int firstCol = ((camX + ScreenCols - 1) / ScreenCols) * ScreenCols;
+        for (int cellX = firstCol; cellX <= camX + MapCols; cellX += ScreenCols)
+        {
+            int px = mapArea.X + (cellX - camX) * size;
+            if (px > right) break;
+            _api.line(px, mapArea.Y, px, bottom, Constants.Colors.DarkBlue);
+        }
+
+        // Horizontal lines at every screen row boundary (cellY a multiple of ScreenRows).
+        int firstRow = ((camY + ScreenRows - 1) / ScreenRows) * ScreenRows;
+        for (int cellY = firstRow; cellY <= camY + MapRows; cellY += ScreenRows)
+        {
+            int py = mapArea.Y + (cellY - camY) * size;
+            if (py > bottom) break;
+            _api.line(mapArea.X, py, right, py, Constants.Colors.DarkBlue);
         }
     }
 
