@@ -98,7 +98,7 @@ internal class MapSheet
                 if (layerMax != 0 && (Mono8API.SpriteSheet.GetFlags(tileIndex) & layerMax) == 0) continue;
 
                 Mono8API.SpriteSheet.Draw(
-                    tileIndex,
+                    true, tileIndex,
                     px + x * Constants.GameDataSizes.TileSize,
                     py + y * Constants.GameDataSizes.TileSize,
                     colorOpaqueness: colorOpaqueness);
@@ -145,7 +145,7 @@ internal class MapSheet
                 int left = px + Edge(x);
                 int destWidth = Math.Max(1, Edge(x + 1) - Edge(x));
 
-                Mono8API.SpriteSheet.DrawSub(
+                Mono8API.SpriteSheet.DrawSub(true,
                     (tileIndex % columns) * tileSize,
                     (tileIndex / columns) * tileSize,
                     tileSize, tileSize,

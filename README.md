@@ -74,8 +74,8 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `circfill` | `x, y, radius, color, colorOpaqueness = 1f` | Draws a filled circle. |
 | `oval` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws an oval outline within the given bounds. |
 | `ovalfill` | `x0, y0, x1, y1, color, colorOpaqueness = 1f` | Draws a filled oval within the given bounds. |
-| `spr` | `spriteId, x, y, width = 1, height = 1, scale = 1f, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a sprite at the given position, with optional size, scale (float; e.g. `0.5f` shrinks, `4f` enlarges), flipping and opaqueness. |
-| `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws a rectangular region of the sprite sheet, scaled and/or flipped, to the screen. |
+| `spr` | `spriteId, x, y, width = 1, height = 1, scale = 1f, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws sprite `spriteId` with its top-left corner at `x, y`. `width`/`height` are measured in 8×8 tiles, so `spr(0, 0, 0, 2, 2)` draws a 16×16 block starting at sprite `0`. `scale` is a free float (`0.5f` shrinks, `4f` enlarges), clamped to `0.125`-`8`. |
+| `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws the `sw`×`sh` pixel region of the sprite sheet at `sx, sy` into the `dw`×`dh` rectangle at `dx, dy` on screen, stretching it to fit. `dw`/`dh` default to `-1`, meaning "use `sw`/`sh`" — i.e. draw at 1:1 with no scaling. Unlike `spr`, the destination size is arbitrary and is not clamped, so `sspr` can stretch non-uniformly (a different factor horizontally and vertically). |
 | `print` | `text, x, y, color = 7` | Prints text at the given position with the given color. |
 | `icon` | `n, x, y` | Draws icon `n` at the given position. |
 | `camera` | `x = 0, y = 0` | Sets the camera offset applied to subsequent draw calls. |
@@ -85,13 +85,17 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `palt` | `colorIndex` | Toggles transparency for a color index. |
 | `palt` | `colorIndex, transparent` | Sets whether a color index is treated as transparent. |
 
+Both `spr` and `sspr` draw one pass per palette color, so they respect the current `pal` color remapping and `palt` transparency (by default color `0` is transparent). Sprite pixels whose color is transparent are skipped entirely, letting whatever was drawn earlier show through.
+
+**`pal` and `palt` do not apply to `map`.** For speed, `map` draws every tile from a single pre-baked texture of the sprite sheet rather than compositing one pass per color. So a `pal(c0, c1)` remap in effect at draw time is ignored by `map`, and `palt` cannot make a color transparent (or make color `0` opaque) for map tiles. The two things that still work are color `0`, which is always transparent because it is baked that way, and `colorOpaqueness`, which tints the whole tile. To draw a tile with palette swaps or custom transparency, read it with `mget` and draw it yourself with `spr`.
+
 ### Map
 
 | Function | Parameters | Description |
 |---|---|---|
 | `mget` | `cellX, cellY` | Gets the sprite id at a map cell. |
 | `mset` | `cellX, cellY, spriteId` | Sets the sprite id at a map cell. |
-| `map` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, scale = 1f, colorOpaqueness = 1f, layerMax = 0` | Draws a region of the map to the screen, optionally scaled. `scale` only supports `0.5`, `1` and `2`; other values snap to the nearest. |
+| `map` | `cellX, cellY, screenX, screenY, cellWidth = 40, cellHeight = 23, scale = 1f, colorOpaqueness = 1f, layerMax = 0` | Draws a region of the map to the screen, optionally scaled. `scale` only supports `0.5`, `1` and `2`; other values snap to the nearest. Ignores `pal` and `palt`; color `0` is always transparent (see [Graphics](#graphics)). |
 
 ### Sprite Flags
 

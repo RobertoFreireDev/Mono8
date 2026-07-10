@@ -5,8 +5,11 @@ internal class SpriteSheet
     private static readonly int TotalSprites =
         Constants.GameDataSizes.SpriteSheetColumns * Constants.GameDataSizes.SpriteSheetRows;
 
+    public const int FinalTextureIndex = Constants.GameDataSizes.ColorPalette;
+
     public int[,] Data;
-    public Texture2D[] ColorTextures = new Texture2D[Constants.GameDataSizes.ColorPalette];
+
+    public Texture2D[] ColorTextures = new Texture2D[Constants.GameDataSizes.ColorPalette + 1];
 
     public Rectangle[] TileRects;
 
@@ -214,7 +217,21 @@ internal class SpriteSheet
             ColorTextures[ci] ??= new Texture2D(mono8.GraphicsDeviceRef, width, height);
             ColorTextures[ci].SetData(maskData);
         }
+
+        var finalData = new Color[pixelCount];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                finalData[y * width + x] = FinalColor(Data[y, x]);
+
+        ColorTextures[FinalTextureIndex] ??= new Texture2D(mono8.GraphicsDeviceRef, width, height);
+        ColorTextures[FinalTextureIndex].SetData(finalData);
     }
+
+    // Color 0 is baked as transparent rather than as its palette color (black). The
+    // final texture is drawn in one pass, so it never goes through the per-color loop
+    // that skips palt-transparent colors, and map tiles would otherwise be opaque.
+    private static Color FinalColor(int colorIndex) =>
+        colorIndex == 0 ? ColorPalette.TransparentColor : ColorPalette.GetColor(colorIndex);
 
     private static bool IsValidColor(int colorIndex) =>
         colorIndex >= 0 && colorIndex < Constants.GameDataSizes.ColorPalette;
@@ -273,6 +290,12 @@ internal class SpriteSheet
 
             ColorTextures[ci].SetData(0, rect, maskData, 0, maskData.Length);
         }
+
+        for (int ry = 0; ry < regionHeight; ry++)
+            for (int rx = 0; rx < regionWidth; rx++)
+                maskData[ry * regionWidth + rx] = FinalColor(Data[top + ry, left + rx]);
+
+        ColorTextures[FinalTextureIndex].SetData(0, rect, maskData, 0, maskData.Length);
     }
 
     public void SetPixel(int x, int y, int colorIndex)
@@ -530,7 +553,8 @@ internal class SpriteSheet
         UpdateTextureRegion(x, y, w, h);
     }
 
-    public void DrawSub(int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY, float colorOpaqueness = 1f)
+    public void DrawSub(bool useFinalTextureIndex,
+        int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY, float colorOpaqueness = 1f)
     {
         var source = new Rectangle(sx, sy, sw, sh);
         var destination = new Rectangle(dx, dy, dw, dh);
@@ -538,6 +562,12 @@ internal class SpriteSheet
         SpriteEffects effects = SpriteEffects.None;
         if (flipX) effects |= SpriteEffects.FlipHorizontally;
         if (flipY) effects |= SpriteEffects.FlipVertically;
+
+        if (useFinalTextureIndex)
+        {
+            mono8.SpriteBatch.Draw(ColorTextures[FinalTextureIndex], destination, source, effects, ColorPalette.WhiteColorIndex, colorOpaqueness);
+            return;
+        }
 
         for (int ci = 0; ci < Constants.GameDataSizes.ColorPalette; ci++)
         {
@@ -551,7 +581,7 @@ internal class SpriteSheet
     public const float MinScale = 0.125f;
     public const float MaxScale = 8f;
 
-    public void Draw(
+    public void Draw(bool useFinalTextureIndex,
         int n, int x, int y, int w = 1, int h = 1,
         float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
@@ -570,6 +600,12 @@ internal class SpriteSheet
         SpriteEffects effects = SpriteEffects.None;
         if (flipX) effects |= SpriteEffects.FlipHorizontally;
         if (flipY) effects |= SpriteEffects.FlipVertically;
+
+        if (useFinalTextureIndex)
+        {
+            mono8.SpriteBatch.Draw(ColorTextures[FinalTextureIndex], destination, source, effects, ColorPalette.WhiteColorIndex, colorOpaqueness);
+            return;
+        }
 
         for (int ci = 0; ci < Constants.GameDataSizes.ColorPalette; ci++)
         {

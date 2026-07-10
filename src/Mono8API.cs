@@ -122,7 +122,7 @@ internal class Mono8API : IMono8API
                 Editors.Active.Draw();
                 _menuBar.Draw();
             }
-            print(stat(7).ToString("D2"), 40, 0, Constants.Colors.Brown);
+
             camera(0, 0);
             Menu.Draw();
         }
@@ -189,13 +189,13 @@ internal class Mono8API : IMono8API
     public void spr(int spriteId, int x, int y, int width = 1, int height = 1,
         float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
-        SpriteSheet.Draw(spriteId, x, y, width, height, scale, flipX, flipY, colorOpaqueness);
+        SpriteSheet.Draw(false, spriteId, x, y, width, height, scale, flipX, flipY, colorOpaqueness);
     }
 
     public void sspr(int sx, int sy, int sw, int sh, int dx, int dy,
         int dw = -1, int dh = -1, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
     {
-        SpriteSheet.DrawSub(sx, sy, sw, sh, dx, dy, dw < 0 ? sw : dw, dh < 0 ? sh : dh, flipX, flipY, colorOpaqueness);
+        SpriteSheet.DrawSub(false, sx, sy, sw, sh, dx, dy, dw < 0 ? sw : dw, dh < 0 ? sh : dh, flipX, flipY, colorOpaqueness);
     }
 
     public void cls(int colorIndex = 0)
