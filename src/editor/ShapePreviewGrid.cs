@@ -25,14 +25,8 @@ internal class ShapePreviewGrid
                 SetPixel(xx, yy, colorIndex);
     }
 
-    public void SetRect(int x, int y, int w, int h, int colorIndex)
-    {
-        const int thickness = 1;
-        SetRectFill(x, y, w, thickness, colorIndex);
-        SetRectFill(x, y + h - thickness, w, thickness, colorIndex);
-        SetRectFill(x, y + 1, thickness, h - 2, colorIndex);
-        SetRectFill(x + w - thickness, y + 1, thickness, h - 2, colorIndex);
-    }
+    public void SetRect(int x, int y, int w, int h, int colorIndex) =>
+        RectMath.Outline(x, y, w, h, (rx, ry, rw, rh) => SetRectFill(rx, ry, rw, rh, colorIndex));
 
     public void SetOval(int x0, int y0, int x1, int y1, int colorIndex) =>
         OvalMath.DrawOutline(x0, y0, x1, y1, (px, py) => SetPixel(px, py, colorIndex));

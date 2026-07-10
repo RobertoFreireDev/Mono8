@@ -2,31 +2,11 @@
 
 internal static class MouseInput
 {
-    public static int Current_Cursor = 0;    
-
-    public static void UpdateCursor(int cursor)
-    {
-        if (cursor < 0 || cursor > 1)
-        {
-            return;
-        }
-
-        Current_Cursor = cursor;
-    }
-
     public static (int x, int y) MouseVirtualPosition(int offsetX = 0)
     {
         return (
                 (int)((-Screen.BoxToDraw.X + InputStateManager.CurrentMouseState().Position.X - offsetX * Screen.ScaleX) / Screen.ScaleX),
                 (int)((-Screen.BoxToDraw.Y + InputStateManager.CurrentMouseState().Position.Y) / Screen.ScaleY)
-            );
-    }
-
-    public static Vector2 MousePosition(int offsetX = 0)
-    {
-        return new Vector2(
-                InputStateManager.CurrentMouseState().Position.X - offsetX,
-                InputStateManager.CurrentMouseState().Position.Y
             );
     }
 

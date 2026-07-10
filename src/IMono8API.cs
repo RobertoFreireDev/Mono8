@@ -166,22 +166,6 @@ public interface IMono8API
     (int x, int y) mousexy();
 
     // ============================================================
-    // SPRITE EDITOR
-    // ============================================================
-
-    void SetPixel(int x, int y, int colorIndex);
-
-    void SetRectFill(int x, int y, int w, int h, int colorIndex);
-
-    void SetRect(int x, int y, int w, int h, int colorIndex);
-
-    void SetOval(int x0, int y0, int x1, int y1, int colorIndex);
-
-    void SetOvalFill(int x0, int y0, int x1, int y1, int colorIndex);
-
-    void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex);
-
-    // ============================================================
     // AUDIO
     // ============================================================
 
@@ -243,4 +227,23 @@ public interface IMono8API
     int dget(int index);
 
     void dset(int index, int value);
+}
+
+/// <summary>
+/// Sprite-sheet mutation, available to the built-in editors only. Game code sees
+/// <see cref="IMono8API"/>, which cannot paint over the sheet it is drawing from.
+/// </summary>
+internal interface IEditorAPI : IMono8API
+{
+    void SetPixel(int x, int y, int colorIndex);
+
+    void SetRectFill(int x, int y, int w, int h, int colorIndex);
+
+    void SetRect(int x, int y, int w, int h, int colorIndex);
+
+    void SetOval(int x0, int y0, int x1, int y1, int colorIndex);
+
+    void SetOvalFill(int x0, int y0, int x1, int y1, int colorIndex);
+
+    void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex);
 }

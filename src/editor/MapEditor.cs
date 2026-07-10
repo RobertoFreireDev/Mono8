@@ -15,7 +15,6 @@ internal class MapEditor : IEditor
 
     // --- Map viewport ---
     private const int MapTop = Constants.GameDataSizes.TileSize;
-    private static readonly int BottomBarY = Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize;
     // Cell sizes on screen: 4px, 8px (native), 16px.
     private static readonly float[] Zooms = { 0.5f, 1f, 2f };
     private const int DefaultZoomIdx = 1;
@@ -26,19 +25,9 @@ internal class MapEditor : IEditor
     // Set by the menu bar toggle (top-left, only shown while the map editor is active).
     public bool FullMapView { get; set; }
 
-    // --- Sprite navigator (bottom panel, like SpriteEditor) ---
-    private const int VisibleRows = 6;
-    private const int SpritePages = Constants.GameDataSizes.SpriteSheetRows / VisibleRows;
-    private const int PageIconSelected = 45;
-    private const int PageIconNotSelected = 46;
-    private Rectangle sprvwrarea;
-    private int sprNmbr;
-    private int SprX;
-    private int SprY;
-    private readonly int labelRowY;
-    private readonly Rectangle[] pageButtons;
-    private readonly Rectangle sprNmbrLabelArea;
-    private int spritePage;
+    // --- Sprite navigator (bottom panel, shared with SpriteEditor) ---
+    private readonly SpriteNavigator navigator;
+    private int labelRowY => navigator.LabelRowY;
 
     // --- Tools (drawn on the sprite-number / page-button row) ---
     private readonly (Button Button, Tool Tool)[] toolButtons;
@@ -66,27 +55,9 @@ internal class MapEditor : IEditor
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
 
-        sprvwrarea = new Rectangle(0,
-            Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize,
-            Constants.GameDataSizes.SpriteSheetX,
-            VisibleRows * Constants.GameDataSizes.TileSize);
-        sprNmbr = 0;
-        SprX = 0;
-        SprY = sprvwrarea.Y;
+        navigator = new SpriteNavigator(api);
 
         int size = Constants.GameDataSizes.TileSize;
-        labelRowY = sprvwrarea.Y - size;
-
-        int pageButtonsStartX = Constants.Screen.ResolutionX - SpritePages * size;
-        pageButtons = new Rectangle[SpritePages];
-        for (int i = 0; i < pageButtons.Length; i++)
-        {
-            pageButtons[i] = new Rectangle(pageButtonsStartX + i * size, labelRowY - 1, size, size);
-        }
-
-        const int labelGap = 4;
-        sprNmbrLabelArea = new Rectangle(pageButtonsStartX - labelGap - size * 2, labelRowY - 1, size * 2, size - 1);
-
         toolButtons = new[]
         {
             (new Button(0 * size, labelRowY - 1, size, 25), Tool.Pixel),
@@ -116,7 +87,7 @@ internal class MapEditor : IEditor
     // instead of leaving a partial-tile strip; Update() excludes the button rects from
     // hoveringMap so that overlapping row still lets clicks reach the tool/page buttons.
     private int MapRows => FullMapView
-        ? (BottomBarY - MapTop) / CellPx
+        ? (EditorUI.BottomBarY - MapTop) / CellPx
         : (labelRowY - MapTop + CellPx - 1) / CellPx;
 
     private Rectangle MapArea => new Rectangle(0, MapTop, MapCols * CellPx, MapRows * CellPx);
@@ -150,19 +121,16 @@ internal class MapEditor : IEditor
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
-            mono8.GameAPI.Save();
+            Mono8Game.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
         }
 
         // Pan the map viewport. Holding Control moves 8 tiles at a time instead of one.
-        bool ctrlHeld = KeybrdInput.Pressed(Keys.LeftControl) || KeybrdInput.Pressed(Keys.RightControl);
-        int panStep = ctrlHeld ? 8 : 1;
-        int panStepX = panStep;
-        int panStepY = panStep;
-        if (KeybrdInput.Pressed(Keys.Left)) camX -= panStepX;
-        if (KeybrdInput.Pressed(Keys.Right)) camX += panStepX;
-        if (KeybrdInput.Pressed(Keys.Up)) camY -= panStepY;
-        if (KeybrdInput.Pressed(Keys.Down)) camY += panStepY;
+        int panStep = KeybrdInput.IsCtrlPressed() ? 8 : 1;
+        if (KeybrdInput.Pressed(Keys.Left)) camX -= panStep;
+        if (KeybrdInput.Pressed(Keys.Right)) camX += panStep;
+        if (KeybrdInput.Pressed(Keys.Up)) camY -= panStep;
+        if (KeybrdInput.Pressed(Keys.Down)) camY += panStep;
         ClampCamera();
 
         var mouse = _api.mousexy();
@@ -212,16 +180,9 @@ internal class MapEditor : IEditor
             (hoverCellX, hoverCellY) = CellUnderMouse(mouse, mapArea);
             UpdateMapPainting(mouse, mapArea);
         }
-        else if (!FullMapView && sprvwrarea.Contains(mouse.x, mouse.y))
+        else if (!FullMapView && navigator.ViewerArea.Contains(mouse.x, mouse.y))
         {
-            if (_api.mousel())
-            {
-                int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
-                int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
-                SprX = x * Constants.GameDataSizes.TileSize + sprvwrarea.X;
-                SprY = y * Constants.GameDataSizes.TileSize + sprvwrarea.Y;
-                sprNmbr = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
-            }
+            if (_api.mousel()) navigator.SelectAt(mouse);
         }
         else if (!FullMapView)
         {
@@ -234,14 +195,7 @@ internal class MapEditor : IEditor
                 }
             }
 
-            for (int i = 0; i < pageButtons.Length; i++)
-            {
-                if (pageButtons[i].Contains(mouse.x, mouse.y) && _api.mouselp())
-                {
-                    spritePage = i;
-                    break;
-                }
-            }
+            navigator.TryPickPage(mouse);
         }
     }
 
@@ -263,7 +217,7 @@ internal class MapEditor : IEditor
 
         if (selectedTool == Tool.Pixel)
         {
-            if (_api.mousel()) _api.mset(cellX, cellY, sprNmbr);
+            if (_api.mousel()) _api.mset(cellX, cellY, navigator.SelectedSprite);
         }
         else if (selectedTool == Tool.RectFill || selectedTool == Tool.RectDelete)
         {
@@ -275,7 +229,7 @@ internal class MapEditor : IEditor
             }
             else if (dragging && _api.mouselr())
             {
-                int value = selectedTool == Tool.RectDelete ? 0 : sprNmbr;
+                int value = selectedTool == Tool.RectDelete ? 0 : navigator.SelectedSprite;
                 ApplyRectFill(dragStartCellX, dragStartCellY, cellX, cellY, value);
                 dragging = false;
             }
@@ -298,7 +252,8 @@ internal class MapEditor : IEditor
     {
         DrawMap();
 
-        _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
+        int bottomBarY = EditorUI.BottomBarY;
+        _api.rectfill(0, bottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
 
         const int charAdvance = 4;
         const int rightMargin = 2;
@@ -310,12 +265,12 @@ internal class MapEditor : IEditor
         string zoomText = ZoomLabel;
         _api.print(zoomText,
             hoverTextX - labelGap - zoomText.Length * charAdvance,
-            BottomBarY + 1,
+            bottomBarY + 1,
             Constants.Colors.Indigo);
 
         if (hoveringMap)
         {
-            _api.print($"X:{hoverCellX:D3} Y:{hoverCellY:D3}", hoverTextX, BottomBarY + 1, Constants.Colors.Indigo);
+            _api.print($"X:{hoverCellX:D3} Y:{hoverCellY:D3}", hoverTextX, bottomBarY + 1, Constants.Colors.Indigo);
         }
 
         if (!FullMapView)
@@ -362,28 +317,10 @@ internal class MapEditor : IEditor
         // MapRows rounds up, so the bottom map row can spill past the button row and show
         // through the sprite sheet's transparent pixels. Blank the whole panel first.
         _api.rectfill(0, labelRowY - 1,
-            Constants.Screen.ResolutionX, BottomBarY - 1,
+            Constants.Screen.ResolutionX, EditorUI.BottomBarY - 1,
             Constants.Colors.Black);
 
-        _api.sprr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
-            sprvwrarea.X,
-            sprvwrarea.Y,
-            Constants.GameDataSizes.SpriteSheetColumns,
-            VisibleRows);
-
-        int selectedRow = sprNmbr / Constants.GameDataSizes.SpriteSheetColumns;
-        bool selectedOnPage = selectedRow >= spritePage * VisibleRows && selectedRow < (spritePage + 1) * VisibleRows;
-        if (selectedOnPage && SprX > -1 && SprY > -1)
-        {
-            _api.rect(SprX - 1, SprY - 1,
-                SprX + Constants.GameDataSizes.TileSize,
-                SprY + Constants.GameDataSizes.TileSize,
-                Constants.Colors.White);
-            _api.rect(SprX - 2, SprY - 2,
-                SprX + 1 + Constants.GameDataSizes.TileSize,
-                SprY + 1 + Constants.GameDataSizes.TileSize,
-                Constants.Colors.Black);
-        }
+        navigator.DrawSheet();
 
         // Dark grey backs only the tool / sprite-number / page-button row.
         _api.rectfill(0, labelRowY - 1,
@@ -395,24 +332,7 @@ internal class MapEditor : IEditor
             button.Draw(_api, tool == selectedTool);
         }
 
-
-        for (int i = 0; i < pageButtons.Length; i++)
-        {
-            if (i != spritePage)
-            {
-                _api.pal(Constants.Colors.White, Constants.Colors.LightGray);
-            }
-
-            var bounds = pageButtons[i];
-            _api.icon(i == spritePage ? PageIconSelected : PageIconNotSelected, bounds.X, bounds.Y);
-            _api.print(i.ToString(), bounds.X + 2, bounds.Y + 2, Constants.Colors.Indigo);
-            _api.pal();
-        }
-
-        _api.rectfill(sprNmbrLabelArea.X, sprNmbrLabelArea.Y,
-            sprNmbrLabelArea.X + sprNmbrLabelArea.Width - 1,
-            sprNmbrLabelArea.Y + sprNmbrLabelArea.Height - 1,
-            Constants.Colors.LightGray);
-        _api.print(sprNmbr.ToString("D3"), sprNmbrLabelArea.X + 1, sprNmbrLabelArea.Y + 1, Constants.Colors.Indigo);
+        navigator.DrawPageButtons();
+        navigator.DrawNumberLabel();
     }
 }

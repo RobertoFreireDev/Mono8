@@ -1,20 +1,20 @@
 ﻿namespace mono8;
 
-public class mono8 : Game
+public class Mono8Game : Game
 {
-    internal static mono8 Instance;
+    internal static Mono8Game Instance;
     private GraphicsDeviceManager _graphics;
     public static PixelledSpriteBatch SpriteBatch;
     internal static Mono8API GameAPI;
     private RenderTarget2D sceneTarget;
     public static GraphicsDevice GraphicsDeviceRef;
     public static int DisplayFps = 0;
+    private const double TargetFps = 30.0;
     private double _elapsedTime = 0;
-    public int _fpsCounter = 0;
-    public double FPS30 = 30.0;
+    private int _fpsCounter = 0;
     private Intro _intro = new Intro();
 
-    public mono8()
+    public Mono8Game()
     {
         Instance = this;
         _graphics = new GraphicsDeviceManager(this);
@@ -34,7 +34,7 @@ public class mono8 : Game
 
     protected override void Initialize()
     {
-        TargetElapsedTime = TimeSpan.FromSeconds(1.0 / FPS30);
+        TargetElapsedTime = TimeSpan.FromSeconds(1.0 / TargetFps);
         base.Initialize();
     }
 

@@ -41,8 +41,8 @@ public static class Constants
 
     public static class Screen
     {
-        public static int ResolutionX = 256;
-        public static int ResolutionY = 144;
+        public const int ResolutionX = 256;
+        public const int ResolutionY = 144;
     }
 
     public static class GameDataSizes

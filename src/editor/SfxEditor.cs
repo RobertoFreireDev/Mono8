@@ -29,19 +29,11 @@ internal class SfxEditor : IEditor
     private const int VolHeight = 32;
     private const int VolBottom = VolTop + VolHeight - 1;
 
-    private static readonly int BottomBarY = Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize;
-
     private const int DefaultPlaceVolume = 5;
     private const int WaveformIconStart = 32;   // waveform icons occupy icon indices 32..39
 
-    private static readonly int[] PaletteColors =
-    {
-        Constants.Colors.Red, Constants.Colors.Orange, Constants.Colors.Yellow, Constants.Colors.Green,
-        Constants.Colors.Blue, Constants.Colors.Indigo, Constants.Colors.Pink, Constants.Colors.Peach,
-    };
-
     // ── Alternate (tracker) view ───────────────────────────────────────────────
-    private const int OctaveCount = 5;           // selectable base octaves 1..5
+    private static readonly int OctaveCount = TrackerNote.MaxOctave;   // selectable base octaves 1..5
     private const int EffectCount = 8;           // effects 0..7
     private const int EffectIconStart = 47;      // effect icons occupy icon indices 47..54
     private const int GridRows = 8;
@@ -59,35 +51,6 @@ internal class SfxEditor : IEditor
     private const int NoteColGap = 6;
     private static readonly int NoteColW =
         (Constants.Screen.ResolutionX - NoteColStart - 2 - (GridCols - 1) * NoteColGap) / GridCols;
-
-    // A note cell is split into clickable parts. Selecting a part decides what a key press edits:
-    // the note part is played from the piano keys; the rest take a digit from the number row.
-    private const int PartNote = 0;   // note name (2 chars) -> pitch via piano keys
-    private const int PartOct = 1;   // octave (1 digit)
-    private const int PartWave = 2;   // waveform (1 digit)
-    private const int PartVol = 3;   // volume (1 digit)
-    private const int PartFx = 4;   // effect (1 digit)
-    private const int PartCount = 5;
-
-    // X offset / width of each part inside a cell (relative to the cell's left edge).
-    private static readonly int[] PartX = { 3, 11, 19, 25, 31 };
-    private static readonly int[] PartW = { 8, 5, 6, 6, 6 };
-
-    private static readonly string[] NoteNames =
-    {
-        "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-",
-    };
-
-    // Tracker piano: bottom key row plays the base octave, top row one octave up.
-    private static readonly (Keys key, int semitone)[] PianoKeys =
-    {
-        (Keys.Z, 0), (Keys.S, 1), (Keys.X, 2), (Keys.D, 3), (Keys.C, 4), (Keys.V, 5),
-        (Keys.G, 6), (Keys.B, 7), (Keys.H, 8), (Keys.N, 9), (Keys.J, 10), (Keys.M, 11),
-        (Keys.OemComma, 12), (Keys.L, 13), (Keys.OemPeriod, 14),
-        (Keys.Q, 12), (Keys.D2, 13), (Keys.W, 14), (Keys.D3, 15), (Keys.E, 16), (Keys.R, 17),
-        (Keys.D5, 18), (Keys.T, 19), (Keys.D6, 20), (Keys.Y, 21), (Keys.D7, 22), (Keys.U, 23),
-        (Keys.I, 24),
-    };
 
     // ── Header controls ───────────────────────────────────────────────────────
     private readonly Rectangle idxPrevBox = new(2, HeaderY, 7, 7);
@@ -112,7 +75,7 @@ internal class SfxEditor : IEditor
     private int selectedVolume = DefaultPlaceVolume;
     private int selectedEffect = SfxEffect.None;
     private int selectedCell = 0;
-    private int selectedPart = PartNote;
+    private int selectedPart = TrackerNote.PartNote;
 
     private int sfxIndex = 0;
 
@@ -159,7 +122,7 @@ internal class SfxEditor : IEditor
 
     private SfxSheet Sheet => Mono8API.SfxSheet;
 
-    private void Sync() => mono8.GameAPI.SyncSfx(sfxIndex);
+    private void Sync() => Mono8Game.GameAPI.SyncSfx(sfxIndex);
 
     private void ChangeIndex(int delta)
     {
@@ -191,13 +154,13 @@ internal class SfxEditor : IEditor
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
-            mono8.GameAPI.Save();
+            Mono8Game.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
         }
 
         if (KeybrdInput.JustPressed(Keys.Space))
         {
-            if (mono8.GameAPI.CurrentSfxNote(sfxIndex) >= 0)
+            if (Mono8Game.GameAPI.CurrentSfxNote(sfxIndex) >= 0)
             {
                 _api.sfx(-1);
             }
@@ -298,7 +261,7 @@ internal class SfxEditor : IEditor
         for (int cell = 0; cell < NoteCount; cell++)
         {
             if (!CellRect(cell).Contains(mouse.x, mouse.y)) continue;
-            if (_api.mouselp()) { selectedCell = cell; selectedPart = PartUnderMouse(cell, mouse.x); }
+            if (_api.mouselp()) { selectedCell = cell; selectedPart = TrackerNote.PartUnderMouse(CellRect(cell), mouse.x); }
             else if (_api.mouserp()) { Sheet.ClearNote(sfxIndex, cell); Sync(); }
         }
 
@@ -308,11 +271,11 @@ internal class SfxEditor : IEditor
         if (KeybrdInput.JustPressed(Keys.Left))
         {
             if (selectedPart > 0) selectedPart--;
-            else if (selectedCell - GridRows >= 0) { selectedCell -= GridRows; selectedPart = PartCount - 1; }
+            else if (selectedCell - GridRows >= 0) { selectedCell -= GridRows; selectedPart = TrackerNote.PartCount - 1; }
         }
         if (KeybrdInput.JustPressed(Keys.Right))
         {
-            if (selectedPart < PartCount - 1) selectedPart++;
+            if (selectedPart < TrackerNote.PartCount - 1) selectedPart++;
             else if (selectedCell + GridRows < NoteCount) { selectedCell += GridRows; selectedPart = 0; }
         }
 
@@ -329,58 +292,21 @@ internal class SfxEditor : IEditor
         // piano/digit keys aren't also interpreted as note input.
         if (!KeybrdInput.IsCtrlPressed())
         {
-            if (selectedPart == PartNote)
+            if (selectedPart == TrackerNote.PartNote)
             {
-                foreach (var (key, semitone) in PianoKeys)
+                foreach (var (key, semitone) in TrackerNote.PianoKeys)
                     if (KeybrdInput.JustPressed(key)) { EnterNote(semitone); break; }
             }
             else
             {
-                int digit = JustPressedDigit();
-                if (digit >= 0) SetPartValue(selectedPart, digit);
+                int digit = KeybrdInput.JustPressedDigit();
+                if (digit >= 0 &&
+                    TrackerNote.TrySetPartValue(Sheet, sfxIndex, selectedCell, selectedPart, digit, selectedWaveform))
+                {
+                    CommitNoteEdit();
+                }
             }
         }
-    }
-
-    // Number-row or numpad digit just pressed, or -1 if none.
-    private static int JustPressedDigit()
-    {
-        for (int d = 0; d <= 9; d++)
-            if (KeybrdInput.JustPressed(Keys.D0 + d) || KeybrdInput.JustPressed(Keys.NumPad0 + d))
-                return d;
-        return -1;
-    }
-
-    // Apply a typed digit to the selected part of the current cell. Out-of-range digits are ignored.
-    private void SetPartValue(int part, int digit)
-    {
-        switch (part)
-        {
-            case PartOct:
-                if (digit < 1 || digit > OctaveCount) return;
-                int pitch = Sheet.GetPitch(sfxIndex, selectedCell);
-                Sheet.SetPitch(sfxIndex, selectedCell, Math.Clamp(digit * 12 + pitch % 12, 0, SfxSheet.MaxPitch));
-                break;
-            case PartVol:
-                if (digit > SfxSheet.MaxVolume) return;
-                if (digit > 0 && Sheet.GetVolume(sfxIndex, selectedCell) == 0)
-                    Sheet.SetWaveform(sfxIndex, selectedCell, selectedWaveform);
-                Sheet.SetVolume(sfxIndex, selectedCell, digit);
-                break;
-            case PartWave:
-                if (digit >= SfxSheet.WaveformCount) return;
-                Sheet.SetWaveform(sfxIndex, selectedCell, digit);
-                break;
-            case PartFx:
-                if (digit > SfxSheet.MaxEffect) return;
-                Sheet.SetEffect(sfxIndex, selectedCell, digit);
-                break;
-            default:
-                return;
-        }
-        Sync();
-        _api.sfx(sfxIndex, -1, selectedCell, 1);   // preview just this note
-        selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
     }
 
     private void EnterNote(int semitone)
@@ -390,8 +316,14 @@ internal class SfxEditor : IEditor
         Sheet.SetWaveform(sfxIndex, selectedCell, selectedWaveform);
         Sheet.SetVolume(sfxIndex, selectedCell, selectedVolume);
         Sheet.SetEffect(sfxIndex, selectedCell, selectedEffect);
+        CommitNoteEdit();
+    }
+
+    /// <summary>Push the edit to the engine, preview just that note, then step to the next cell.</summary>
+    private void CommitNoteEdit()
+    {
         Sync();
-        _api.sfx(sfxIndex, -1, selectedCell, 1);   // preview just this note
+        _api.sfx(sfxIndex, -1, selectedCell, 1);
         selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
     }
 
@@ -402,21 +334,6 @@ internal class SfxEditor : IEditor
     private int NoteRowY(int row) => GridTop + row * CellH;
     private Rectangle CellRect(int cell) =>
         new(NoteColX(CellCol(cell)), NoteRowY(CellRow(cell)), NoteColW, CellH);
-
-    private Rectangle PartRect(int cell, int part)
-    {
-        var r = CellRect(cell);
-        return new Rectangle(r.X + PartX[part], r.Y, PartW[part], CellH - 1);
-    }
-
-    // Map a click's x within a cell to the nearest part (thresholds fill the gaps between parts).
-    private int PartUnderMouse(int cell, int mouseX)
-    {
-        int relX = mouseX - CellRect(cell).X;
-        for (int p = PartCount - 1; p >= 0; p--)
-            if (relX >= PartX[p]) return p;
-        return PartNote;
-    }
 
     private void UpdateHeader((int x, int y) mouse)
     {
@@ -453,7 +370,7 @@ internal class SfxEditor : IEditor
             DrawPrimaryView();
         }
 
-        _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
+        _api.rectfill(0, EditorUI.BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
 
         eventNotifier.Draw();
     }
@@ -489,7 +406,7 @@ internal class SfxEditor : IEditor
         for (int i = 0; i < octBoxes.Length; i++)
         {
             bool sel = selectedOctave == i + 1;
-            DrawBox(octBoxes[i], (i + 1).ToString(),
+            EditorUI.Box(_api, octBoxes[i], (i + 1).ToString(),
                 sel ? PaletteColor(i) : Constants.Colors.Indigo,
                 sel ? Constants.Colors.Black : Constants.Colors.White);
         }
@@ -503,10 +420,10 @@ internal class SfxEditor : IEditor
         {
             var c = volCells[v];
             bool sel = v == selectedVolume;
-            int bg = sel ? PaletteColor(v) : Constants.Colors.Indigo;
-            int fg = sel ? Constants.Colors.Black : Constants.Colors.White;
-            _api.rectfill(c.X, c.Y, c.X + c.Width - 1, c.Y + c.Height - 1, bg);
-            _api.print(v.ToString(), c.X + 2, c.Y + 1, fg);
+            _api.rectfill(c.X, c.Y, c.X + c.Width - 1, c.Y + c.Height - 1,
+                sel ? PaletteColor(v) : Constants.Colors.Indigo);
+            _api.print(v.ToString(), c.X + 2, c.Y + 1,
+                sel ? Constants.Colors.Black : Constants.Colors.White);
         }
 
         _api.print("FX", FxLabelX, PaletteRowY + 1, Constants.Colors.White);
@@ -527,68 +444,41 @@ internal class SfxEditor : IEditor
     private void DrawNoteCell(int cell)
     {
         var r = CellRect(cell);
-        bool cellSel = cell == selectedCell;
-        if (cellSel)
+
+        if (cell == selectedCell)
+        {
             _api.rectfill(r.X, r.Y, r.X + r.Width - 1, r.Y + r.Height - 1, Constants.Colors.DarkBlue);
 
-        // Highlight the selected part behind its text.
-        if (cellSel)
-        {
-            var pr = PartRect(cell, selectedPart);
+            // Highlight the selected part behind its text.
+            var pr = TrackerNote.PartRect(r, selectedPart);
             _api.rectfill(pr.X, pr.Y, pr.X + pr.Width - 1, pr.Y + pr.Height - 1, Constants.Colors.White);
         }
 
         // Playhead: light up the note currently sounding.
-        if (cell == mono8.GameAPI.CurrentSfxNote(sfxIndex))
+        if (cell == Mono8Game.GameAPI.CurrentSfxNote(sfxIndex))
         {
-            var pn = PartRect(cell, PartNote);
-            var pf = PartRect(cell, PartFx);
-            _api.rectfill(pn.X, r.Y, pf.X + pf.Width - 1, r.Y + r.Height - 1, Constants.Colors.Yellow);
+            var ph = TrackerNote.PlayheadRect(r);
+            _api.rectfill(ph.X, r.Y, ph.X + ph.Width - 1, r.Y + r.Height - 1, Constants.Colors.Yellow);
         }
 
-        int vol = Sheet.GetVolume(sfxIndex, cell);
-        bool active = vol > 0;
-
-        int pitch = Sheet.GetPitch(sfxIndex, cell);
-        int oct = pitch / 12;
-        int wf = Sheet.GetWaveform(sfxIndex, cell);
-        int fx = Sheet.GetEffect(sfxIndex, cell);
-        int dim = Constants.Colors.DarkGray;
-
-        DrawPart(cell, PartNote, active ? NoteNames[pitch % 12] : "--", active ? Constants.Colors.Blue : dim);
-        DrawPart(cell, PartOct, active ? oct.ToString() : "-", active ? PaletteColor(oct) : dim);
-        DrawPart(cell, PartWave, active ? wf.ToString() : "-", active ? PaletteColor(wf) : dim);
-        DrawPart(cell, PartVol, active ? vol.ToString() : "-", active ? PaletteColor(vol) : dim);
-        DrawPart(cell, PartFx, active ? fx.ToString() : "-", active ? PaletteColor(fx) : dim);
-    }
-
-    private void DrawPart(int cell, int part, string text, int color)
-    {
-        var pr = PartRect(cell, part);
-        _api.print(text, pr.X, pr.Y + 3, color);
+        TrackerNote.DrawParts(_api, r, Sheet, sfxIndex, cell, textOffsetY: 3);
     }
 
     private void DrawHeader()
     {
         _api.rectfill(0, HeaderY - 1, Constants.Screen.ResolutionX - 1, HeaderY + 7, Constants.Colors.DarkGray);
 
-        DrawBox(idxPrevBox, "<", Constants.Colors.LightGray, Constants.Colors.Indigo);
+        EditorUI.Box(_api,idxPrevBox, "<", Constants.Colors.LightGray, Constants.Colors.Indigo);
         _api.print($"SFX{sfxIndex:D2}", 11, HeaderY + 1, Constants.Colors.White);
-        DrawBox(idxNextBox, ">", Constants.Colors.LightGray, Constants.Colors.Indigo);
+        EditorUI.Box(_api,idxNextBox, ">", Constants.Colors.LightGray, Constants.Colors.Indigo);
 
         _api.print("SPD", 44, HeaderY + 1, Constants.Colors.LightGray);
-        DrawBox(spdBox, Sheet.GetSpeed(sfxIndex).ToString("D3"), Constants.Colors.LightGray, Constants.Colors.Indigo);
+        EditorUI.Box(_api,spdBox, Sheet.GetSpeed(sfxIndex).ToString("D3"), Constants.Colors.LightGray, Constants.Colors.Indigo);
 
         _api.print("LP", 76, HeaderY + 1, Constants.Colors.LightGray);
-        DrawBox(loopStartBox, Sheet.GetLoopStart(sfxIndex).ToString("D2"), Constants.Colors.LightGray, Constants.Colors.Indigo);
+        EditorUI.Box(_api,loopStartBox, Sheet.GetLoopStart(sfxIndex).ToString("D2"), Constants.Colors.LightGray, Constants.Colors.Indigo);
         _api.print("-", 98, HeaderY + 1, Constants.Colors.LightGray);
-        DrawBox(loopEndBox, Sheet.GetLoopEnd(sfxIndex).ToString("D2"), Constants.Colors.LightGray, Constants.Colors.Indigo);
-    }
-
-    private void DrawBox(Rectangle b, string text, int bg, int fg)
-    {
-        _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 1, bg);
-        _api.print(text, b.X + 1, b.Y + 1, fg);
+        EditorUI.Box(_api,loopEndBox, Sheet.GetLoopEnd(sfxIndex).ToString("D2"), Constants.Colors.LightGray, Constants.Colors.Indigo);
     }
 
     private void DrawPitchRegion()
@@ -597,7 +487,7 @@ internal class SfxEditor : IEditor
 
         DrawLoopMarkers();
 
-        int playing = mono8.GameAPI.CurrentSfxNote(sfxIndex);
+        int playing = Mono8Game.GameAPI.CurrentSfxNote(sfxIndex);
         for (int n = 0; n < NoteCount; n++)
         {
             int vol = Sheet.GetVolume(sfxIndex, n);
@@ -629,7 +519,7 @@ internal class SfxEditor : IEditor
 
         _api.rectfill(RegionX, VolTop, RegionX + RegionW - 1, VolBottom, Constants.Colors.Black);
 
-        int playing = mono8.GameAPI.CurrentSfxNote(sfxIndex);
+        int playing = Mono8Game.GameAPI.CurrentSfxNote(sfxIndex);
         for (int n = 0; n < NoteCount; n++)
         {
             int vol = Sheet.GetVolume(sfxIndex, n);
@@ -640,5 +530,5 @@ internal class SfxEditor : IEditor
         }
     }
 
-    private static int PaletteColor(int index) => PaletteColors[index & 7];
+    private static int PaletteColor(int index) => TrackerNote.PaletteColor(index);
 }

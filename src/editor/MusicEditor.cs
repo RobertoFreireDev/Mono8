@@ -9,7 +9,6 @@ internal class MusicEditor : IEditor
 {
     private readonly IMono8API _api;
     private readonly EventNotifier eventNotifier;
-    private static readonly int BottomBarY = Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize;
 
     // ── Pattern-index strip ─────────────────────────────────────────────────────
     private const int HeaderY = 9;
@@ -49,41 +48,15 @@ internal class MusicEditor : IEditor
     private const int NoteTop = 28;
     private const int NoteCellH = 9;   // 12 rows * 9 = 108 -> ends exactly at the bottom bar
 
-    // Note-cell parts (identical semantics to the SFX editor's alternate view).
-    private const int PartNote = 0;   // note name (piano keys)
-    private const int PartOct = 1;   // octave (digit)
-    private const int PartWave = 2;   // waveform (digit)
-    private const int PartVol = 3;   // volume (digit)
-    private const int PartFx = 4;   // effect (digit)
-    private const int PartCount = 5;
-    private static readonly int[] PartX = { 3, 11, 19, 25, 31 };
-    private static readonly int[] PartW = { 8, 5, 6, 6, 6 };
-
     private const int DefaultOctave = 2;
     private const int DefaultVolume = 5;
-
-    private static readonly string[] NoteNames =
-    {
-        "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#", "A-", "A#", "B-",
-    };
-
-    // Tracker piano: bottom key row plays the base octave, top row one octave up.
-    private static readonly (Keys key, int semitone)[] PianoKeys =
-    {
-        (Keys.Z, 0), (Keys.S, 1), (Keys.X, 2), (Keys.D, 3), (Keys.C, 4), (Keys.V, 5),
-        (Keys.G, 6), (Keys.B, 7), (Keys.H, 8), (Keys.N, 9), (Keys.J, 10), (Keys.M, 11),
-        (Keys.OemComma, 12), (Keys.L, 13), (Keys.OemPeriod, 14),
-        (Keys.Q, 12), (Keys.D2, 13), (Keys.W, 14), (Keys.D3, 15), (Keys.E, 16), (Keys.R, 17),
-        (Keys.D5, 18), (Keys.T, 19), (Keys.D6, 20), (Keys.Y, 21), (Keys.D7, 22), (Keys.U, 23),
-        (Keys.I, 24),
-    };
 
     // ── State ───────────────────────────────────────────────────────────────────
     private int patternIndex = 0;
     private int viewStart = 0;
     private int selectedChannel = 0;
     private int selectedCell = 0;
-    private int selectedPart = PartNote;
+    private int selectedPart = TrackerNote.PartNote;
     private readonly int[] scroll = new int[ChannelCount];   // each column scrolls independently
     private int playStartPattern = -1;
 
@@ -114,13 +87,13 @@ internal class MusicEditor : IEditor
 
     private int ChannelSfx(int c) => Music.GetChannelSfx(patternIndex, c);
 
-    private void SyncMusic() => mono8.GameAPI.SyncMusic(patternIndex);
+    private void SyncMusic() => Mono8Game.GameAPI.SyncMusic(patternIndex);
     private void SyncAllMusic()
     {
-        for (int p = 0; p < MusicSheet.Count; p++) mono8.GameAPI.SyncMusic(p);
+        for (int p = 0; p < MusicSheet.Count; p++) Mono8Game.GameAPI.SyncMusic(p);
     }
-    private void SyncSfx(int sfx) => mono8.GameAPI.SyncSfx(sfx);
-    private int Playing => mono8.GameAPI.CurrentMusicPattern();
+    private void SyncSfx(int sfx) => Mono8Game.GameAPI.SyncSfx(sfx);
+    private int Playing => Mono8Game.GameAPI.CurrentMusicPattern();
 
     // ── Geometry helpers ────────────────────────────────────────────────────────
     private static int ColX(int c) => ColStart + c * (ColW + ColGap);
@@ -131,14 +104,6 @@ internal class MusicEditor : IEditor
     private Rectangle CellRect(int c, int visRow) => new(ColX(c), NoteTop + visRow * NoteCellH, ColW, NoteCellH);
     private Rectangle PatBox(int slot) => new(PatBoxStartX + slot * (PatBoxW + PatBoxGap), HeaderY, PatBoxW, PatBoxH);
 
-    private int PartUnderMouse(int c, int mouseX)
-    {
-        int relX = mouseX - ColX(c);
-        for (int p = PartCount - 1; p >= 0; p--)
-            if (relX >= PartX[p]) return p;
-        return PartNote;
-    }
-
     // ── Update ──────────────────────────────────────────────────────────────────
     public void Update(float elapsedSeconds)
     {
@@ -146,7 +111,7 @@ internal class MusicEditor : IEditor
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
-            mono8.GameAPI.Save();
+            Mono8Game.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
         }
 
@@ -195,7 +160,7 @@ internal class MusicEditor : IEditor
         {
             if (!Music.IsChannelOn(patternIndex, c)) continue;
 
-            int playNote = mono8.GameAPI.CurrentSfxNote(ChannelSfx(c));
+            int playNote = Mono8Game.GameAPI.CurrentSfxNote(ChannelSfx(c));
             if (playNote < 0) continue;
 
             scroll[c] = Math.Clamp(playNote - VisibleRows / 2, 0, NoteCount - VisibleRows);
@@ -311,7 +276,7 @@ internal class MusicEditor : IEditor
                 {
                     selectedChannel = c;
                     selectedCell = note;
-                    selectedPart = PartUnderMouse(c, mouse.x);
+                    selectedPart = TrackerNote.PartUnderMouse(CellRect(c, r), mouse.x);
                 }
                 else if (_api.mouserp())
                 {
@@ -330,7 +295,7 @@ internal class MusicEditor : IEditor
         if (KeybrdInput.JustPressed(Keys.Up)) { selectedCell = Math.Max(0, selectedCell - 1); EnsureCellVisible(); }
         if (KeybrdInput.JustPressed(Keys.Down)) { selectedCell = Math.Min(NoteCount - 1, selectedCell + 1); EnsureCellVisible(); }
         if (KeybrdInput.JustPressed(Keys.Left)) selectedPart = Math.Max(0, selectedPart - 1);
-        if (KeybrdInput.JustPressed(Keys.Right)) selectedPart = Math.Min(PartCount - 1, selectedPart + 1);
+        if (KeybrdInput.JustPressed(Keys.Right)) selectedPart = Math.Min(TrackerNote.PartCount - 1, selectedPart + 1);
 
         if (KeybrdInput.JustPressed(Keys.Delete) || KeybrdInput.JustPressed(Keys.Back))
         {
@@ -344,24 +309,21 @@ internal class MusicEditor : IEditor
         // piano/digit keys aren't also interpreted as note input.
         if (KeybrdInput.IsCtrlPressed()) return;
 
-        if (selectedPart == PartNote)
+        if (selectedPart == TrackerNote.PartNote)
         {
-            foreach (var (key, semitone) in PianoKeys)
+            foreach (var (key, semitone) in TrackerNote.PianoKeys)
                 if (KeybrdInput.JustPressed(key)) { EnterNote(sfx, semitone); break; }
         }
         else
         {
-            int digit = JustPressedDigit();
-            if (digit >= 0) SetPartValue(sfx, selectedPart, digit);
+            int digit = KeybrdInput.JustPressedDigit();
+            // The Music editor has no waveform pen, so a note activated here keeps its stored waveform.
+            if (digit >= 0 &&
+                TrackerNote.TrySetPartValue(Sfx, sfx, selectedCell, selectedPart, digit, waveformOnActivate: -1))
+            {
+                CommitNoteEdit(sfx);
+            }
         }
-    }
-
-    private static int JustPressedDigit()
-    {
-        for (int d = 0; d <= 9; d++)
-            if (KeybrdInput.JustPressed(Keys.D0 + d) || KeybrdInput.JustPressed(Keys.NumPad0 + d))
-                return d;
-        return -1;
     }
 
     private void EnterNote(int sfx, int semitone)
@@ -370,35 +332,12 @@ internal class MusicEditor : IEditor
         Sfx.SetPitch(sfx, selectedCell, pitch);
         if (Sfx.GetVolume(sfx, selectedCell) == 0)
             Sfx.SetVolume(sfx, selectedCell, DefaultVolume);
-        SyncSfx(sfx);
-        _api.sfx(sfx, -1, selectedCell, 1);
-        AdvanceCell();
+        CommitNoteEdit(sfx);
     }
 
-    private void SetPartValue(int sfx, int part, int digit)
+    /// <summary>Push the edit to the engine, preview just that note, then step to the next cell.</summary>
+    private void CommitNoteEdit(int sfx)
     {
-        switch (part)
-        {
-            case PartOct:
-                if (digit < 1 || digit > SfxSheet.MaxPitch / 12) return;
-                int pitch = Sfx.GetPitch(sfx, selectedCell);
-                Sfx.SetPitch(sfx, selectedCell, Math.Clamp(digit * 12 + pitch % 12, 0, SfxSheet.MaxPitch));
-                break;
-            case PartVol:
-                if (digit > SfxSheet.MaxVolume) return;
-                Sfx.SetVolume(sfx, selectedCell, digit);
-                break;
-            case PartWave:
-                if (digit >= SfxSheet.WaveformCount) return;
-                Sfx.SetWaveform(sfx, selectedCell, digit);
-                break;
-            case PartFx:
-                if (digit > SfxSheet.MaxEffect) return;
-                Sfx.SetEffect(sfx, selectedCell, digit);
-                break;
-            default:
-                return;
-        }
         SyncSfx(sfx);
         _api.sfx(sfx, -1, selectedCell, 1);
         AdvanceCell();
@@ -434,21 +373,23 @@ internal class MusicEditor : IEditor
     // ── Draw ────────────────────────────────────────────────────────────────────
     public void Draw()
     {
+        int bottomBarY = EditorUI.BottomBarY;
+
         // Dark grey backdrop over everything between the menu bar and the bottom bar.
-        _api.rectfill(0, Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, BottomBarY - 1, Constants.Colors.DarkGray);
+        _api.rectfill(0, Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, bottomBarY - 1, Constants.Colors.DarkGray);
 
         DrawPatternStrip();
         DrawLoopControls();
         DrawChannels();
 
-        _api.rectfill(0, BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
+        _api.rectfill(0, bottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
         eventNotifier.Draw();
     }
 
     private void DrawPatternStrip()
     {
-        DrawBox(prevArrow, "<", Constants.Colors.LightGray, Constants.Colors.Indigo);
-        DrawBox(nextArrow, ">", Constants.Colors.LightGray, Constants.Colors.Indigo);
+        EditorUI.TextButton(_api, prevArrow, "<");
+        EditorUI.TextButton(_api, nextArrow, ">");
 
         int playing = Playing;
         for (int slot = 0; slot < VisiblePatterns; slot++)
@@ -520,58 +461,25 @@ internal class MusicEditor : IEditor
     private void DrawNoteCell(int c, int visRow, int note, int sfx)
     {
         var r = CellRect(c, visRow);
-        bool sel = c == selectedChannel && note == selectedCell;
-        if (sel)
+
+        if (c == selectedChannel && note == selectedCell)
+        {
             _api.rectfill(r.X, r.Y, r.X + r.Width - 1, r.Y + r.Height - 1, Constants.Colors.DarkBlue);
 
-        if (sel)
-        {
-            int px = r.X + PartX[selectedPart];
-            _api.rectfill(px, r.Y, px + PartW[selectedPart] - 1, r.Y + r.Height - 2, Constants.Colors.White);
+            var pr = TrackerNote.PartRect(r, selectedPart);
+            _api.rectfill(pr.X, r.Y, pr.X + pr.Width - 1, r.Y + r.Height - 2, Constants.Colors.White);
         }
 
         // Playhead: light up the note this channel's SFX is currently sounding.
-        if (note == mono8.GameAPI.CurrentSfxNote(sfx))
+        if (note == Mono8Game.GameAPI.CurrentSfxNote(sfx))
         {
-            int cx = r.X + PartX[PartNote];
-            int cw = PartX[PartFx] + PartW[PartFx] - PartX[PartNote];
-            _api.rectfill(cx, r.Y, cx + cw - 1, r.Y + r.Height - 2, Constants.Colors.Yellow);
+            var ph = TrackerNote.PlayheadRect(r);
+            _api.rectfill(ph.X, r.Y, ph.X + ph.Width - 1, r.Y + r.Height - 2, Constants.Colors.Yellow);
         }
 
-        int vol = Sfx.GetVolume(sfx, note);
-        bool active = vol > 0;
-        int pitch = Sfx.GetPitch(sfx, note);
-        int oct = pitch / 12;
-        int wf = Sfx.GetWaveform(sfx, note);
-        int fx = Sfx.GetEffect(sfx, note);
-        int dim = Constants.Colors.DarkGray;
-
-        DrawPart(r, PartNote, active ? NoteNames[pitch % 12] : "--", active ? Constants.Colors.Blue : dim);
-        DrawPart(r, PartOct, active ? oct.ToString() : "-", active ? PaletteColor(oct) : dim);
-        DrawPart(r, PartWave, active ? wf.ToString() : "-", active ? PaletteColor(wf) : dim);
-        DrawPart(r, PartVol, active ? vol.ToString() : "-", active ? PaletteColor(vol) : dim);
-        DrawPart(r, PartFx, active ? fx.ToString() : "-", active ? PaletteColor(fx) : dim);
+        TrackerNote.DrawParts(_api, r, Sfx, sfx, note, textOffsetY: 2);
 
         // Faint note index on the right so scrolling stays legible.
         _api.print(note.ToString("D2"), r.X + 40, r.Y + 2, Constants.Colors.LightGray);
     }
-
-    private void DrawPart(Rectangle cell, int part, string text, int color)
-    {
-        _api.print(text, cell.X + PartX[part], cell.Y + 2, color);
-    }
-
-    private void DrawBox(Rectangle b, string text, int bg, int fg)
-    {
-        _api.rectfill(b.X, b.Y, b.X + b.Width - 1, b.Y + b.Height - 1, bg);
-        _api.print(text, b.X + 1, b.Y + 1, fg);
-    }
-
-    private static readonly int[] PaletteColors =
-    {
-        Constants.Colors.Red, Constants.Colors.Orange, Constants.Colors.Yellow, Constants.Colors.Green,
-        Constants.Colors.Blue, Constants.Colors.Indigo, Constants.Colors.Pink, Constants.Colors.Peach,
-    };
-
-    private static int PaletteColor(int index) => PaletteColors[index & 7];
 }

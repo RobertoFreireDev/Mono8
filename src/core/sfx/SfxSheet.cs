@@ -3,9 +3,9 @@ using System.Text;
 namespace mono8.core.sfx;
 
 /// <summary>
-/// Editable, mutable bank of all SFX (the source of truth the SFX editor writes to).
-/// Serialises to/from the same 168-char PICO-8 hex rows that <see cref="SfxData"/> parses,
-/// and produces immutable <see cref="SfxData"/> snapshots for the audio engine.
+/// Editable, mutable bank of all SFX, and the sole parser of the 168-char PICO-8 hex rows.
+/// It is the source of truth the SFX editor writes to, and it produces the immutable
+/// <see cref="SfxData"/> snapshots the audio engine plays.
 /// </summary>
 internal sealed class SfxSheet
 {
@@ -78,18 +78,20 @@ internal sealed class SfxSheet
                 continue;
             }
 
-            _flags[i] = HexByte(hex, 0);
-            _speed[i] = Math.Max(1, HexByte(hex, 1));
-            _loopStart[i] = Math.Clamp(HexByte(hex, 2), 0, NotesPerSfx);
-            _loopEnd[i] = Math.Clamp(HexByte(hex, 3), 0, NotesPerSfx);
+            _flags[i] = Hex.Byte(hex, 0);
+            // A stored speed of 0 means "unset", and plays at the default rather than at 1 tick.
+            int speed = Hex.Byte(hex, 1);
+            _speed[i] = speed == 0 ? DefaultSpeed : speed;
+            _loopStart[i] = Math.Clamp(Hex.Byte(hex, 2), 0, NotesPerSfx);
+            _loopEnd[i] = Math.Clamp(Hex.Byte(hex, 3), 0, NotesPerSfx);
 
             for (int n = 0; n < NotesPerSfx; n++)
             {
                 int pos = HeaderChars + n * NoteStride;
-                _pitch[i, n] = Math.Clamp(HexPair(hex, pos), 0, MaxPitch);
-                _waveform[i, n] = HexNibble(hex, pos + 2);
-                _volume[i, n] = Math.Clamp(HexNibble(hex, pos + 3), 0, MaxVolume);
-                _effect[i, n] = Math.Clamp(HexNibble(hex, pos + 4), 0, MaxEffect);
+                _pitch[i, n] = Math.Clamp(Hex.Pair(hex, pos), 0, MaxPitch);
+                _waveform[i, n] = Hex.Nibble(hex, pos + 2);
+                _volume[i, n] = Math.Clamp(Hex.Nibble(hex, pos + 3), 0, MaxVolume);
+                _effect[i, n] = Math.Clamp(Hex.Nibble(hex, pos + 4), 0, MaxEffect);
             }
         }
     }
@@ -124,8 +126,4 @@ internal sealed class SfxSheet
             notes[n] = new SfxNote(_pitch[sfx, n], _waveform[sfx, n], _volume[sfx, n], _effect[sfx, n]);
         return new SfxData(_speed[sfx], _loopStart[sfx], _loopEnd[sfx], notes);
     }
-
-    private static int HexByte(string s, int byteIdx) => Convert.ToInt32(s.Substring(byteIdx * 2, 2), 16);
-    private static int HexPair(string s, int charIdx) => Convert.ToInt32(s.Substring(charIdx, 2), 16);
-    private static int HexNibble(string s, int charIdx) => Convert.ToInt32(s.Substring(charIdx, 1), 16);
 }

@@ -2,10 +2,19 @@ namespace mono8.core.graphics;
 
 internal static class Menu
 {
-    private static readonly string[] FixedLabels = { "Continue", "Restart", "Exit" };
+    private const int MaxCustomItems = 3;
+    private const int MaxLabelLength = 16;
+
+    /// <summary>Built-in entries; <see cref="Builtin.Custom"/> defers to the item's own callback.</summary>
+    private enum Builtin { Custom, Continue, Restart, Exit }
 
     private record struct CustomMenuItem(string Label, Action Callback);
-    private static CustomMenuItem?[] _customItems = new CustomMenuItem?[3];
+    private static CustomMenuItem?[] _customItems = new CustomMenuItem?[MaxCustomItems];
+
+    private record struct MenuEntry(string Label, Action Callback, Builtin Builtin);
+
+    // Rebuilt in place each frame rather than reallocated: Update and Draw both need it.
+    private static readonly List<MenuEntry> _items = new();
 
     private static bool Paused = false;
     private static int _selectedIndex = 0;
@@ -15,26 +24,26 @@ internal static class Menu
 
     public static void SetItem(int index, string label, Action callback)
     {
-        if (index < 0 || index >= 3) return;
-        string truncated = label.Length > 16 ? label[..16] : label;
+        if (index < 0 || index >= MaxCustomItems) return;
+        string truncated = label.Length > MaxLabelLength ? label[..MaxLabelLength] : label;
         _customItems[index] = new CustomMenuItem(truncated, callback);
     }
 
     public static void ClearItem(int index)
     {
-        if (index < 0 || index >= 3) return;
+        if (index < 0 || index >= MaxCustomItems) return;
         _customItems[index] = null;
     }
 
-    private static List<(string Label, Action? Callback)> BuildMenu()
+    private static List<MenuEntry> BuildMenu()
     {
-        var items = new List<(string, Action?)>();
-        items.Add(("Continue", null));
+        _items.Clear();
+        _items.Add(new MenuEntry("Continue", null, Builtin.Continue));
         foreach (var item in _customItems)
-            if (item.HasValue) items.Add((item.Value.Label, item.Value.Callback));
-        items.Add(("Restart", null));
-        items.Add(("Exit", null));
-        return items;
+            if (item.HasValue) _items.Add(new MenuEntry(item.Value.Label, item.Value.Callback, Builtin.Custom));
+        _items.Add(new MenuEntry("Restart", null, Builtin.Restart));
+        _items.Add(new MenuEntry("Exit", null, Builtin.Exit));
+        return _items;
     }
 
     public static void Update()
@@ -65,26 +74,25 @@ internal static class Menu
 
         if (ButtonInput.JustPressed(5)) // B(X) — confirm
         {
-            var (label, callback) = items[_selectedIndex];
+            var entry = items[_selectedIndex];
 
-            if (callback != null)
+            switch (entry.Builtin)
             {
-                callback();
-                Paused = false;
-            }
-            else if (label == "Continue")
-            {
-                _continueCountdown = 5;
-            }
-            else if (label == "Restart")
-            {
-                Mono8API.Editors.ReinitActive();
-                Paused = false;
-            }
-            else if (label == "Exit")
-            {
-                mono8.GameAPI.Unload();
-                mono8.Instance.Exit();
+                case Builtin.Custom:
+                    entry.Callback();
+                    Paused = false;
+                    break;
+                case Builtin.Continue:
+                    _continueCountdown = 5;
+                    break;
+                case Builtin.Restart:
+                    Mono8API.Editors.ReinitActive();
+                    Paused = false;
+                    break;
+                case Builtin.Exit:
+                    Mono8Game.GameAPI.Unload();
+                    Mono8Game.Instance.Exit();
+                    break;
             }
         }
     }
@@ -111,8 +119,8 @@ internal static class Menu
         int x0 = Constants.Screen.ResolutionX / 2 - (w / 2);
         int y0 = Constants.Screen.ResolutionY / 2 - (h / 2);
 
-        mono8.SpriteBatch.DrawRectFill(x0, y0, w, h, ColorPalette.BlackColorIndex);
-        mono8.SpriteBatch.DrawRect(x0 + 1, y0 + 1, w - 2, h - 2, ColorPalette.WhiteColorIndex);
+        Mono8Game.SpriteBatch.DrawRectFill(x0, y0, w, h, ColorPalette.BlackColorIndex);
+        Mono8Game.SpriteBatch.DrawRect(x0 + 1, y0 + 1, w - 2, h - 2, ColorPalette.WhiteColorIndex);
 
         for (int i = 0; i < items.Count; i++)
         {

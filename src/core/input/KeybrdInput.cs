@@ -22,38 +22,43 @@ public static class KeybrdInput
         return Pressed(Keys.LeftControl) || Pressed(Keys.RightControl);
     }
 
-    public static bool IsSaveShortcutPressed()
+    public static bool IsShiftPressed()
     {
-        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.S);
+        return Pressed(Keys.LeftShift) || Pressed(Keys.RightShift);
     }
 
-    public static bool IsUndoShortcutPressed()
+    public static bool IsAltPressed()
     {
-        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl))
-            && !(Pressed(Keys.LeftShift) || Pressed(Keys.RightShift))
-            && JustPressed(Keys.Z);
+        return Pressed(Keys.LeftAlt) || Pressed(Keys.RightAlt);
     }
 
-    public static bool IsRedoShortcutPressed()
+    /// <summary>True when no Ctrl/Shift/Alt modifier is held, so a bare key press is unambiguous.</summary>
+    public static bool NoModifiersPressed()
     {
-        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl))
-            && (Pressed(Keys.LeftShift) || Pressed(Keys.RightShift))
-            && JustPressed(Keys.Z);
+        return !IsCtrlPressed() && !IsShiftPressed() && !IsAltPressed();
     }
 
-    public static bool IsCopyShortcutPressed()
-    {
-        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.C);
-    }
+    private static bool IsCtrlShortcut(Keys key) => IsCtrlPressed() && JustPressed(key);
 
-    public static bool IsPasteShortcutPressed()
-    {
-        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.V);
-    }
+    public static bool IsSaveShortcutPressed() => IsCtrlShortcut(Keys.S);
 
-    public static bool IsRunGameShortcutPressed()
+    public static bool IsUndoShortcutPressed() => IsCtrlShortcut(Keys.Z) && !IsShiftPressed();
+
+    public static bool IsRedoShortcutPressed() => IsCtrlShortcut(Keys.Z) && IsShiftPressed();
+
+    public static bool IsCopyShortcutPressed() => IsCtrlShortcut(Keys.C);
+
+    public static bool IsPasteShortcutPressed() => IsCtrlShortcut(Keys.V);
+
+    public static bool IsRunGameShortcutPressed() => IsCtrlShortcut(Keys.R);
+
+    /// <summary>Number-row or numpad digit just pressed, or -1 if none.</summary>
+    public static int JustPressedDigit()
     {
-        return (Pressed(Keys.LeftControl) || Pressed(Keys.RightControl)) && JustPressed(Keys.R);
+        for (int d = 0; d <= 9; d++)
+            if (JustPressed(Keys.D0 + d) || JustPressed(Keys.NumPad0 + d))
+                return d;
+        return -1;
     }
 
     public static bool JustPressed(Keys key)

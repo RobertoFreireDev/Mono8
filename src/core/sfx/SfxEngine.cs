@@ -39,16 +39,13 @@ public sealed class SfxEngine : IDisposable
     // ── SFX bank ─────────────────────────────────────────────────────────────
 
     /// <summary>Register a parsed SFX so the engine can play it by index.</summary>
-    private void LoadSfx(int index, SfxData data)
+    public void SetSfx(int index, SfxData data)
     {
         if (index >= 0 && index < Constants.GameDataSizes.Sfx)
         {
             lock (_lock) _sfxBank[index] = data;
         }
     }
-
-    /// <summary>Replace a single SFX in the bank (used by the SFX editor after an edit).</summary>
-    public void SetSfx(int index, SfxData data) => LoadSfx(index, data);
 
     /// <summary>
     /// Note index a channel is currently synthesising for <paramref name="sfxIndex"/>, or -1 if it
@@ -63,27 +60,6 @@ public sealed class SfxEngine : IDisposable
                     return ch.CurrentNoteIndex;
         }
         return -1;
-    }
-
-    /// <summary>Parse and register a raw hex SFX string at <paramref name="index"/>.</summary>
-    private void LoadSfx(int index, string hexSfx)
-        => LoadSfx(index, SfxData.FromHex(hexSfx));
-
-
-    public void LoadSfxs(string[] sfxData)
-    {
-        for (int i = 0; i < sfxData.Length; i++)
-            LoadSfx(i, sfxData[i]);
-    }
-
-    public void LoadMusicPatterns(string[] lines)
-    {
-        for (int i = 0; i < lines.Length && i < Constants.GameDataSizes.Music; i++)
-        {
-            var line = lines[i]?.Trim();
-            if (!string.IsNullOrEmpty(line))
-                _musicBank[i] = MusicData.FromLine(line);
-        }
     }
 
     /// <summary>Replace a single music pattern in the bank (used by the Music editor after an edit).</summary>

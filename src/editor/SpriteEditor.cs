@@ -1,4 +1,4 @@
-﻿namespace mono8.editor;
+namespace mono8.editor;
 
 internal class SpriteEditor : IEditor
 {
@@ -12,26 +12,28 @@ internal class SpriteEditor : IEditor
         PaintBucket,
     }
 
-    private readonly IMono8API _api;
-    private Rectangle sprvwrarea;
+    private readonly IEditorAPI _api;
     private Rectangle sprcnvsarea;
     private Rectangle palettearea;
-    private int sprNmbr;
-    private int SprX;
-    private int SprY;
     private int SprSclIdx = 0;
     private int[] Zooms = { 1, 2, 4, 8 };
-    private int[] CnvScale = { 8, 4, 2, 1 };
     private int ColorSelected = Constants.Colors.White;
     private readonly EventNotifier eventNotifier;
+    private readonly SpriteNavigator navigator;
+
+    // Screen pixels per sheet pixel on the canvas: the whole 8x8-tile canvas keeps a fixed
+    // size, so zooming in on more tiles shrinks each one.
+    private int CanvasScale => Constants.GameDataSizes.TileSize / Zooms[SprSclIdx];
 
     private enum ReferenceOrder { Behind, Front }
     private enum ReferenceVisualization { Original, Red, Green, Blue }
+    private const int ReferenceVisualizationCount = 4;
 
     private bool editingReferenceNumber;
     private int referenceNumberInput = -1;
     private ReferenceOrder referenceOrder = ReferenceOrder.Behind;
-    private ReferenceVisualization referenceVisualization = ReferenceVisualization.Original;
+    private int referenceVisualizationIdx = (int)ReferenceVisualization.Original;
+    private ReferenceVisualization referenceVisualization => (ReferenceVisualization)referenceVisualizationIdx;
     private static readonly float[] ReferenceOpacities = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
     private int referenceOpacityIdx = ReferenceOpacities.Length - 1;
 
@@ -40,6 +42,7 @@ internal class SpriteEditor : IEditor
     private Rectangle refVisualizationBtn;
     private Rectangle refOpacityBtn;
 
+    // Ordered so that a left-click steps forward through the list and a right-click steps back.
     private enum LoopMode
     {
         Pause,
@@ -47,13 +50,15 @@ internal class SpriteEditor : IEditor
         Reverse,
         PingPong,
     }
+    private const int LoopModeCount = 4;
 
     private const int AnimFrameCount = 8;
     private int[] AnimFrames = { -1, -1, -1, -1, -1, -1, -1, -1 };
     private int AnimSclIdx = 0;
     private int[] AnimSpeeds = { 1, 2, 4, 6, 8, 10 };
     private int AnimSpeedIdx = 0;
-    private LoopMode animLoopMode = LoopMode.Pause;
+    private int animLoopModeIdx = (int)LoopMode.Pause;
+    private LoopMode animLoopMode => (LoopMode)animLoopModeIdx;
     private int animCurrentFrame = 0;
     private int animPingPongDir = 1;
     private float animElapsed = 0f;
@@ -78,24 +83,15 @@ internal class SpriteEditor : IEditor
     private const int PaletteColumns = 8;
     private const int PaletteRows = Constants.GameDataSizes.ColorPalette / PaletteColumns;
 
-    private const int VisibleRows = 6;
-    private const int SpritePages = Constants.GameDataSizes.SpriteSheetRows / VisibleRows;
-    private const int PageIconSelected = 45;
-    private const int PageIconNotSelected = 46;
-    private readonly Rectangle[] pageButtons;
-    private readonly int labelRowY;
-    private readonly Rectangle sprNmbrLabelArea;
-    private int spritePage = 0;
+    private int sprNmbr => navigator.SelectedSprite;
 
-    public SpriteEditor(IMono8API api)
+    public SpriteEditor(IEditorAPI api)
     {
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
-        sprvwrarea = new Rectangle(0,
-            Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize,
-            Constants.GameDataSizes.SpriteSheetX,
-            VisibleRows * Constants.GameDataSizes.TileSize);
-        sprcnvsarea = new Rectangle(100, 15, 8*8, 8 * 8);
+        navigator = new SpriteNavigator(api);
+
+        sprcnvsarea = new Rectangle(100, 15, 8 * 8, 8 * 8);
         const int rightMargin = 2;
         int paletteWidth = PaletteColumns * Constants.GameDataSizes.TileSize;
         int paletteHeight = PaletteRows * Constants.GameDataSizes.TileSize;
@@ -108,10 +104,6 @@ internal class SpriteEditor : IEditor
         refOrderBtn = new Rectangle(refBtnX, sprcnvsarea.Y + (refBtnH + 1), refBtnW, refBtnH);
         refVisualizationBtn = new Rectangle(refBtnX, sprcnvsarea.Y + 2 * (refBtnH + 1), refBtnW, refBtnH);
         refOpacityBtn = new Rectangle(refBtnX, sprcnvsarea.Y + 3 * (refBtnH + 1), refBtnW, refBtnH);
-
-        sprNmbr = 0;
-        SprX = 0;
-        SprY = Constants.Screen.ResolutionY - 1 - (VisibleRows + 1) * Constants.GameDataSizes.TileSize;
 
         int toolButtonY = palettearea.Y + palettearea.Height + 2;
         int size = Constants.GameDataSizes.TileSize;
@@ -132,18 +124,6 @@ internal class SpriteEditor : IEditor
             flagButtons[i] = new Rectangle(palettearea.X + i * size, flagButtonY, size, size);
         }
 
-        labelRowY = sprvwrarea.Y - size;
-
-        int pageButtonsStartX = Constants.Screen.ResolutionX - SpritePages * size;
-        pageButtons = new Rectangle[SpritePages];
-        for (int i = 0; i < pageButtons.Length; i++)
-        {
-            pageButtons[i] = new Rectangle(pageButtonsStartX + i * size, labelRowY - 1, size, size);
-        }
-
-        const int labelGap = 4;
-        sprNmbrLabelArea = new Rectangle(pageButtonsStartX - labelGap - size * 2, labelRowY - 1, size * 2, size - 1);
-
         animFrameSlots = new Rectangle[AnimFrameCount];
         for (int i = 0; i < AnimFrameCount; i++)
         {
@@ -159,21 +139,21 @@ internal class SpriteEditor : IEditor
     {
     }
 
-    private (int x, int y, int w, int h) CurrentCanvasRegion()
+    /// <summary>The sheet-space square covered by <paramref name="spriteIndex"/> at a zoom of <paramref name="zoom"/> tiles.</summary>
+    private static (int x, int y, int w, int h) CanvasRegion(int spriteIndex, int zoom)
     {
-        int size = Zooms[SprSclIdx] * Constants.GameDataSizes.TileSize;
-        int x = (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
-        int y = (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
-        return (x, y, size, size);
-    }
-
-    private (int x, int y, int w, int h) AnimCanvasRegion(int spriteIndex)
-    {
-        int size = Zooms[AnimSclIdx] * Constants.GameDataSizes.TileSize;
+        int size = zoom * Constants.GameDataSizes.TileSize;
         int x = (spriteIndex % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
         int y = (spriteIndex / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
         return (x, y, size, size);
     }
+
+    private (int x, int y, int w, int h) CurrentCanvasRegion() => CanvasRegion(sprNmbr, Zooms[SprSclIdx]);
+
+    /// <summary>How much of a region actually falls inside the sheet; the rest is empty workspace.</summary>
+    private static (int w, int h) VisibleSize(int regionX, int regionY, int regionW, int regionH) =>
+        (Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX),
+         Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY));
 
     private void DrawEmptyWorkspacePattern(int x, int y, int w, int h)
     {
@@ -185,6 +165,22 @@ internal class SpriteEditor : IEditor
                 int color = ((px + py) / stripe) % 2 == 0 ? Constants.Colors.DarkBlue : Constants.Colors.Black;
                 _api.pixel(x + px, y + py, color);
             }
+        }
+    }
+
+    /// <summary>Hatches the parts of a canvas area that lie past the edge of the sheet.</summary>
+    private void DrawWorkspaceOverflow(Rectangle area, int regionW, int regionH, int validW, int validH, int scale)
+    {
+        if (validW < regionW)
+        {
+            DrawEmptyWorkspacePattern(area.X + validW * scale, area.Y,
+                (regionW - validW) * scale, regionH * scale);
+        }
+
+        if (validH < regionH)
+        {
+            DrawEmptyWorkspacePattern(area.X, area.Y + validH * scale,
+                validW * scale, (regionH - validH) * scale);
         }
     }
 
@@ -213,7 +209,7 @@ internal class SpriteEditor : IEditor
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
-            mono8.GameAPI.Save();
+            Mono8Game.GameAPI.Save();
             eventNotifier.AddEvent("SAVED");
         }
 
@@ -267,8 +263,7 @@ internal class SpriteEditor : IEditor
             eventNotifier.AddEvent("FLIP H");
         }
 
-        if (!KeybrdInput.Pressed(Keys.LeftControl) && !KeybrdInput.Pressed(Keys.RightControl)
-            && KeybrdInput.JustPressed(Keys.V))
+        if (!KeybrdInput.IsCtrlPressed() && KeybrdInput.JustPressed(Keys.V))
         {
             var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
             Mono8API.SpriteSheet.FlipRegionVertical(regionX, regionY, regionW, regionH);
@@ -282,11 +277,7 @@ internal class SpriteEditor : IEditor
             eventNotifier.AddEvent("ROTATE");
         }
 
-        bool noModifiers = !KeybrdInput.Pressed(Keys.LeftControl) && !KeybrdInput.Pressed(Keys.RightControl)
-            && !KeybrdInput.Pressed(Keys.LeftShift) && !KeybrdInput.Pressed(Keys.RightShift)
-            && !KeybrdInput.Pressed(Keys.LeftAlt) && !KeybrdInput.Pressed(Keys.RightAlt);
-
-        if (noModifiers && !editingReferenceNumber)
+        if (KeybrdInput.NoModifiersPressed() && !editingReferenceNumber)
         {
             Keys[] digitKeys = { Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8 };
             for (int i = 0; i < digitKeys.Length; i++)
@@ -305,7 +296,7 @@ internal class SpriteEditor : IEditor
 
         if (editingReferenceNumber && !KeybrdInput.IsCtrlPressed())
         {
-            int digit = JustPressedDigit();
+            int digit = KeybrdInput.JustPressedDigit();
             if (digit >= 0)
             {
                 int candidate = (referenceNumberInput < 1 ? 0 : referenceNumberInput) * 10 + digit;
@@ -350,21 +341,15 @@ internal class SpriteEditor : IEditor
             shapePreview.Clear();
         }
 
-        if (sprvwrarea.Contains(mouse.x, mouse.y))
+        if (navigator.ViewerArea.Contains(mouse.x, mouse.y))
         {
             if (_api.mousel())
             {
-                int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
-                int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
-                SprX = x * Constants.GameDataSizes.TileSize + sprvwrarea.X;
-                SprY = y * Constants.GameDataSizes.TileSize + sprvwrarea.Y;
-                sprNmbr = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
+                navigator.SelectAt(mouse);
             }
             else if (_api.mouserp())
             {
-                int x = (mouse.x - sprvwrarea.X) / Constants.GameDataSizes.TileSize;
-                int y = (mouse.y - sprvwrarea.Y) / Constants.GameDataSizes.TileSize;
-                int picked = x + (y + spritePage * VisibleRows) * Constants.GameDataSizes.SpriteSheetColumns;
+                int picked = navigator.SpriteUnderMouse(mouse);
 
                 // Sprite 0 is the empty sprite, and a sprite cannot reference itself.
                 int reference = (picked == 0 || picked == sprNmbr) ? -1 : picked;
@@ -418,120 +403,63 @@ internal class SpriteEditor : IEditor
         }
         else
         {
-            foreach (var (button, tool) in toolButtons)
-            {
-                if (button.IsClicked(_api, mouse))
-                {
-                    selectedTool = tool;
-                    break;
-                }
-            }
-
-            for (int i = 0; i < pageButtons.Length; i++)
-            {
-                if (pageButtons[i].Contains(mouse.x, mouse.y) && _api.mouselp())
-                {
-                    spritePage = i;
-                    break;
-                }
-            }
-
-            for (int i = 0; i < flagButtons.Length; i++)
-            {
-                if (flagButtons[i].Contains(mouse.x, mouse.y) && _api.mouselp())
-                {
-                    bool current = Mono8API.SpriteSheet.GetFlag(sprNmbr, i);
-                    Mono8API.SpriteSheet.SetFlag(sprNmbr, i, !current);
-                    break;
-                }
-            }
-
-            for (int i = 0; i < animFrameSlots.Length; i++)
-            {
-                if (!animFrameSlots[i].Contains(mouse.x, mouse.y)) continue;
-
-                if (_api.mouselp())
-                {
-                    AnimFrames[i] = sprNmbr;
-                }
-                else if (_api.mouserp())
-                {
-                    AnimFrames[i] = -1;
-                }
-                break;
-            }
-
-            if (animZoomBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
-            {
-                AnimSclIdx = (AnimSclIdx + 1) % Zooms.Length;
-            }
-            else if (animZoomBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
-            {
-                AnimSclIdx = (AnimSclIdx - 1 + Zooms.Length) % Zooms.Length;
-            }
-            else if (animSpeedBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
-            {
-                AnimSpeedIdx = (AnimSpeedIdx + 1) % AnimSpeeds.Length;
-            }
-            else if (animSpeedBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
-            {
-                AnimSpeedIdx = (AnimSpeedIdx - 1 + AnimSpeeds.Length) % AnimSpeeds.Length;
-            }
-            else if (animLoopModeBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
-            {
-                animLoopMode = animLoopMode switch
-                {
-                    LoopMode.Pause => LoopMode.Forward,
-                    LoopMode.Forward => LoopMode.Reverse,
-                    LoopMode.Reverse => LoopMode.PingPong,
-                    _ => LoopMode.Pause,
-                };
-            }
-            else if (animLoopModeBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
-            {
-                animLoopMode = animLoopMode switch
-                {
-                    LoopMode.Forward => LoopMode.Pause,
-                    LoopMode.Reverse => LoopMode.Forward,
-                    LoopMode.PingPong => LoopMode.Reverse,
-                    _ => LoopMode.PingPong,
-                };
-            }
-            else if (refNumberBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
-            {
-                editingReferenceNumber = true;
-                referenceNumberInput = Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
-            }
-            else if (refOrderBtn.Contains(mouse.x, mouse.y) && (_api.mouselp() || _api.mouserp()))
-            {
-                referenceOrder = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
-            }
-            else if (refVisualizationBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
-            {
-                referenceVisualization = (ReferenceVisualization)(((int)referenceVisualization + 1) % 4);
-            }
-            else if (refVisualizationBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
-            {
-                referenceVisualization = (ReferenceVisualization)(((int)referenceVisualization + 3) % 4);
-            }
-            else if (refOpacityBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
-            {
-                referenceOpacityIdx = (referenceOpacityIdx + 1) % ReferenceOpacities.Length;
-            }
-            else if (refOpacityBtn.Contains(mouse.x, mouse.y) && _api.mouserp())
-            {
-                referenceOpacityIdx = (referenceOpacityIdx - 1 + ReferenceOpacities.Length) % ReferenceOpacities.Length;
-            }
+            UpdateSideButtons(mouse);
         }
     }
 
-    // Number-row or numpad digit just pressed, or -1 if none.
-    private static int JustPressedDigit()
+    private void UpdateSideButtons((int x, int y) mouse)
     {
-        for (int d = 0; d <= 9; d++)
-            if (KeybrdInput.JustPressed(Keys.D0 + d) || KeybrdInput.JustPressed(Keys.NumPad0 + d))
-                return d;
-        return -1;
+        foreach (var (button, tool) in toolButtons)
+        {
+            if (button.IsClicked(_api, mouse))
+            {
+                selectedTool = tool;
+                break;
+            }
+        }
+
+        navigator.TryPickPage(mouse);
+
+        for (int i = 0; i < flagButtons.Length; i++)
+        {
+            if (flagButtons[i].Contains(mouse.x, mouse.y) && _api.mouselp())
+            {
+                bool current = Mono8API.SpriteSheet.GetFlag(sprNmbr, i);
+                Mono8API.SpriteSheet.SetFlag(sprNmbr, i, !current);
+                break;
+            }
+        }
+
+        for (int i = 0; i < animFrameSlots.Length; i++)
+        {
+            if (!animFrameSlots[i].Contains(mouse.x, mouse.y)) continue;
+
+            if (_api.mouselp())
+            {
+                AnimFrames[i] = sprNmbr;
+            }
+            else if (_api.mouserp())
+            {
+                AnimFrames[i] = -1;
+            }
+            break;
+        }
+
+        if (EditorUI.CycleOnClick(_api, animZoomBtn, mouse, ref AnimSclIdx, Zooms.Length)) return;
+        if (EditorUI.CycleOnClick(_api, animSpeedBtn, mouse, ref AnimSpeedIdx, AnimSpeeds.Length)) return;
+        if (EditorUI.CycleOnClick(_api, animLoopModeBtn, mouse, ref animLoopModeIdx, LoopModeCount)) return;
+        if (EditorUI.CycleOnClick(_api, refVisualizationBtn, mouse, ref referenceVisualizationIdx, ReferenceVisualizationCount)) return;
+        if (EditorUI.CycleOnClick(_api, refOpacityBtn, mouse, ref referenceOpacityIdx, ReferenceOpacities.Length)) return;
+
+        if (refNumberBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
+        {
+            editingReferenceNumber = true;
+            referenceNumberInput = Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
+        }
+        else if (refOrderBtn.Contains(mouse.x, mouse.y) && (_api.mouselp() || _api.mouserp()))
+        {
+            referenceOrder = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
+        }
     }
 
     private (int first, int last) GetAnimFilledRange()
@@ -664,47 +592,20 @@ internal class SpriteEditor : IEditor
 
     public void Draw()
     {
-        _api.sprr(spritePage * VisibleRows * Constants.GameDataSizes.SpriteSheetColumns,
-            sprvwrarea.X,
-            sprvwrarea.Y,
-            Constants.GameDataSizes.SpriteSheetColumns,
-            VisibleRows);
+        navigator.SelectionScale = Zooms[SprSclIdx];
+        navigator.DrawSheet();
 
-        int selectedRow = sprNmbr / Constants.GameDataSizes.SpriteSheetColumns;
-        bool selectedOnPage = selectedRow >= spritePage * VisibleRows && selectedRow < (spritePage + 1) * VisibleRows;
-        if (selectedOnPage && SprX > -1 && SprY > -1)
-        {
-            _api.rect(SprX - 1, SprY - 1,
-             SprX + Constants.GameDataSizes.TileSize * Zooms[SprSclIdx],
-             SprY + Constants.GameDataSizes.TileSize * Zooms[SprSclIdx],
-             Constants.Colors.White);
-            _api.rect(SprX -2, SprY - 2,
-             SprX + 1 + Constants.GameDataSizes.TileSize * Zooms[SprSclIdx],
-             SprY + 1 + Constants.GameDataSizes.TileSize * Zooms[SprSclIdx],
-             Constants.Colors.Black);
-        }
         _api.rectfill(0, Constants.GameDataSizes.TileSize,
             Constants.Screen.ResolutionX, 85, Constants.Colors.DarkGray);
-        _api.rectfill(sprcnvsarea.X -1, sprcnvsarea.Y - 1,
+        _api.rectfill(sprcnvsarea.X - 1, sprcnvsarea.Y - 1,
             sprcnvsarea.X + sprcnvsarea.Width,
             sprcnvsarea.Y + sprcnvsarea.Height, Constants.Colors.Black);
 
         var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
-        int scale = CnvScale[SprSclIdx];
-        int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
-        int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
+        int scale = CanvasScale;
+        var (validW, validH) = VisibleSize(regionX, regionY, regionW, regionH);
 
-        if (validW < regionW)
-        {
-            DrawEmptyWorkspacePattern(sprcnvsarea.X + validW * scale, sprcnvsarea.Y,
-                (regionW - validW) * scale, regionH * scale);
-        }
-
-        if (validH < regionH)
-        {
-            DrawEmptyWorkspacePattern(sprcnvsarea.X, sprcnvsarea.Y + validH * scale,
-                validW * scale, (regionH - validH) * scale);
-        }
+        DrawWorkspaceOverflow(sprcnvsarea, regionW, regionH, validW, validH, scale);
 
         if (referenceOrder == ReferenceOrder.Behind)
         {
@@ -731,46 +632,14 @@ internal class SpriteEditor : IEditor
             DrawEmptySpriteCross(sprcnvsarea.X, sprcnvsarea.Y, Constants.GameDataSizes.TileSize * scale);
         }
 
-        if (spritePage == 0)
+        if (navigator.Page == 0)
         {
-            DrawEmptySpriteCross(sprvwrarea.X, sprvwrarea.Y, Constants.GameDataSizes.TileSize);
+            DrawEmptySpriteCross(navigator.ViewerArea.X, navigator.ViewerArea.Y, Constants.GameDataSizes.TileSize);
         }
 
-        _api.rectfill(0,Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY -1,Constants.Colors.Orange);
+        _api.rectfill(0, EditorUI.BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
 
-        _api.rectfill(palettearea.X - 1, palettearea.Y - 1,
-            palettearea.X + palettearea.Width,
-            palettearea.Y + palettearea.Height, Constants.Colors.Black);
-        for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
-        {
-            int col = color % PaletteColumns;
-            int row = color / PaletteColumns;
-            int x = palettearea.X + col * Constants.GameDataSizes.TileSize;
-            int y = palettearea.Y + row * Constants.GameDataSizes.TileSize;
-            _api.rectfill(x, y,
-                x + Constants.GameDataSizes.TileSize - 1,
-                y + Constants.GameDataSizes.TileSize - 1,
-                color);
-        }
-
-        for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
-        {
-            int col = color % PaletteColumns;
-            int row = color / PaletteColumns;
-            int x = palettearea.X + col * Constants.GameDataSizes.TileSize;
-            int y = palettearea.Y + row * Constants.GameDataSizes.TileSize;
-            if (color == ColorSelected)
-            {
-                _api.rect(x, y,
-                    x + Constants.GameDataSizes.TileSize - 1,
-                    y + Constants.GameDataSizes.TileSize - 1,
-                    Constants.Colors.Black);
-                _api.rect(x - 1, y - 1,
-                    x + Constants.GameDataSizes.TileSize,
-                    y + Constants.GameDataSizes.TileSize,
-                    Constants.Colors.White);
-            }
-        }
+        DrawPalette();
 
         foreach (var (button, tool) in toolButtons)
         {
@@ -778,50 +647,52 @@ internal class SpriteEditor : IEditor
         }
 
         DrawReferenceButtons();
+        DrawFlagButtons();
 
-        for (int i = 0; i < flagButtons.Length; i++)
-        {
-            var bounds = flagButtons[i];
-            if (Mono8API.SpriteSheet.GetFlag(sprNmbr, i))
-            {
-                _api.pal(1, 8 + i);
-                _api.icon(FlagIconIndex, bounds.X, bounds.Y);
-                _api.pal();
-            }
-            else
-            {
-                _api.icon(FlagIconIndex, bounds.X, bounds.Y);
-            }
-        }
-
-        for (int i = 0; i < pageButtons.Length; i++)
-        {
-            if (i != spritePage)
-            {
-                _api.pal(Constants.Colors.White, Constants.Colors.LightGray);
-            }
-            
-            var bounds = pageButtons[i];
-            _api.icon(i == spritePage ? PageIconSelected : PageIconNotSelected, bounds.X, bounds.Y);
-            _api.print(i.ToString(), bounds.X + 2, bounds.Y + 2, Constants.Colors.Indigo);
-            _api.pal();
-        }
-
-        _api.rectfill(sprNmbrLabelArea.X, sprNmbrLabelArea.Y,
-            sprNmbrLabelArea.X + sprNmbrLabelArea.Width - 1,
-            sprNmbrLabelArea.Y + sprNmbrLabelArea.Height - 1,
-            Constants.Colors.LightGray);
-        _api.print(sprNmbr.ToString("D3"), sprNmbrLabelArea.X + 1, sprNmbrLabelArea.Y + 1, Constants.Colors.Indigo);
+        navigator.DrawPageButtons();
+        navigator.DrawNumberLabel();
 
         DrawAnimationPanel();
 
         eventNotifier.Draw();
     }
 
+    private void DrawPalette()
+    {
+        _api.rectfill(palettearea.X - 1, palettearea.Y - 1,
+            palettearea.X + palettearea.Width,
+            palettearea.Y + palettearea.Height, Constants.Colors.Black);
+
+        int size = Constants.GameDataSizes.TileSize;
+        for (int color = 0; color < Constants.GameDataSizes.ColorPalette; color++)
+        {
+            int x = palettearea.X + (color % PaletteColumns) * size;
+            int y = palettearea.Y + (color / PaletteColumns) * size;
+            _api.rectfill(x, y, x + size - 1, y + size - 1, color);
+        }
+
+        // The selection outline is drawn in a second pass so a neighbouring swatch can't paint over it.
+        int selX = palettearea.X + (ColorSelected % PaletteColumns) * size;
+        int selY = palettearea.Y + (ColorSelected / PaletteColumns) * size;
+        _api.rect(selX, selY, selX + size - 1, selY + size - 1, Constants.Colors.Black);
+        _api.rect(selX - 1, selY - 1, selX + size, selY + size, Constants.Colors.White);
+    }
+
+    private void DrawFlagButtons()
+    {
+        for (int i = 0; i < flagButtons.Length; i++)
+        {
+            var bounds = flagButtons[i];
+            bool set = Mono8API.SpriteSheet.GetFlag(sprNmbr, i);
+
+            if (set) _api.pal(1, 8 + i);
+            _api.icon(FlagIconIndex, bounds.X, bounds.Y);
+            if (set) _api.pal();
+        }
+    }
+
     private void DrawAnimationPanel()
     {
-        var (first, last) = GetAnimFilledRange();
-
         var firstSlot = animFrameSlots[0];
         var lastSlot = animFrameSlots[animFrameSlots.Length - 1];
         _api.rectfill(firstSlot.X, firstSlot.Y,
@@ -832,31 +703,25 @@ internal class SpriteEditor : IEditor
         for (int i = 0; i < animFrameSlots.Length; i++)
         {
             var bounds = animFrameSlots[i];
-            if (AnimFrames[i] != -1)
-            {
-                var (regionX, regionY, regionW, regionH) = AnimCanvasRegion(AnimFrames[i]);
-                int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
-                int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
+            if (AnimFrames[i] == -1) continue;
 
-                _api.sprr(AnimFrames[i], bounds.X, bounds.Y,
-                    validW / Constants.GameDataSizes.TileSize,
-                    validH / Constants.GameDataSizes.TileSize,
-                    1f / Zooms[AnimSclIdx]);
-            }
-            else if (first != -1 && i > first && i < last)
-            {
-                // Don't draw
-            }
+            var (regionX, regionY, regionW, regionH) = CanvasRegion(AnimFrames[i], Zooms[AnimSclIdx]);
+            var (validW, validH) = VisibleSize(regionX, regionY, regionW, regionH);
 
-            if (animLoopMode != LoopMode.Pause && i == animCurrentFrame && AnimFrames[i] != -1)
+            _api.sprr(AnimFrames[i], bounds.X, bounds.Y,
+                validW / Constants.GameDataSizes.TileSize,
+                validH / Constants.GameDataSizes.TileSize,
+                1f / Zooms[AnimSclIdx]);
+
+            if (animLoopMode != LoopMode.Pause && i == animCurrentFrame)
             {
                 _api.rect(bounds.X, bounds.Y, bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, Constants.Colors.White);
             }
         }
 
-        DrawTextButton(animZoomBtn, "x" + Zooms[AnimSclIdx]);
-        DrawTextButton(animSpeedBtn, AnimSpeeds[AnimSpeedIdx].ToString("D2"));
-        DrawTextButton(animLoopModeBtn, animLoopMode switch
+        EditorUI.TextButton(_api, animZoomBtn, "x" + Zooms[AnimSclIdx]);
+        EditorUI.TextButton(_api, animSpeedBtn, AnimSpeeds[AnimSpeedIdx].ToString("D2"));
+        EditorUI.TextButton(_api, animLoopModeBtn, animLoopMode switch
         {
             LoopMode.Forward => "FW",
             LoopMode.Reverse => "RV",
@@ -870,34 +735,17 @@ internal class SpriteEditor : IEditor
 
         if (AnimFrames[animCurrentFrame] != -1)
         {
-            var (regionX, regionY, regionW, regionH) = AnimCanvasRegion(AnimFrames[animCurrentFrame]);
-            int scale = CnvScale[AnimSclIdx];
-            int validW = Math.Min(regionW, Constants.GameDataSizes.SpriteSheetX - regionX);
-            int validH = Math.Min(regionH, Constants.GameDataSizes.SpriteSheetY - regionY);
+            var (regionX, regionY, regionW, regionH) = CanvasRegion(AnimFrames[animCurrentFrame], Zooms[AnimSclIdx]);
+            int scale = Constants.GameDataSizes.TileSize / Zooms[AnimSclIdx];
+            var (validW, validH) = VisibleSize(regionX, regionY, regionW, regionH);
 
-            if (validW < regionW)
-            {
-                DrawEmptyWorkspacePattern(animPreviewArea.X + validW * scale, animPreviewArea.Y,
-                    (regionW - validW) * scale, regionH * scale);
-            }
-
-            if (validH < regionH)
-            {
-                DrawEmptyWorkspacePattern(animPreviewArea.X, animPreviewArea.Y + validH * scale,
-                    validW * scale, (regionH - validH) * scale);
-            }
+            DrawWorkspaceOverflow(animPreviewArea, regionW, regionH, validW, validH, scale);
 
             _api.sprr(AnimFrames[animCurrentFrame], animPreviewArea.X, animPreviewArea.Y,
                 validW / Constants.GameDataSizes.TileSize,
                 validH / Constants.GameDataSizes.TileSize,
                 scale);
         }
-    }
-
-    private void DrawTextButton(Rectangle bounds, string text)
-    {
-        _api.rectfill(bounds.X, bounds.Y, bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, Constants.Colors.LightGray);
-        _api.print(text, bounds.X + 1, bounds.Y + 1, Constants.Colors.Indigo);
     }
 
     private void DrawReferenceSprite(int scale, int validW, int validH)
@@ -919,7 +767,7 @@ internal class SpriteEditor : IEditor
         }
 
         _api.spr(refSprite, sprcnvsarea.X, sprcnvsarea.Y,
-            validW / Constants.GameDataSizes.TileSize, 
+            validW / Constants.GameDataSizes.TileSize,
             validH / Constants.GameDataSizes.TileSize, scale, false, false,
             ReferenceOpacities[referenceOpacityIdx]);
 
@@ -934,20 +782,18 @@ internal class SpriteEditor : IEditor
         int displayValue = editingReferenceNumber ? referenceNumberInput : Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
         string numberText = displayValue < 0 ? "--" : displayValue.ToString("D3");
         int numberBg = editingReferenceNumber ? Constants.Colors.White : Constants.Colors.LightGray;
-        _api.rectfill(refNumberBtn.X, refNumberBtn.Y, refNumberBtn.X + refNumberBtn.Width - 1, refNumberBtn.Y + refNumberBtn.Height - 1, numberBg);
-        _api.print(numberText, refNumberBtn.X + 1, refNumberBtn.Y + 1, Constants.Colors.Indigo);
+        EditorUI.Box(_api, refNumberBtn, numberText, numberBg, Constants.Colors.Indigo);
 
-        DrawTextButton(refOrderBtn, referenceOrder == ReferenceOrder.Behind ? "BEH" : "FRO");
+        EditorUI.TextButton(_api, refOrderBtn, referenceOrder == ReferenceOrder.Behind ? "BEH" : "FRO");
 
-        string visText = referenceVisualization switch
+        EditorUI.TextButton(_api, refVisualizationBtn, referenceVisualization switch
         {
             ReferenceVisualization.Red => "RED",
             ReferenceVisualization.Green => "GRN",
             ReferenceVisualization.Blue => "BLU",
             _ => "ORG",
-        };
-        DrawTextButton(refVisualizationBtn, visText);
+        });
 
-        DrawTextButton(refOpacityBtn, ((int)(ReferenceOpacities[referenceOpacityIdx] * 100)).ToString());
+        EditorUI.TextButton(_api, refOpacityBtn, ((int)(ReferenceOpacities[referenceOpacityIdx] * 100)).ToString());
     }
 }

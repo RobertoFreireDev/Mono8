@@ -9,49 +9,8 @@ internal class IconSheet
 
     public static void LoadIcons(string[] sheet)
     {
-        LoadData(sheet);
-        DataToTexture();
-    }
-
-    private static void LoadData(string[] sheet)
-    {
-        Data = new int[Constants.GameDataSizes.IconSheetY, Constants.GameDataSizes.IconSheetX];
-
-        for (int r = 0; r < Constants.GameDataSizes.IconSheetY; r++)
-        {
-            for (int c = 0; c < Constants.GameDataSizes.IconSheetX; c++)
-            {
-                char ch = '0';
-
-                if (sheet != null &&
-                    r < sheet.Length &&
-                    sheet[r] != null &&
-                    c < sheet[r].Length)
-                {
-                    ch = char.ToLowerInvariant(sheet[r][c]);
-                }
-
-                Data[r, c] = ColorPalette.CharToIndex(ch);
-            }
-        }
-    }
-
-    private static void DataToTexture()
-    {
-        int width = Data.GetLength(1);
-        int height = Data.GetLength(0);
-        int pixelCount = width * height;
-
-        for (int ci = 0; ci < Constants.GameDataSizes.ColorPalette; ci++)
-        {
-            var maskData = new Color[pixelCount];
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    maskData[y * width + x] = Data[y, x] == ci ? Color.White : ColorPalette.TransparentColor;
-
-            ColorTextures[ci] ??= new Texture2D(mono8.GraphicsDeviceRef, width, height);
-            ColorTextures[ci].SetData(maskData);
-        }
+        Data = PixelGrid.Load(sheet, Constants.GameDataSizes.IconSheetX, Constants.GameDataSizes.IconSheetY);
+        PixelGrid.WriteColorMasks(Data, ColorTextures);
     }
 
     public static void Draw(int n, int x, int y)
@@ -69,7 +28,7 @@ internal class IconSheet
         {
             if (ColorPalette.IsDrawTransparent(ci)) continue;
             if (ColorTextures[ci] == null) continue;
-            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, SpriteEffects.None, ci);
+            Mono8Game.SpriteBatch.Draw(ColorTextures[ci], destination, source, SpriteEffects.None, ci);
         }
     }
 }

@@ -46,17 +46,7 @@ internal class MapSheet
                     continue;
                 }
 
-                int value = 0;
-                for (int i = 0; i < 2; i++)
-                {
-                    char ch = row[charIndex + i];
-                    int nibble = ch >= '0' && ch <= '9' ? ch - '0'
-                               : ch >= 'a' && ch <= 'f' ? ch - 'a' + 10
-                               : ch >= 'A' && ch <= 'F' ? ch - 'A' + 10
-                               : 0;
-                    value = value * 16 + nibble;
-                }
-
+                int value = Hex.Pair(row, charIndex);
                 Data[r, c] = value > Constants.GameDataSizes.MaxSpriteIndex ? 0 : value;
             }
         }
@@ -79,43 +69,10 @@ internal class MapSheet
         int mapX, int mapY,   // starting tile in map
         int px, int py,       // screen position to draw at
         int width, int height, // how many tiles wide/tall to draw
+        float scale = 1f,
         float colorOpaqueness = 1f,
         int layerMax = 0)
     {
-        for (int y = 0; y < height; y++)
-        {
-            int mapYIndex = mapY + y;
-            if (mapYIndex < 0 || mapYIndex >= Constants.GameDataSizes.MapSheetY) continue;
-
-            for (int x = 0; x < width; x++)
-            {
-                int mapXIndex = mapX + x;
-                if (mapXIndex < 0 || mapXIndex >= Constants.GameDataSizes.MapSheetX) continue;
-
-                int tileIndex = Data[mapYIndex, mapXIndex];
-                if (tileIndex <= 0) continue;
-
-                if (layerMax != 0 && (Mono8API.SpriteSheet.GetFlags(tileIndex) & layerMax) == 0) continue;
-
-                Mono8API.SpriteSheet.Draw(
-                    true, tileIndex,
-                    px + x * Constants.GameDataSizes.TileSize,
-                    py + y * Constants.GameDataSizes.TileSize,
-                    colorOpaqueness: colorOpaqueness);
-            }
-        }
-    }
-
-    public void DrawMap(
-        int mapX, int mapY,   // starting tile in map
-        int px, int py,       // screen position to draw at
-        int width, int height, // how many tiles wide/tall to draw
-        float scale,
-        float colorOpaqueness = 1f,
-        int layerMax = 0)
-    {
-        scale = Math.Clamp(scale, SpriteSheet.MinScale, SpriteSheet.MaxScale);
-
         int tileSize = Constants.GameDataSizes.TileSize;
         int columns = Constants.GameDataSizes.SpriteSheetColumns;
 

@@ -4,7 +4,6 @@ public static class ColorPalette
 {
     private static Color[] Colors = new Color[Constants.GameDataSizes.ColorPalette];
     public static readonly Color TransparentColor = new Color(0, 0, 0, 0);
-    public static int TransparentColorIndex = 0;
     public static int BlackColorIndex = -2;
     public static int WhiteColorIndex = -1;
 
@@ -26,7 +25,6 @@ public static class ColorPalette
 
     public static void Pal()
     {
-        TransparentColorIndex = 0;
         ResetPalettes();
         ResetPaltFlags();
     }
@@ -60,16 +58,6 @@ public static class ColorPalette
     }
 
     private static string Palette = "#000000,#1d2b53,#7e2553,#008751,#ab5236,#5f574f,#c2c3c7,#fff1e8,#ff004d,#ffa300,#ffec27,#00e436,#29adff,#83769c,#ff77a8,#ffccaa,#291814,#111d35,#422136,#125359,#742f29,#49333b,#a28879,#f3ef7d,#be1250,#ff6c24,#a8e72e,#00b543,#065ab5,#754665,#ff6e59,#ff9d81";
-
-    public static void SetTransparentColorIndex(int id)
-    {
-        if (id < Constants.GameDataSizes.ColorPaletteMin || id > Constants.GameDataSizes.ColorPaletteMax)
-        {
-            return;
-        }
-
-        TransparentColorIndex = id;
-    }
 
     public static Color GetColor(int id, float colorOpaqueness = 1f)
     {

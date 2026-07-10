@@ -32,14 +32,14 @@ public static class ErrorHandler
 
     public static void SetError(string message)
     {
-        mono8.GameAPI?.StopSounds();
+        Mono8Game.GameAPI?.StopSounds();
         _error = true;
         _message = message;
     }
 
     public static void Draw()
     {
-        mono8.SpriteBatch.DrawBaseBox(-2);
+        Mono8Game.SpriteBatch.DrawBaseBox(-2);
         Text.DrawText(_message, new Vector2(2, 2), -1, true);
     }
 }

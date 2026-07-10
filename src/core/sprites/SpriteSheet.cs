@@ -11,8 +11,6 @@ internal class SpriteSheet
 
     public Texture2D[] ColorTextures = new Texture2D[Constants.GameDataSizes.ColorPalette + 1];
 
-    public Rectangle[] TileRects;
-
     public byte[] Flags = new byte[TotalSprites];
 
     // Onion-skinning: each sprite may reference another sprite to ghost-draw
@@ -109,7 +107,6 @@ internal class SpriteSheet
             ? flags[1]
             : defaultFlags;
         LoadFlags(line0, line1);
-        CalculateTileRects();
         DataToTexture();
     }
 
@@ -122,15 +119,8 @@ internal class SpriteSheet
     private void LoadFlagsLine(string line, int spriteOffset)
     {
         for (int i = 0; i < TotalSprites / 2 && i * 2 + 1 < line.Length; i++)
-        {
-            int hi = HexNibble(line[i * 2]);
-            int lo = HexNibble(line[i * 2 + 1]);
-            Flags[spriteOffset + i] = (byte)(hi * 16 + lo);
-        }
+            Flags[spriteOffset + i] = (byte)Hex.Pair(line, i * 2);
     }
-
-    private static int HexNibble(char c) =>
-        c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : 0;
 
     public string[] ToSheetLines()
     {
@@ -162,68 +152,26 @@ internal class SpriteSheet
         return new[] { new string(line0), new string(line1) };
     }
 
-    private void CalculateTileRects()
-    {
-        int columns = Constants.GameDataSizes.SpriteSheetColumns;
-        int rows = Constants.GameDataSizes.SpriteSheetRows;
-        int size = Constants.GameDataSizes.TileSize;
-        int total = columns * rows;
-        TileRects = new Rectangle[total];
-        for (int i = 0; i < total; i++)
-        {
-            int x = (i % columns) * size;
-            int y = (i / columns) * size;
-            TileRects[i] = new Rectangle(x, y, size, size);
-        }
-    }
-
     private void LoadData(string[] sheet)
     {
-        // + 1 to avoid drawing issues in the border 
-        Data = new int[Constants.GameDataSizes.SpriteSheetY + 1, Constants.GameDataSizes.SpriteSheetX + 1];
-
-        for (int r = 0; r < Constants.GameDataSizes.SpriteSheetY; r++)
-        {
-            for (int c = 0; c < Constants.GameDataSizes.SpriteSheetX; c++)
-            {
-                char ch = '0';
-
-                if (sheet != null &&
-                    r < sheet.Length &&
-                    sheet[r] != null &&
-                    c < sheet[r].Length)
-                {
-                    ch = char.ToLowerInvariant(sheet[r][c]);
-                }
-
-                Data[r, c] = ColorPalette.CharToIndex(ch);
-            }
-        }
+        // + 1 to avoid drawing issues in the border
+        Data = PixelGrid.Load(sheet,
+            Constants.GameDataSizes.SpriteSheetX, Constants.GameDataSizes.SpriteSheetY, padding: 1);
     }
 
     public void DataToTexture()
     {
+        PixelGrid.WriteColorMasks(Data, ColorTextures);
+
         int width = Data.GetLength(1);
         int height = Data.GetLength(0);
-        int pixelCount = width * height;
 
-        for (int ci = 0; ci < Constants.GameDataSizes.ColorPalette; ci++)
-        {
-            var maskData = new Color[pixelCount];
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    maskData[y * width + x] = Data[y, x] == ci ? Color.White : ColorPalette.TransparentColor;
-
-            ColorTextures[ci] ??= new Texture2D(mono8.GraphicsDeviceRef, width, height);
-            ColorTextures[ci].SetData(maskData);
-        }
-
-        var finalData = new Color[pixelCount];
+        var finalData = new Color[width * height];
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++)
                 finalData[y * width + x] = FinalColor(Data[y, x]);
 
-        ColorTextures[FinalTextureIndex] ??= new Texture2D(mono8.GraphicsDeviceRef, width, height);
+        ColorTextures[FinalTextureIndex] ??= new Texture2D(Mono8Game.GraphicsDeviceRef, width, height);
         ColorTextures[FinalTextureIndex].SetData(finalData);
     }
 
@@ -246,6 +194,21 @@ internal class SpriteSheet
     private static bool IsProtectedPos(int x, int y) =>
         x >= 0 && x < Constants.GameDataSizes.TileSize &&
         y >= 0 && y < Constants.GameDataSizes.TileSize;
+
+    /// <summary>
+    /// Clips an arbitrary rectangle to the sheet's bounds. Returns false when nothing
+    /// of it remains, which every region operation treats as "nothing to do".
+    /// </summary>
+    private static bool TryClampRegion(int x, int y, int w, int h, out Rectangle region)
+    {
+        int left = Math.Max(x, 0);
+        int top = Math.Max(y, 0);
+        int right = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
+        int bottom = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
+
+        region = new Rectangle(left, top, right - left, bottom - top);
+        return region.Width > 0 && region.Height > 0;
+    }
 
     private bool TrySetPixelData(int x, int y, int colorIndex)
     {
@@ -322,16 +285,7 @@ internal class SpriteSheet
         if (!IsValidColor(colorIndex)) return;
 
         SaveSnapshot();
-        var thickness = 1;
-        // Top
-        SetRectFillData(x, y, w, thickness, colorIndex);
-        // Bottom
-        SetRectFillData(x, y + h - thickness, w, thickness, colorIndex);
-        // Left
-        SetRectFillData(x, y + 1, thickness, h - 2, colorIndex);
-        // Right
-        SetRectFillData(x + w - thickness, y + 1, thickness, h - 2, colorIndex);
-
+        RectMath.Outline(x, y, w, h, (rx, ry, rw, rh) => SetRectFillData(rx, ry, rw, rh, colorIndex));
         UpdateTextureRegion(x, y, w, h);
     }
 
@@ -407,141 +361,98 @@ internal class SpriteSheet
 
     public void MoveGrid(int x, int y, int w, int h, int deltaX, int deltaY)
     {
-        int x1 = Math.Max(x, 0);
-        int y1 = Math.Max(y, 0);
-        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
-        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
-        int regionW = x2 - x1;
-        int regionH = y2 - y1;
-        if (regionW <= 0 || regionH <= 0) return;
+        if (!TryClampRegion(x, y, w, h, out var r)) return;
 
         SaveSnapshot();
 
-        var temp = new int[regionH, regionW];
-        for (int row = 0; row < regionH; row++)
-            for (int col = 0; col < regionW; col++)
+        var temp = new int[r.Height, r.Width];
+        for (int row = 0; row < r.Height; row++)
+            for (int col = 0; col < r.Width; col++)
             {
-                int newRow = ((row + deltaY) % regionH + regionH) % regionH;
-                int newCol = ((col + deltaX) % regionW + regionW) % regionW;
-                temp[newRow, newCol] = Data[y1 + row, x1 + col];
+                int newRow = ((row + deltaY) % r.Height + r.Height) % r.Height;
+                int newCol = ((col + deltaX) % r.Width + r.Width) % r.Width;
+                temp[newRow, newCol] = Data[r.Y + row, r.X + col];
             }
 
-        for (int row = 0; row < regionH; row++)
-            for (int col = 0; col < regionW; col++)
-                Data[y1 + row, x1 + col] = temp[row, col];
-
-        UpdateTextureRegion(x1, y1, regionW, regionH);
+        WriteRegion(r, temp);
     }
 
     public void FlipRegionHorizontal(int x, int y, int w, int h)
     {
-        int x1 = Math.Max(x, 0);
-        int y1 = Math.Max(y, 0);
-        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
-        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
-        int regionW = x2 - x1;
-        int regionH = y2 - y1;
-        if (regionW <= 0 || regionH <= 0) return;
+        if (!TryClampRegion(x, y, w, h, out var r)) return;
 
         SaveSnapshot();
 
-        for (int row = 0; row < regionH; row++)
-            for (int col = 0; col < regionW / 2; col++)
+        for (int row = 0; row < r.Height; row++)
+            for (int col = 0; col < r.Width / 2; col++)
             {
-                int leftCol = x1 + col;
-                int rightCol = x1 + regionW - 1 - col;
-                (Data[y1 + row, leftCol], Data[y1 + row, rightCol]) = (Data[y1 + row, rightCol], Data[y1 + row, leftCol]);
+                int leftCol = r.X + col;
+                int rightCol = r.X + r.Width - 1 - col;
+                (Data[r.Y + row, leftCol], Data[r.Y + row, rightCol]) = (Data[r.Y + row, rightCol], Data[r.Y + row, leftCol]);
             }
 
-        UpdateTextureRegion(x1, y1, regionW, regionH);
+        UpdateTextureRegion(r.X, r.Y, r.Width, r.Height);
     }
 
     public void FlipRegionVertical(int x, int y, int w, int h)
     {
-        int x1 = Math.Max(x, 0);
-        int y1 = Math.Max(y, 0);
-        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
-        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
-        int regionW = x2 - x1;
-        int regionH = y2 - y1;
-        if (regionW <= 0 || regionH <= 0) return;
+        if (!TryClampRegion(x, y, w, h, out var r)) return;
 
         SaveSnapshot();
 
-        for (int row = 0; row < regionH / 2; row++)
+        for (int row = 0; row < r.Height / 2; row++)
         {
-            int topRow = y1 + row;
-            int bottomRow = y1 + regionH - 1 - row;
-            for (int col = 0; col < regionW; col++)
-                (Data[topRow, x1 + col], Data[bottomRow, x1 + col]) = (Data[bottomRow, x1 + col], Data[topRow, x1 + col]);
+            int topRow = r.Y + row;
+            int bottomRow = r.Y + r.Height - 1 - row;
+            for (int col = 0; col < r.Width; col++)
+                (Data[topRow, r.X + col], Data[bottomRow, r.X + col]) = (Data[bottomRow, r.X + col], Data[topRow, r.X + col]);
         }
 
-        UpdateTextureRegion(x1, y1, regionW, regionH);
+        UpdateTextureRegion(r.X, r.Y, r.Width, r.Height);
     }
 
     public void RotateRegion90Clockwise(int x, int y, int w, int h)
     {
-        int x1 = Math.Max(x, 0);
-        int y1 = Math.Max(y, 0);
-        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
-        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
-        int regionW = x2 - x1;
-        int regionH = y2 - y1;
-        if (regionW <= 0 || regionH <= 0 || regionW != regionH) return;
+        if (!TryClampRegion(x, y, w, h, out var r) || r.Width != r.Height) return;
 
         SaveSnapshot();
 
-        int size = regionW;
+        int size = r.Width;
         var temp = new int[size, size];
         for (int row = 0; row < size; row++)
             for (int col = 0; col < size; col++)
-                temp[col, size - 1 - row] = Data[y1 + row, x1 + col];
+                temp[col, size - 1 - row] = Data[r.Y + row, r.X + col];
 
-        for (int row = 0; row < size; row++)
-            for (int col = 0; col < size; col++)
-                Data[y1 + row, x1 + col] = temp[row, col];
-
-        UpdateTextureRegion(x1, y1, size, size);
+        WriteRegion(r, temp);
     }
 
     public void CopyRegion(int x, int y, int w, int h)
     {
-        int x1 = Math.Max(x, 0);
-        int y1 = Math.Max(y, 0);
-        int x2 = Math.Min(x + w, Constants.GameDataSizes.SpriteSheetX);
-        int y2 = Math.Min(y + h, Constants.GameDataSizes.SpriteSheetY);
-        int regionW = x2 - x1;
-        int regionH = y2 - y1;
-        if (regionW <= 0 || regionH <= 0) return;
+        if (!TryClampRegion(x, y, w, h, out var r)) return;
 
-        _copy = new int[regionH, regionW];
-        for (int row = 0; row < regionH; row++)
-            for (int col = 0; col < regionW; col++)
-                _copy[row, col] = Data[y1 + row, x1 + col];
+        _copy = new int[r.Height, r.Width];
+        for (int row = 0; row < r.Height; row++)
+            for (int col = 0; col < r.Width; col++)
+                _copy[row, col] = Data[r.Y + row, r.X + col];
     }
 
     public void PasteRegion(int x, int y)
     {
         if (_copy == null) return;
-
-        int copyH = _copy.GetLength(0);
-        int copyW = _copy.GetLength(1);
-
-        int x1 = Math.Max(x, 0);
-        int y1 = Math.Max(y, 0);
-        int x2 = Math.Min(x + copyW, Constants.GameDataSizes.SpriteSheetX);
-        int y2 = Math.Min(y + copyH, Constants.GameDataSizes.SpriteSheetY);
-        int regionW = x2 - x1;
-        int regionH = y2 - y1;
-        if (regionW <= 0 || regionH <= 0) return;
+        if (!TryClampRegion(x, y, _copy.GetLength(1), _copy.GetLength(0), out var r)) return;
 
         SaveSnapshot();
+        WriteRegion(r, _copy);
+    }
 
-        for (int row = 0; row < regionH; row++)
-            for (int col = 0; col < regionW; col++)
-                Data[y1 + row, x1 + col] = _copy[row, col];
+    /// <summary>Copies <paramref name="source"/>'s top-left corner into <paramref name="region"/> and refreshes its textures.</summary>
+    private void WriteRegion(Rectangle region, int[,] source)
+    {
+        for (int row = 0; row < region.Height; row++)
+            for (int col = 0; col < region.Width; col++)
+                Data[region.Y + row, region.X + col] = source[row, col];
 
-        UpdateTextureRegion(x1, y1, regionW, regionH);
+        UpdateTextureRegion(region.X, region.Y, region.Width, region.Height);
     }
 
     public void ClearGrid(int x, int y, int w, int h, int colorIndex = 0)
@@ -556,25 +467,10 @@ internal class SpriteSheet
     public void DrawSub(bool useFinalTextureIndex,
         int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh, bool flipX, bool flipY, float colorOpaqueness = 1f)
     {
-        var source = new Rectangle(sx, sy, sw, sh);
-        var destination = new Rectangle(dx, dy, dw, dh);
-
-        SpriteEffects effects = SpriteEffects.None;
-        if (flipX) effects |= SpriteEffects.FlipHorizontally;
-        if (flipY) effects |= SpriteEffects.FlipVertically;
-
-        if (useFinalTextureIndex)
-        {
-            mono8.SpriteBatch.Draw(ColorTextures[FinalTextureIndex], destination, source, effects, ColorPalette.WhiteColorIndex, colorOpaqueness);
-            return;
-        }
-
-        for (int ci = 0; ci < Constants.GameDataSizes.ColorPalette; ci++)
-        {
-            if (ColorPalette.IsDrawTransparent(ci)) continue;
-            if (ColorTextures[ci] == null) continue;
-            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci, colorOpaqueness);
-        }
+        DrawRegion(useFinalTextureIndex,
+            new Rectangle(sx, sy, sw, sh),
+            new Rectangle(dx, dy, dw, dh),
+            flipX, flipY, colorOpaqueness);
     }
 
     /// <summary>Smallest and largest <c>scale</c> honoured by <see cref="Draw"/>; values outside are clamped.</summary>
@@ -587,23 +483,37 @@ internal class SpriteSheet
     {
         scale = Math.Clamp(scale, MinScale, MaxScale);
 
+        int tileSize = Constants.GameDataSizes.TileSize;
+        int columns = Constants.GameDataSizes.SpriteSheetColumns;
+
         var source = new Rectangle(
-            (n % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize,
-            (n / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize,
-            w * Constants.GameDataSizes.TileSize,
-            h * Constants.GameDataSizes.TileSize);
+            (n % columns) * tileSize,
+            (n / columns) * tileSize,
+            w * tileSize,
+            h * tileSize);
         var destination = new Rectangle(
             x, y,
-            Math.Max(1, (int)Math.Round(w * Constants.GameDataSizes.TileSize * scale)),
-            Math.Max(1, (int)Math.Round(h * Constants.GameDataSizes.TileSize * scale)));
+            Math.Max(1, (int)Math.Round(w * tileSize * scale)),
+            Math.Max(1, (int)Math.Round(h * tileSize * scale)));
 
+        DrawRegion(useFinalTextureIndex, source, destination, flipX, flipY, colorOpaqueness);
+    }
+
+    /// <summary>
+    /// Blits a source rect of the sheet. The "final" texture draws in one pass with the
+    /// palette already baked in; otherwise each colour's mask is drawn separately so that
+    /// <c>palt</c>-transparent colours can be skipped.
+    /// </summary>
+    private void DrawRegion(bool useFinalTextureIndex, Rectangle source, Rectangle destination,
+        bool flipX, bool flipY, float colorOpaqueness)
+    {
         SpriteEffects effects = SpriteEffects.None;
         if (flipX) effects |= SpriteEffects.FlipHorizontally;
         if (flipY) effects |= SpriteEffects.FlipVertically;
 
         if (useFinalTextureIndex)
         {
-            mono8.SpriteBatch.Draw(ColorTextures[FinalTextureIndex], destination, source, effects, ColorPalette.WhiteColorIndex, colorOpaqueness);
+            Mono8Game.SpriteBatch.Draw(ColorTextures[FinalTextureIndex], destination, source, effects, ColorPalette.WhiteColorIndex, colorOpaqueness);
             return;
         }
 
@@ -611,7 +521,7 @@ internal class SpriteSheet
         {
             if (ColorPalette.IsDrawTransparent(ci)) continue;
             if (ColorTextures[ci] == null) continue;
-            mono8.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci, colorOpaqueness);
+            Mono8Game.SpriteBatch.Draw(ColorTextures[ci], destination, source, effects, ci, colorOpaqueness);
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace mono8;
 
-internal class Mono8API : IMono8API
+internal class Mono8API : IEditorAPI
 {
     public static EditorRegistry Editors = new EditorRegistry();
     private static SfxEngine _sfxEngine = new SfxEngine();
@@ -29,20 +29,24 @@ internal class Mono8API : IMono8API
     internal void Load()
     {
         var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
-        var sfxLines = FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Sfx, path));
-        SfxSheet.LoadSfxs(sfxLines);
-        _sfxEngine.LoadSfxs(sfxLines);
-        var musicLines = FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Music, path));
-        MusicSheet.LoadMusic(musicLines);
-        _sfxEngine.LoadMusicPatterns(musicLines);
-        IconSheet.LoadIcons(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.IconSheet, path)));
+        SfxSheet.LoadSfxs(ReadLines(Constants.File.Extensions.Sfx, path));
+        MusicSheet.LoadMusic(ReadLines(Constants.File.Extensions.Music, path));
+        IconSheet.LoadIcons(ReadLines(Constants.File.Extensions.IconSheet, path));
         SpriteSheet.LoadSprites(
-            FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.SpriteSheet, path)),
-            FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.Flags, path)));
-        MapSheet.LoadMaps(FileIO.SplitData(FileIO.Read(Constants.File.Name, Constants.File.Extensions.MapSheet, path)));
+            ReadLines(Constants.File.Extensions.SpriteSheet, path),
+            ReadLines(Constants.File.Extensions.Flags, path));
+        MapSheet.LoadMaps(ReadLines(Constants.File.Extensions.MapSheet, path));
         SaveData.Load(path);
+
+        // The sheets are the only parsers; the engine plays the snapshots they hand it.
+        for (int i = 0; i < SfxSheet.Count; i++) SyncSfx(i);
+        for (int p = 0; p < MusicSheet.Count; p++) SyncMusic(p);
+
         _sfxEngine.Sfx(-1);
     }
+
+    private static string[] ReadLines(string extension, string path) =>
+        FileIO.SplitData(FileIO.Read(Constants.File.Name, extension, path));
 
     internal void Save()
     {
@@ -154,9 +158,9 @@ internal class Mono8API : IMono8API
 
     public void camera(float x = 0, float y = 0)
     {
-        mono8.SpriteBatch.End();
+        Mono8Game.SpriteBatch.End();
         Camera2D.Camera((int)x, (int)y);
-        mono8.SpriteBatch.Begin();
+        Mono8Game.SpriteBatch.Begin();
     }
 
     public void print(string text, int x, int y, int color = 7)
@@ -212,7 +216,7 @@ internal class Mono8API : IMono8API
 
     public void cls(int colorIndex = 0)
     {
-        mono8.SpriteBatch.DrawBaseBox(colorIndex);
+        Mono8Game.SpriteBatch.DrawBaseBox(colorIndex);
     }
 
     public int stat(int id)
@@ -220,7 +224,7 @@ internal class Mono8API : IMono8API
         switch (id)
         {
             case 7:
-                return mono8.DisplayFps;
+                return Mono8Game.DisplayFps;
         }
 
         return 0;
@@ -228,24 +232,24 @@ internal class Mono8API : IMono8API
 
     public void pixel(int x, int y, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawPixel(x, y, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawPixel(x, y, color, colorOpaqueness);
     }
 
     public void line(int x0, int y0, int x1, int y1, int color)
     {
-        mono8.SpriteBatch.DrawLine(x0, y0, x1, y1, color);
+        Mono8Game.SpriteBatch.DrawLine(x0, y0, x1, y1, color);
     }
 
     public void rect(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
         (int x, int y, int w, int h) = ToRect(x0, y0, x1, y1);
-        mono8.SpriteBatch.DrawRect(x0, y0, w, h, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawRect(x, y, w, h, color, colorOpaqueness);
     }
 
     public void rectfill(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
         (int x, int y, int w, int h) = ToRect(x0, y0, x1, y1);
-        mono8.SpriteBatch.DrawRectFill(x0, y0, w, h, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawRectFill(x, y, w, h, color, colorOpaqueness);
     }
 
     public (int x, int y, int w, int h) ToRect(int x0, int y0,int x1, int y1)
@@ -255,22 +259,22 @@ internal class Mono8API : IMono8API
 
     public void circ(int x, int y, int radius, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawCirc(x, y, radius, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawCirc(x, y, radius, color, colorOpaqueness);
     }
 
     public void circfill(int x, int y, int radius, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawCircFill(x, y, radius, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawCircFill(x, y, radius, color, colorOpaqueness);
     }
 
     public void oval(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawOval(x0, y0, x1, y1, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawOval(x0, y0, x1, y1, color, colorOpaqueness);
     }
 
     public void ovalfill(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f)
     {
-        mono8.SpriteBatch.DrawOvalFill(x0, y0, x1, y1, color, colorOpaqueness);
+        Mono8Game.SpriteBatch.DrawOvalFill(x0, y0, x1, y1, color, colorOpaqueness);
     }
 
     public void palt()
@@ -325,14 +329,8 @@ internal class Mono8API : IMono8API
     public void map(int cellX, int cellY, int screenX, int screenY, int cellWidth = 40, int cellHeight = 23,
         float scale = 1f, float colorOpaqueness = 1f, int layerMax = 0)
     {
-        scale = SnapMapScale(scale);
-        if (scale == 1f)
-        {
-            MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, colorOpaqueness, layerMax);
-            return;
-        }
-
-        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight, scale, colorOpaqueness, layerMax);
+        MapSheet.DrawMap(cellX, cellY, screenX, screenY, cellWidth, cellHeight,
+            SnapMapScale(scale), colorOpaqueness, layerMax);
     }
 
     public int fget(int spriteId) => SpriteSheet.GetFlags(spriteId);

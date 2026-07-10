@@ -3,9 +3,9 @@ using System.Text;
 namespace mono8.core.sfx;
 
 /// <summary>
-/// Editable, mutable bank of all Music Patterns (the source of truth the Music editor writes to).
-/// Serialises to/from the same PICO-8 "ff cccccccc" rows that <see cref="MusicData"/> parses,
-/// and produces immutable <see cref="MusicData"/> snapshots for the audio engine.
+/// Editable, mutable bank of all Music Patterns, and the sole parser of the PICO-8
+/// "ff cccccccc" rows. It is the source of truth the Music editor writes to, and it
+/// produces the immutable <see cref="MusicData"/> snapshots the audio engine plays.
 /// </summary>
 internal sealed class MusicSheet
 {
@@ -45,23 +45,26 @@ internal sealed class MusicSheet
 
     // ── Load / Save ───────────────────────────────────────────────────────────
 
+    // Row layout: two flag digits, a space, then one two-digit byte per channel.
+    private const int LineLength = 3 + ChannelCount * 2;
+    private const int ChannelsStart = 3;
+
     public void LoadMusic(string[] lines)
     {
         for (int p = 0; p < Count; p++)
         {
             string line = lines != null && p < lines.Length ? lines[p]?.Trim() : null;
-            if (string.IsNullOrEmpty(line) || line.Length < 11)
+            if (string.IsNullOrEmpty(line) || line.Length < LineLength)
             {
                 _flags[p] = 0;
                 for (int c = 0; c < ChannelCount; c++) { _enabled[p, c] = false; _sfx[p, c] = 0; }
                 continue;
             }
 
-            var data = MusicData.FromLine(line);
-            _flags[p] = data.Flags;
+            _flags[p] = Hex.Byte(line, 0);
             for (int c = 0; c < ChannelCount; c++)
             {
-                int raw = data.Channels[c];
+                int raw = Hex.Pair(line, ChannelsStart + c * 2);
                 _enabled[p, c] = (raw & ChannelMuteBit) == 0;
                 _sfx[p, c] = raw & ChannelSfxMask;
             }
@@ -73,7 +76,7 @@ internal sealed class MusicSheet
         var lines = new string[Count];
         for (int p = 0; p < Count; p++)
         {
-            var sb = new StringBuilder(11);
+            var sb = new StringBuilder(LineLength);
             sb.Append(_flags[p].ToString("x2"));
             sb.Append(' ');
             for (int c = 0; c < ChannelCount; c++)

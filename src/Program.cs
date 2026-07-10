@@ -1,2 +1,2 @@
-﻿using var game = new mono8.mono8();
+﻿using var game = new mono8.Mono8Game();
 game.Run();

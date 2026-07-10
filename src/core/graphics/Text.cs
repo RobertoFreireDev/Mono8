@@ -91,7 +91,7 @@ public static class Text
                     continue;
                 }
 
-                mono8.SpriteBatch.Draw(
+                Mono8Game.SpriteBatch.Draw(
                     charTexture,
                     new Vector2((int)position.X, (int)position.Y),
                     colorIndex);

@@ -40,15 +40,8 @@ public class PixelledSpriteBatch
 
     public void DrawRect(int x, int y, int width, int height, int colorIndex, float colorOpaqueness = 1f)
     {
-        var thickness = 1;
-        // Top
-        DrawRectFill(x, y, width, thickness, colorIndex, colorOpaqueness);
-        // Bottom
-        DrawRectFill(x, y + height - thickness, width, thickness, colorIndex, colorOpaqueness);
-        // Left
-        DrawRectFill(x, y + 1, thickness, height - 2, colorIndex, colorOpaqueness);
-        // Right
-        DrawRectFill(x + width - thickness, y + 1, thickness, height - 2, colorIndex, colorOpaqueness);
+        RectMath.Outline(x, y, width, height,
+            (rx, ry, rw, rh) => DrawRectFill(rx, ry, rw, rh, colorIndex, colorOpaqueness));
     }
 
     public void DrawBaseBox(int colorIndex)
