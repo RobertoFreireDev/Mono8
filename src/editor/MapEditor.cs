@@ -93,6 +93,19 @@ internal class MapEditor : IEditor
         var z => "x" + (int)z,
     };
 
+    // Screen-grid cell (in the 16x32 grid of game screens) that the viewport's top-left corner
+    // currently sits in, 0-based: "00x00" at the map's top-left. Each axis advances only after a
+    // full screen has been scrolled past.
+    private string GridLabel
+    {
+        get
+        {
+            int leftCellX = Math.Clamp(camX, 0, Constants.GameDataSizes.MapSheetX - 1);
+            int topCellY = Math.Clamp(camY, 0, Constants.GameDataSizes.MapSheetY - 1);
+            return $"{leftCellX / ScreenCols:D2}x{topCellY / ScreenRows:D2}";
+        }
+    }
+
     // On-screen size of one map cell at the current zoom. Every zoom level divides
     // TileSize evenly, so this stays an exact integer.
     private int CellPx => (int)(Constants.GameDataSizes.TileSize * Zooms[zoomIdx]);
@@ -364,8 +377,13 @@ internal class MapEditor : IEditor
         int hoverTextX = Constants.Screen.ResolutionX - rightMargin - hoverTextChars * charAdvance;
 
         string zoomText = ZoomLabel;
-        _api.print(zoomText,
-            hoverTextX - labelGap - zoomText.Length * charAdvance,
+        int zoomX = hoverTextX - labelGap - zoomText.Length * charAdvance;
+        _api.print(zoomText, zoomX, bottomBarY + 1, Constants.Colors.Indigo);
+
+        // Screen-grid position, sitting just to the left of the zoom label.
+        string gridText = GridLabel;
+        _api.print(gridText,
+            zoomX - labelGap - gridText.Length * charAdvance,
             bottomBarY + 1,
             Constants.Colors.Indigo);
 
