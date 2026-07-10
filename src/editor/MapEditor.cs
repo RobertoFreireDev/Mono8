@@ -10,6 +10,17 @@ internal class MapEditor : IEditor
         Hand,
     }
 
+    // The map sheet doubles as its own second layer: the half of the sheet the camera is not
+    // looking at is drawn at the same camera offset, either under or over the current map.
+    private enum BackgroundMode
+    {
+        None,
+        RightBehind,
+        BottomBehind,
+        RightInFront,
+        BottomInFront,
+    }
+
     private readonly IMono8API _api;
     private readonly EventNotifier eventNotifier;
 
@@ -32,6 +43,10 @@ internal class MapEditor : IEditor
     // --- Tools (drawn on the sprite-number / page-button row) ---
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
+
+    // --- Background layer toggle (sits just right of the last tool button) ---
+    private readonly Rectangle backgroundButton;
+    private BackgroundMode backgroundMode = BackgroundMode.None;
 
     // --- RectFill drag ---
     private bool dragging;
@@ -65,6 +80,28 @@ internal class MapEditor : IEditor
             (new Button(2 * size, labelRowY - 1, size, 24), Tool.RectDelete),
             (new Button(3 * size, labelRowY - 1, size, 26), Tool.Hand),
         };
+
+        backgroundButton = new Rectangle(4 * size, labelRowY - 1, size, size);
+    }
+
+    private const int HalfMapX = Constants.GameDataSizes.MapSheetX / 2;
+    private const int HalfMapY = Constants.GameDataSizes.MapSheetY / 2;
+
+    private int BackgroundIcon => backgroundMode switch
+    {
+        BackgroundMode.RightBehind or BackgroundMode.RightInFront => 11,
+        BackgroundMode.BottomBehind or BackgroundMode.BottomInFront => 10,
+        _ => 14,
+    };
+
+    // Dark grey marks the modes where the other half sits behind the map being edited.
+    private bool BackgroundIsBehind =>
+        backgroundMode is BackgroundMode.RightBehind or BackgroundMode.BottomBehind;
+
+    private void CycleBackgroundMode(int delta)
+    {
+        int count = Enum.GetValues<BackgroundMode>().Length;
+        backgroundMode = (BackgroundMode)(((int)backgroundMode + delta + count) % count);
     }
 
     public void Init()
@@ -186,6 +223,13 @@ internal class MapEditor : IEditor
         }
         else if (!FullMapView)
         {
+            if (backgroundButton.Contains(mouse.x, mouse.y))
+            {
+                if (_api.mouselp()) CycleBackgroundMode(1);
+                else if (_api.mouserp()) CycleBackgroundMode(-1);
+                return;
+            }
+
             foreach (var (button, tool) in toolButtons)
             {
                 if (button.IsClicked(_api, mouse))
@@ -290,7 +334,7 @@ internal class MapEditor : IEditor
             mapArea.X + mapArea.Width - 1, mapArea.Y + mapArea.Height - 1,
             Constants.Colors.Black);
 
-        _api.map(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
+        DrawMapLayers(mapArea);
 
         var mouse = _api.mousexy();
         if (mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
@@ -312,6 +356,44 @@ internal class MapEditor : IEditor
         }
     }
 
+    // The companion layer is the same camera window taken from the other half of the map sheet,
+    // drawn under or over the map being edited depending on the mode.
+    private void DrawMapLayers(Rectangle mapArea)
+    {
+        void Layer(int cellX, int cellY) =>
+            _api.map(cellX, cellY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
+
+        switch (backgroundMode)
+        {
+            case BackgroundMode.RightBehind:
+                Layer(camX + HalfMapX, camY);
+                Layer(camX, camY);
+                break;
+            case BackgroundMode.BottomBehind:
+                Layer(camX, camY + HalfMapY);
+                Layer(camX, camY);
+                break;
+            case BackgroundMode.RightInFront:
+                Layer(camX, camY);
+                Layer(camX + HalfMapX, camY);
+                break;
+            case BackgroundMode.BottomInFront:
+                Layer(camX, camY);
+                Layer(camX, camY + HalfMapY);
+                break;
+            default:
+                Layer(camX, camY);
+                break;
+        }
+    }
+
+    private void DrawBackgroundButton()
+    {
+        if (BackgroundIsBehind) _api.pal(Constants.Colors.White, Constants.Colors.LightGray);
+        _api.icon(BackgroundIcon, backgroundButton.X, backgroundButton.Y);
+        _api.pal();
+    }
+
     private void DrawSpriteNavigator()
     {
         // MapRows rounds up, so the bottom map row can spill past the button row and show
@@ -331,6 +413,8 @@ internal class MapEditor : IEditor
         {
             button.Draw(_api, tool == selectedTool);
         }
+
+        DrawBackgroundButton();
 
         navigator.DrawPageButtons();
         navigator.DrawNumberLabel();
