@@ -218,6 +218,15 @@ internal class SpriteSheet
         return true;
     }
 
+    /// <summary>Swaps two pixels, or neither if either end is out of bounds or protected.</summary>
+    private void TrySwapPixelData(int x0, int y0, int x1, int y1)
+    {
+        if (!IsValidPos(x0, y0) || IsProtectedPos(x0, y0)) return;
+        if (!IsValidPos(x1, y1) || IsProtectedPos(x1, y1)) return;
+
+        (Data[y0, x0], Data[y1, x1]) = (Data[y1, x1], Data[y0, x0]);
+    }
+
     private void SetRectFillData(int x, int y, int w, int h, int colorIndex)
     {
         for (int yy = y; yy < y + h; yy++)
@@ -388,7 +397,7 @@ internal class SpriteSheet
             {
                 int leftCol = r.X + col;
                 int rightCol = r.X + r.Width - 1 - col;
-                (Data[r.Y + row, leftCol], Data[r.Y + row, rightCol]) = (Data[r.Y + row, rightCol], Data[r.Y + row, leftCol]);
+                TrySwapPixelData(leftCol, r.Y + row, rightCol, r.Y + row);
             }
 
         UpdateTextureRegion(r.X, r.Y, r.Width, r.Height);
@@ -405,7 +414,7 @@ internal class SpriteSheet
             int topRow = r.Y + row;
             int bottomRow = r.Y + r.Height - 1 - row;
             for (int col = 0; col < r.Width; col++)
-                (Data[topRow, r.X + col], Data[bottomRow, r.X + col]) = (Data[bottomRow, r.X + col], Data[topRow, r.X + col]);
+                TrySwapPixelData(r.X + col, topRow, r.X + col, bottomRow);
         }
 
         UpdateTextureRegion(r.X, r.Y, r.Width, r.Height);
@@ -450,7 +459,7 @@ internal class SpriteSheet
     {
         for (int row = 0; row < region.Height; row++)
             for (int col = 0; col < region.Width; col++)
-                Data[region.Y + row, region.X + col] = source[row, col];
+                TrySetPixelData(region.X + col, region.Y + row, source[row, col]);
 
         UpdateTextureRegion(region.X, region.Y, region.Width, region.Height);
     }
