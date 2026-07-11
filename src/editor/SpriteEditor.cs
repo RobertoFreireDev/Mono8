@@ -72,6 +72,17 @@ internal class SpriteEditor : IEditor
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
 
+    // --- Autotile guide ---
+    // Overlays the terrain a 4x4 autotile block is expected to hold on the canvas. Its button sits
+    // on the tool row but is not one of the tools: it toggles on its own, so the guide can be shown
+    // while any paint tool is selected.
+    private const int AutotileGuideIcon = 16;
+    // Half-transparent so the pixels under the guide stay readable.
+    private const float AutotileGuideOpacity = 0.5f;
+
+    private readonly Button autotileGuideButton;
+    private bool showAutotileGuide;
+
     private const int FlagCount = 8;
     private const int FlagIconIndex = 43;
     private readonly Rectangle[] flagButtons;
@@ -116,6 +127,8 @@ internal class SpriteEditor : IEditor
             (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.OvalFill),
             (new Button(palettearea.X + 5 * size, toolButtonY, size, 29), Tool.PaintBucket),
         };
+
+        autotileGuideButton = new Button(palettearea.X + toolButtons.Length * size, toolButtonY, size, AutotileGuideIcon);
 
         int flagButtonY = toolButtonY + size + 2;
         flagButtons = new Rectangle[FlagCount];
@@ -409,6 +422,13 @@ internal class SpriteEditor : IEditor
 
     private void UpdateSideButtons((int x, int y) mouse)
     {
+        // Not a tool: it only flips the guide, leaving the selected tool alone.
+        if (autotileGuideButton.IsClicked(_api, mouse))
+        {
+            showAutotileGuide = !showAutotileGuide;
+            return;
+        }
+
         foreach (var (button, tool) in toolButtons)
         {
             if (button.IsClicked(_api, mouse))
@@ -622,6 +642,11 @@ internal class SpriteEditor : IEditor
             DrawReferenceSprite(scale, validW, validH);
         }
 
+        if (showAutotileGuide)
+        {
+            DrawAutotileGuide(scale, validW, validH);
+        }
+
         if (shapePreview.HasPixels)
         {
             shapePreview.Draw(_api, regionX, regionY, sprcnvsarea.X, sprcnvsarea.Y, scale);
@@ -645,6 +670,8 @@ internal class SpriteEditor : IEditor
         {
             button.Draw(_api, tool == selectedTool);
         }
+
+        autotileGuideButton.Draw(_api, showAutotileGuide);
 
         DrawReferenceButtons();
         DrawFlagButtons();
@@ -689,6 +716,57 @@ internal class SpriteEditor : IEditor
             _api.icon(FlagIconIndex, bounds.X, bounds.Y);
             if (set) _api.pal();
         }
+    }
+
+    // The guide is always laid out from the canvas's top-left tile, so it only lines up with a real
+    // autotile area when the selected sprite is a block's first cell. Sprites elsewhere in a block,
+    // or in the sheet's leftover rows, start no block and get no guide.
+    private bool SelectedBlockOrigin(out int blockX, out int blockY) =>
+        AutotileSheet.TryGetBlock(sprNmbr, out blockX, out blockY)
+            && sprNmbr == AutotileSheet.SpriteFor(blockX, blockY, 0);
+
+    // The terrain each of a block's sixteen pieces is expected to cover, laid over the canvas from
+    // its top-left tile: a quarter-tile of colour per quadrant a cell covers, and nothing for the
+    // ones it leaves empty. Green once the block is an autotile, blue while it is not. Only the
+    // cells the current zoom brings onto the canvas are drawn.
+    private void DrawAutotileGuide(int scale, int validW, int validH)
+    {
+        if (!SelectedBlockOrigin(out int blockX, out int blockY)) return;
+
+        int fill = Mono8API.AutotileSheet.IsEnabled(blockX, blockY)
+            ? Constants.Colors.Green
+            : Constants.Colors.Blue;
+
+        int tilePx = Constants.GameDataSizes.TileSize * scale;
+        int cols = Math.Min(AutotileSheet.BlockSize, validW / Constants.GameDataSizes.TileSize);
+        int rows = Math.Min(AutotileSheet.BlockSize, validH / Constants.GameDataSizes.TileSize);
+
+        for (int cellY = 0; cellY < rows; cellY++)
+        {
+            for (int cellX = 0; cellX < cols; cellX++)
+            {
+                DrawAutotileCell(sprcnvsarea.X + cellX * tilePx, sprcnvsarea.Y + cellY * tilePx,
+                    cellY * AutotileSheet.BlockSize + cellX, tilePx, fill);
+            }
+        }
+    }
+
+    private void DrawAutotileCell(int x, int y, int cell, int tilePx, int fill)
+    {
+        int half = tilePx / 2;
+        int quadrants = AutotileSheet.CellQuadrants[cell];
+
+        DrawAutotileQuadrant(quadrants, AutotileSheet.TopLeft, x, y, half, fill);
+        DrawAutotileQuadrant(quadrants, AutotileSheet.TopRight, x + half, y, half, fill);
+        DrawAutotileQuadrant(quadrants, AutotileSheet.BottomLeft, x, y + half, half, fill);
+        DrawAutotileQuadrant(quadrants, AutotileSheet.BottomRight, x + half, y + half, half, fill);
+    }
+
+    private void DrawAutotileQuadrant(int quadrants, int quadrant, int x, int y, int half, int fill)
+    {
+        if ((quadrants & quadrant) == 0) return;
+
+        _api.rectfill(x, y, x + half - 1, y + half - 1, fill, AutotileGuideOpacity);
     }
 
     private void DrawAnimationPanel()
