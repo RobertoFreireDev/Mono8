@@ -173,13 +173,15 @@ internal class MapEditor : IEditor, IAutotileGrid
 
     // Screen-grid cell (in the 16x32 grid of game screens) that the viewport's top-left corner
     // currently sits in, 0-based: "00x00" at the map's top-left. Each axis advances only after a
-    // full screen has been scrolled past.
+    // full screen has been scrolled past. Reported in map-sheet space, so the enabled layer's
+    // quarter offset is included: the label says where on the sheet the view is, not where in the
+    // quarter. Both quarter sizes are exact multiples of a screen, so this stays screen-aligned.
     private string GridLabel
     {
         get
         {
-            int leftCellX = Math.Clamp(camX, 0, QuarterCols - 1);
-            int topCellY = Math.Clamp(camY, 0, QuarterRows - 1);
+            int leftCellX = Math.Clamp(camX, 0, QuarterCols - 1) + EnabledOffX;
+            int topCellY = Math.Clamp(camY, 0, QuarterRows - 1) + EnabledOffY;
             return $"{leftCellX / ScreenCols:D2}x{topCellY / ScreenRows:D2}";
         }
     }
@@ -536,7 +538,9 @@ internal class MapEditor : IEditor, IAutotileGrid
 
         if (hoveringMap)
         {
-            _api.print($"X:{hoverCellX:D3} Y:{hoverCellY:D3}", hoverTextX, bottomBarY + 1, Constants.Colors.Indigo);
+            // Map-sheet coordinates, i.e. the hovered cell offset into the enabled layer's quarter.
+            _api.print($"X:{hoverCellX + EnabledOffX:D3} Y:{hoverCellY + EnabledOffY:D3}",
+                hoverTextX, bottomBarY + 1, Constants.Colors.Indigo);
         }
 
         if (!FullMapView)
