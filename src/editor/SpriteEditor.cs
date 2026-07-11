@@ -90,6 +90,10 @@ internal class SpriteEditor : IEditor
     private const int PaletteColumns = 8;
     private const int PaletteRows = Constants.GameDataSizes.ColorPalette / PaletteColumns;
 
+    // What the cursor is over, shown on the right edge of the bottom bar: the sprite under the
+    // navigator, or the sheet pixel under the canvas. Null when it is over neither.
+    private string hoverLabel;
+
     private int sprNmbr => navigator.SelectedSprite;
 
     public SpriteEditor(IEditorAPI api)
@@ -350,8 +354,12 @@ internal class SpriteEditor : IEditor
             shapePreview.Clear();
         }
 
+        hoverLabel = null;
+
         if (navigator.ViewerArea.Contains(mouse.x, mouse.y))
         {
+            hoverLabel = $"SPR:{navigator.SpriteUnderMouse(mouse):D3}";
+
             if (_api.mousel())
             {
                 navigator.SelectAt(mouse);
@@ -369,6 +377,13 @@ internal class SpriteEditor : IEditor
         {
             int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
             int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+
+            // Zooming out brings in tiles past the sheet's edge; that empty workspace has no
+            // sheet pixel to report.
+            if (x < Constants.GameDataSizes.SpriteSheetX && y < Constants.GameDataSizes.SpriteSheetY)
+            {
+                hoverLabel = $"X:{x:D3} Y:{y:D3}";
+            }
 
             if (selectedTool == Tool.Pixel)
             {
@@ -422,6 +437,7 @@ internal class SpriteEditor : IEditor
         if (autotileGuideButton.IsClicked(_api, mouse))
         {
             showAutotileGuide = !showAutotileGuide;
+            eventNotifier.AddEvent(showAutotileGuide ? "GUIDE ON" : "GUIDE OFF");
             return;
         }
 
@@ -430,6 +446,7 @@ internal class SpriteEditor : IEditor
             if (button.IsClicked(_api, mouse))
             {
                 selectedTool = tool;
+                eventNotifier.AddEvent(ToolLabel(tool));
                 break;
             }
         }
@@ -477,6 +494,16 @@ internal class SpriteEditor : IEditor
             referenceOrder = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
         }
     }
+
+    private static string ToolLabel(Tool tool) => tool switch
+    {
+        Tool.Rect => "RECT",
+        Tool.RectFill => "RECT FILL",
+        Tool.Oval => "OVAL",
+        Tool.OvalFill => "OVAL FILL",
+        Tool.PaintBucket => "PAINT BUCKET",
+        _ => "PIXEL",
+    };
 
     private (int first, int last) GetAnimFilledRange()
     {
@@ -660,6 +687,8 @@ internal class SpriteEditor : IEditor
 
         _api.rectfill(0, EditorUI.BottomBarY, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1, Constants.Colors.Orange);
 
+        DrawHoverLabel();
+
         DrawPalette();
 
         foreach (var (button, tool) in toolButtons)
@@ -678,6 +707,20 @@ internal class SpriteEditor : IEditor
         DrawAnimationPanel();
 
         eventNotifier.Draw();
+    }
+
+    // Right-aligned on the bottom bar, so the event label on the left never collides with it.
+    private void DrawHoverLabel()
+    {
+        if (hoverLabel == null) return;
+
+        const int charAdvance = 4;
+        const int rightMargin = 2;
+
+        _api.print(hoverLabel,
+            Constants.Screen.ResolutionX - rightMargin - hoverLabel.Length * charAdvance,
+            EditorUI.BottomBarY + 1,
+            Constants.Colors.Indigo);
     }
 
     private void DrawPalette()
