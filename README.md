@@ -309,6 +309,30 @@ Mouse wheel up/down over the sprite canvas zooms the canvas in/out.
 
 The map editor paints tile indices onto the map grid using the sprite currently selected in the bottom sprite navigator (the same sprite sheet used by the Sprite Editor).
 
+The map is edited as **four layers** (see below), so the viewport shows one quarter of the full map at a time with the layers stacked on top of each other.
+
+### Layers
+
+The `512×576` map is split into four equal `256×288` quarters, each treated as an independent layer:
+
+| Layer | Quarter |
+|---|---|
+| 1 | Top-left |
+| 2 | Top-right |
+| 3 | Bottom-left |
+| 4 | Bottom-right |
+
+The viewport shows one quarter's worth of area and overlays all layers there, each drawn from its own quarter. They stack front-to-back in order 1, 2, 3, 4 — so layer 1 draws on top and layer 4 at the back. When the enabled layer is not the front-most one, the layers in front of it are drawn semi-transparent so the enabled layer still shows through.
+
+Eight buttons sit on the tool row (just right of the tool buttons), in pairs per layer: **layer 1, view/hide 1, layer 2, view/hide 2, …** up to layer 4.
+
+| Button | Description |
+|---|---|
+| Layer *X* | **Right-click** to make layer *X* the enabled layer — the one every edit (painting, filling, selecting, copying, pasting, deleting) acts on. Only one layer is enabled at a time; the swatch is white when enabled and dark grey otherwise. |
+| View/hide *X* | **Right-click** to toggle whether layer *X* is drawn (open-eye icon when shown, closed-eye when hidden). The currently enabled layer is always drawn and cannot be hidden. |
+
+Edits are confined to the enabled layer's quarter and never spill into a neighbour. Copy/paste share one clipboard across layers, so you can copy a region on one layer and paste it onto another.
+
 ### Tools
 
 Selected via the tool row (left of the sprite-number label and page buttons):
@@ -324,7 +348,7 @@ Map edits support undo/redo with `Ctrl+Z` / `Ctrl+Shift+Z` (up to 50 steps; hist
 
 ### Sprite Navigator
 
-Click a sprite in the bottom navigator panel to select it for painting; click a page button to switch between sprite-sheet pages. The toggle in the top-left menu bar (only shown while the Map Editor is active) switches to a full-screen map view, hiding the tool row and sprite navigator.
+Click a sprite in the bottom navigator panel to select it for painting; click a page button to switch between sprite-sheet pages. The toggle in the top-left menu bar (only shown while the Map Editor is active) switches to a full-screen map view, hiding the tool row (including the layer buttons) and sprite navigator.
 
 ### Zoom
 
