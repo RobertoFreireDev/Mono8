@@ -714,31 +714,35 @@ internal class SpriteEditor : IEditor
         }
     }
 
-    // The guide is always laid out from the canvas's top-left tile, so it only lines up with a real
-    // autotile area when the selected sprite is a block's first cell. Sprites elsewhere in a block,
-    // or in the sheet's leftover rows, start no block and get no guide.
-    private bool SelectedBlockOrigin(out int blockX, out int blockY) =>
-        AutotileSheet.TryGetBlock(sprNmbr, out blockX, out blockY)
-            && sprNmbr == AutotileSheet.SpriteFor(blockX, blockY, 0);
-
     // The terrain each of a block's sixteen pieces is expected to cover, laid over the canvas from
-    // its top-left tile. Only the cells the current zoom brings onto the canvas are drawn.
+    // its top-left tile. The canvas starts on the selected sprite, so that tile holds the sprite's
+    // own cell and the rest of the block runs right and down from it: the guide is cut off both
+    // where the block ends and where the current zoom stops bringing tiles onto the canvas.
+    // Sprites in the sheet's leftover rows belong to no block and get no guide.
     private void DrawAutotileGuide(int scale, int validW, int validH)
     {
-        if (!SelectedBlockOrigin(out int blockX, out int blockY)) return;
+        if (!AutotileSheet.TryGetBlock(sprNmbr, out int blockX, out int blockY)) return;
+        if (!AutotileSheet.TryGetCell(sprNmbr, blockX, blockY, out int firstCell)) return;
 
         int fill = AutotileOverlay.Fill(blockX, blockY);
-        int tilePx = Constants.GameDataSizes.TileSize * scale;
-        int cols = Math.Min(AutotileSheet.BlockSize, validW / Constants.GameDataSizes.TileSize);
-        int rows = Math.Min(AutotileSheet.BlockSize, validH / Constants.GameDataSizes.TileSize);
+        int tileSize = Constants.GameDataSizes.TileSize;
+        int tilePx = tileSize * scale;
 
-        for (int cellY = 0; cellY < rows; cellY++)
+        int firstCellX = firstCell % AutotileSheet.BlockSize;
+        int firstCellY = firstCell / AutotileSheet.BlockSize;
+
+        int cols = Math.Min(AutotileSheet.BlockSize - firstCellX, validW / tileSize);
+        int rows = Math.Min(AutotileSheet.BlockSize - firstCellY, validH / tileSize);
+
+        for (int tileY = 0; tileY < rows; tileY++)
         {
-            for (int cellX = 0; cellX < cols; cellX++)
+            for (int tileX = 0; tileX < cols; tileX++)
             {
+                int cell = (firstCellY + tileY) * AutotileSheet.BlockSize + firstCellX + tileX;
+
                 AutotileOverlay.DrawCell(_api,
-                    sprcnvsarea.X + cellX * tilePx, sprcnvsarea.Y + cellY * tilePx,
-                    tilePx, cellY * AutotileSheet.BlockSize + cellX, fill);
+                    sprcnvsarea.X + tileX * tilePx, sprcnvsarea.Y + tileY * tilePx,
+                    tilePx, cell, fill);
             }
         }
     }
