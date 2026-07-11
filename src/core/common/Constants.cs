@@ -85,6 +85,8 @@ public static class Constants
 
             public const string Flags = "gff";
 
+            public const string Autotile = "atl";
+
             public const string IconSheet = "icons";
 
             public const string Save = "save";

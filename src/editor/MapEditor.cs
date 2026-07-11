@@ -69,6 +69,18 @@ internal class MapEditor : IEditor
         return new Rectangle(LayerButtonsStartX + layer * size * 2 + size, labelRowY - 1, size, size);
     }
 
+    // --- Autotile (15-piece) ---
+    // Marks the selected sprite's 4x4 block as an autotile. The button sits on the tool row, one
+    // tile past the layer buttons, and previews the block over the sheet while hovered.
+    private const int AutotileIcon = 16;
+    private const int AutotileButtonX =
+        LayerButtonsStartX + LayerCount * 2 * Constants.GameDataSizes.TileSize + Constants.GameDataSizes.TileSize;
+    // Half-transparent so the sprites under the preview stay readable.
+    private const float AutotilePreviewOpacity = 0.5f;
+
+    private readonly Button autotileButton;
+    private bool hoveringAutotile;
+
     // --- Sprite navigator (bottom panel, shared with SpriteEditor) ---
     private readonly SpriteNavigator navigator;
     private int labelRowY => navigator.LabelRowY;
@@ -121,7 +133,17 @@ internal class MapEditor : IEditor
             (new Button(2 * size, labelRowY - 1, size, 24), Tool.Select),
             (new Button(3 * size, labelRowY - 1, size, 26), Tool.Hand),
         };
+
+        autotileButton = new Button(AutotileButtonX, labelRowY - 1, size, AutotileIcon);
     }
+
+    // The 4x4 block the selected sprite belongs to. The sheet's last two rows are too short to
+    // form one, so a sprite there has no block and the autotile button is inert for it.
+    private bool SelectedBlock(out int blockX, out int blockY) =>
+        AutotileSheet.TryGetBlock(navigator.SelectedSprite, out blockX, out blockY);
+
+    private bool SelectedBlockIsAutotile =>
+        SelectedBlock(out int blockX, out int blockY) && Mono8API.AutotileSheet.IsEnabled(blockX, blockY);
 
     public void Init()
     {
@@ -263,6 +285,7 @@ internal class MapEditor : IEditor
         }
 
         hoveringMap = mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse);
+        hoveringAutotile = !FullMapView && autotileButton.Bounds.Contains(mouse.x, mouse.y);
 
         if (hoveringMap)
         {
@@ -276,6 +299,7 @@ internal class MapEditor : IEditor
         else if (!FullMapView)
         {
             HandleLayerButtons(mouse);
+            HandleAutotileButton(mouse);
 
             foreach (var (button, tool) in toolButtons)
             {
@@ -316,6 +340,16 @@ internal class MapEditor : IEditor
                 return;
             }
         }
+    }
+
+    // Marks the selected sprite's 4x4 block as a 15-piece autotile, or unmarks it.
+    private void HandleAutotileButton((int x, int y) mouse)
+    {
+        if (!autotileButton.IsClicked(_api, mouse)) return;
+        if (!SelectedBlock(out int blockX, out int blockY)) return;
+
+        Mono8API.AutotileSheet.Toggle(blockX, blockY);
+        eventNotifier.AddEvent(Mono8API.AutotileSheet.IsEnabled(blockX, blockY) ? "AUTOTILE ON" : "AUTOTILE OFF");
     }
 
     // The extra (rounded-up) map row can overlap the dark grey tool/page-button row;
@@ -594,6 +628,8 @@ internal class MapEditor : IEditor
 
         navigator.DrawSheet();
 
+        if (hoveringAutotile) DrawAutotilePreview();
+
         // Dark grey backs only the tool / sprite-number / page-button row.
         _api.rectfill(0, labelRowY - 1,
             Constants.Screen.ResolutionX, labelRowY - 2 + Constants.GameDataSizes.TileSize,
@@ -606,8 +642,64 @@ internal class MapEditor : IEditor
 
         DrawLayerButtons();
 
+        autotileButton.Draw(_api, SelectedBlockIsAutotile);
+
         navigator.DrawPageButtons();
         navigator.DrawNumberLabel();
+    }
+
+    // Overlays the selected sprite's 4x4 block on the sheet while the autotile button is hovered:
+    // which block the button will affect, and the terrain each of its sixteen cells is expected to
+    // hold. Green once the block is an autotile, blue while it is not.
+    private void DrawAutotilePreview()
+    {
+        if (!SelectedBlock(out int blockX, out int blockY)) return;
+
+        int fill = Mono8API.AutotileSheet.IsEnabled(blockX, blockY)
+            ? Constants.Colors.Green
+            : Constants.Colors.Blue;
+
+        int size = Constants.GameDataSizes.TileSize;
+        var viewer = navigator.ViewerArea;
+        int firstSheetRow = navigator.Page * SpriteNavigator.VisibleRows;
+
+        for (int cellY = 0; cellY < AutotileSheet.BlockSize; cellY++)
+        {
+            // A block spans four sheet rows, which can straddle a page boundary; skip what the
+            // current page doesn't show rather than wrapping it onto the wrong row.
+            int sheetRow = blockY * AutotileSheet.BlockSize + cellY;
+            if (sheetRow < firstSheetRow || sheetRow >= firstSheetRow + SpriteNavigator.VisibleRows) continue;
+
+            int y = viewer.Y + (sheetRow - firstSheetRow) * size;
+
+            for (int cellX = 0; cellX < AutotileSheet.BlockSize; cellX++)
+            {
+                int x = viewer.X + (blockX * AutotileSheet.BlockSize + cellX) * size;
+                DrawAutotileCell(x, y, cellY * AutotileSheet.BlockSize + cellX, fill);
+            }
+        }
+    }
+
+    // One cell of the preview: a quarter-tile block of colour for each quadrant the cell's piece
+    // covers with terrain, and nothing for the ones it leaves empty. Cell 0 covers none of them -
+    // it is the block's empty tile - so it draws nothing at all.
+    private void DrawAutotileCell(int x, int y, int cell, int fill)
+    {
+        int half = Constants.GameDataSizes.TileSize / 2;
+        int quadrants = AutotileSheet.CellQuadrants[cell];
+
+        DrawAutotileQuadrant(quadrants, AutotileSheet.TopLeft, x, y, fill);
+        DrawAutotileQuadrant(quadrants, AutotileSheet.TopRight, x + half, y, fill);
+        DrawAutotileQuadrant(quadrants, AutotileSheet.BottomLeft, x, y + half, fill);
+        DrawAutotileQuadrant(quadrants, AutotileSheet.BottomRight, x + half, y + half, fill);
+    }
+
+    private void DrawAutotileQuadrant(int quadrants, int quadrant, int x, int y, int fill)
+    {
+        if ((quadrants & quadrant) == 0) return;
+
+        int half = Constants.GameDataSizes.TileSize / 2;
+        _api.rectfill(x, y, x + half - 1, y + half - 1, fill, AutotilePreviewOpacity);
     }
 
     // The eight layer controls, in pairs: a numbered "layer" swatch (white when enabled, dark grey

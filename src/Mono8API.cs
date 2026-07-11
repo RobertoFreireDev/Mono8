@@ -5,6 +5,7 @@ internal class Mono8API : IEditorAPI
     public static EditorRegistry Editors = new EditorRegistry();
     private static SfxEngine _sfxEngine = new SfxEngine();
     public static SpriteSheet SpriteSheet = new SpriteSheet();
+    public static AutotileSheet AutotileSheet = new AutotileSheet();
     public static SfxSheet SfxSheet = new SfxSheet();
     public static MusicSheet MusicSheet = new MusicSheet();
     public static MapSheet MapSheet = new MapSheet();
@@ -35,6 +36,7 @@ internal class Mono8API : IEditorAPI
         SpriteSheet.LoadSprites(
             ReadLines(Constants.File.Extensions.SpriteSheet, path),
             ReadLines(Constants.File.Extensions.Flags, path));
+        AutotileSheet.LoadAutotiles(ReadLines(Constants.File.Extensions.Autotile, path));
         MapSheet.LoadMaps(ReadLines(Constants.File.Extensions.MapSheet, path));
         SaveData.Load(path);
 
@@ -53,6 +55,7 @@ internal class Mono8API : IEditorAPI
         var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.SpriteSheet, string.Join("\n", SpriteSheet.ToSheetLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Flags, string.Join("\n", SpriteSheet.ToFlagLines()), path);
+        FileIO.Write(Constants.File.Name, Constants.File.Extensions.Autotile, string.Join("\n", AutotileSheet.ToAutotileLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.MapSheet, string.Join("\n", MapSheet.ToMapLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Sfx, string.Join("\n", SfxSheet.ToSfxLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Music, string.Join("\n", MusicSheet.ToMusicLines()), path);
