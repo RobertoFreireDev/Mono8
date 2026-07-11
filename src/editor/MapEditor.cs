@@ -29,6 +29,46 @@ internal class MapEditor : IEditor
     // Set by the menu bar toggle (top-left, only shown while the map editor is active).
     public bool FullMapView { get; set; }
 
+    // --- Map layers ---
+    // The map sheet is split into four equal quarters, each treated as an independent layer:
+    // 1 top-left, 2 top-right, 3 bottom-left, 4 bottom-right. The viewport shows one quarter's
+    // worth of area (so the camera moves in quarter-local cell space) and every layer is overlaid
+    // there at its own quarter offset. Draw order front->back is 1,2,3,4, so they are painted
+    // back-to-front and layer 1 lands on top.
+    private const int LayerCount = 4;
+    private const int QuarterCols = Constants.GameDataSizes.MapSheetX / 2; // 256
+    private const int QuarterRows = Constants.GameDataSizes.MapSheetY / 2; // 288
+    // Icons for the view/hide buttons: an open eye to show, a closed one to hide.
+    private const int LayerViewIcon = 58;
+    private const int LayerHideIcon = 59;
+    // Opacity of layers drawn in front of the enabled layer, so it stays visible through them.
+    private const float FrontLayerOpacity = 0.35f;
+    // The eight layer buttons sit on the tool row, just past the four tool buttons.
+    private const int LayerButtonsStartX = 5 * Constants.GameDataSizes.TileSize;
+
+    // The layer edits currently target; only one is enabled at a time and it is always drawn.
+    private int enabledLayer;
+    private readonly bool[] layerVisible = { true, true, true, true };
+
+    private static int LayerOffX(int layer) => (layer % 2) * QuarterCols;
+    private static int LayerOffY(int layer) => (layer / 2) * QuarterRows;
+    private int EnabledOffX => LayerOffX(enabledLayer);
+    private int EnabledOffY => LayerOffY(enabledLayer);
+    private static bool InQuarter(int cellX, int cellY) =>
+        cellX >= 0 && cellX < QuarterCols && cellY >= 0 && cellY < QuarterRows;
+
+    private Rectangle LayerButtonRect(int layer)
+    {
+        int size = Constants.GameDataSizes.TileSize;
+        return new Rectangle(LayerButtonsStartX + layer * size * 2, labelRowY - 1, size, size);
+    }
+
+    private Rectangle ViewHideButtonRect(int layer)
+    {
+        int size = Constants.GameDataSizes.TileSize;
+        return new Rectangle(LayerButtonsStartX + layer * size * 2 + size, labelRowY - 1, size, size);
+    }
+
     // --- Sprite navigator (bottom panel, shared with SpriteEditor) ---
     private readonly SpriteNavigator navigator;
     private int labelRowY => navigator.LabelRowY;
@@ -100,8 +140,8 @@ internal class MapEditor : IEditor
     {
         get
         {
-            int leftCellX = Math.Clamp(camX, 0, Constants.GameDataSizes.MapSheetX - 1);
-            int topCellY = Math.Clamp(camY, 0, Constants.GameDataSizes.MapSheetY - 1);
+            int leftCellX = Math.Clamp(camX, 0, QuarterCols - 1);
+            int topCellY = Math.Clamp(camY, 0, QuarterRows - 1);
             return $"{leftCellX / ScreenCols:D2}x{topCellY / ScreenRows:D2}";
         }
     }
@@ -123,8 +163,8 @@ internal class MapEditor : IEditor
 
     private void ClampCamera()
     {
-        camX = Math.Clamp(camX, 0, Math.Max(0, Constants.GameDataSizes.MapSheetX - MapCols));
-        camY = Math.Clamp(camY, 0, Math.Max(0, Constants.GameDataSizes.MapSheetY - MapRows));
+        camX = Math.Clamp(camX, 0, Math.Max(0, QuarterCols - MapCols));
+        camY = Math.Clamp(camY, 0, Math.Max(0, QuarterRows - MapRows));
     }
 
     // Zoom about the cursor: the cell under the mouse stays under the mouse.
@@ -235,6 +275,8 @@ internal class MapEditor : IEditor
         }
         else if (!FullMapView)
         {
+            HandleLayerButtons(mouse);
+
             foreach (var (button, tool) in toolButtons)
             {
                 if (button.IsClicked(_api, mouse))
@@ -246,6 +288,33 @@ internal class MapEditor : IEditor
             }
 
             navigator.TryPickPage(mouse);
+        }
+    }
+
+    // Right-click sets the enabled layer or toggles a layer's visibility. Only one layer is
+    // enabled at a time, and the enabled layer can never be hidden (it stays visible so edits
+    // are always shown).
+    private void HandleLayerButtons((int x, int y) mouse)
+    {
+        if (!_api.mouselp()) return;
+
+        for (int layer = 0; layer < LayerCount; layer++)
+        {
+            if (LayerButtonRect(layer).Contains(mouse.x, mouse.y))
+            {
+                if (layer != enabledLayer)
+                {
+                    enabledLayer = layer;
+                    ClearSelection();
+                }
+                return;
+            }
+
+            if (ViewHideButtonRect(layer).Contains(mouse.x, mouse.y))
+            {
+                if (layer != enabledLayer) layerVisible[layer] = !layerVisible[layer];
+                return;
+            }
         }
     }
 
@@ -278,21 +347,26 @@ internal class MapEditor : IEditor
 
         if (!hasSelection) return;
 
+        // The selection is kept in quarter-local cells; every edit is offset into the enabled
+        // layer's quarter and bounded to it so it never spills into a neighbouring layer.
+        int offX = EnabledOffX;
+        int offY = EnabledOffY;
+
         if (KeybrdInput.JustPressed(Keys.Delete))
         {
-            map.ClearRegion(selection.X, selection.Y, selection.Width, selection.Height);
+            map.ClearRegion(selection.X + offX, selection.Y + offY, selection.Width, selection.Height);
             eventNotifier.AddEvent("DELETE");
         }
 
         if (KeybrdInput.IsCopyShortcutPressed())
         {
-            map.CopyRegion(selection.X, selection.Y, selection.Width, selection.Height);
+            map.CopyRegion(selection.X + offX, selection.Y + offY, selection.Width, selection.Height);
             eventNotifier.AddEvent("COPY");
         }
 
         if (KeybrdInput.IsPasteShortcutPressed() && map.HasClipboard)
         {
-            map.PasteRegion(selection.X, selection.Y);
+            map.PasteRegion(selection.X + offX, selection.Y + offY, offX, offY, QuarterCols, QuarterRows);
             eventNotifier.AddEvent("PASTE");
         }
     }
@@ -315,7 +389,8 @@ internal class MapEditor : IEditor
 
             // One snapshot per stroke: taken on press, then paint under it while held.
             if (_api.mouselp()) Mono8API.MapSheet.SaveSnapshot();
-            if (_api.mousel()) _api.mset(cellX, cellY, navigator.SelectedSprite);
+            if (_api.mousel() && InQuarter(cellX, cellY))
+                _api.mset(cellX + EnabledOffX, cellY + EnabledOffY, navigator.SelectedSprite);
         }
         else if (selectedTool == Tool.RectFill)
         {
@@ -327,11 +402,16 @@ internal class MapEditor : IEditor
             }
             else if (dragging && _api.mouselr())
             {
-                int minX = Math.Min(dragStartCellX, cellX);
-                int minY = Math.Min(dragStartCellY, cellY);
-                int w = Math.Abs(cellX - dragStartCellX) + 1;
-                int h = Math.Abs(cellY - dragStartCellY) + 1;
-                Mono8API.MapSheet.FillRegion(minX, minY, w, h, navigator.SelectedSprite);
+                // Clamp the region to the quarter before offsetting so the fill stays in-layer.
+                int minX = Math.Max(0, Math.Min(dragStartCellX, cellX));
+                int minY = Math.Max(0, Math.Min(dragStartCellY, cellY));
+                int maxX = Math.Min(QuarterCols - 1, Math.Max(dragStartCellX, cellX));
+                int maxY = Math.Min(QuarterRows - 1, Math.Max(dragStartCellY, cellY));
+                if (maxX >= minX && maxY >= minY)
+                {
+                    Mono8API.MapSheet.FillRegion(minX + EnabledOffX, minY + EnabledOffY,
+                        maxX - minX + 1, maxY - minY + 1, navigator.SelectedSprite);
+                }
                 dragging = false;
             }
         }
@@ -353,10 +433,11 @@ internal class MapEditor : IEditor
 
     private void CommitSelection(int x0, int y0, int x1, int y1)
     {
-        int minX = Math.Clamp(Math.Min(x0, x1), 0, Constants.GameDataSizes.MapSheetX - 1);
-        int minY = Math.Clamp(Math.Min(y0, y1), 0, Constants.GameDataSizes.MapSheetY - 1);
-        int maxX = Math.Clamp(Math.Max(x0, x1), 0, Constants.GameDataSizes.MapSheetX - 1);
-        int maxY = Math.Clamp(Math.Max(y0, y1), 0, Constants.GameDataSizes.MapSheetY - 1);
+        // Selections stay in quarter-local cells; they are offset into the enabled layer at edit time.
+        int minX = Math.Clamp(Math.Min(x0, x1), 0, QuarterCols - 1);
+        int minY = Math.Clamp(Math.Min(y0, y1), 0, QuarterRows - 1);
+        int maxX = Math.Clamp(Math.Max(x0, x1), 0, QuarterCols - 1);
+        int maxY = Math.Clamp(Math.Max(y0, y1), 0, QuarterRows - 1);
 
         selection = new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
         hasSelection = true;
@@ -411,7 +492,17 @@ internal class MapEditor : IEditor
 
         DrawScreenGrid(mapArea);
 
-        _api.map(camX, camY, mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx]);
+        // Overlay the layers back-to-front (4->1) so layer 1 sits on top. The enabled layer is
+        // always drawn; other layers only when visible. Layers drawn in front of the enabled one
+        // (a lower index) are faded so the enabled layer shows through them.
+        for (int layer = LayerCount - 1; layer >= 0; layer--)
+        {
+            if (layer != enabledLayer && !layerVisible[layer]) continue;
+
+            float opacity = layer < enabledLayer ? FrontLayerOpacity : 1f;
+            _api.map(camX + LayerOffX(layer), camY + LayerOffY(layer),
+                mapArea.X, mapArea.Y, MapCols, MapRows, Zooms[zoomIdx], opacity);
+        }
 
         // A committed selection is drawn wherever the camera is; it stays anchored to cells.
         if (hasSelection)
@@ -513,7 +604,30 @@ internal class MapEditor : IEditor
             button.Draw(_api, tool == selectedTool);
         }
 
+        DrawLayerButtons();
+
         navigator.DrawPageButtons();
         navigator.DrawNumberLabel();
+    }
+
+    // The eight layer controls, in pairs: a numbered "layer" swatch (white when enabled, dark grey
+    // when not) followed by its view/hide toggle (eye open when drawn, closed when hidden). The
+    // enabled layer's toggle always shows the open eye since it can't be hidden.
+    private void DrawLayerButtons()
+    {
+        for (int layer = 0; layer < LayerCount; layer++)
+        {
+            bool enabled = layer == enabledLayer;
+
+            var lb = LayerButtonRect(layer);
+            _api.rectfill(lb.X, lb.Y, lb.X + lb.Width - 1, lb.Y + lb.Height - 1,
+                enabled ? Constants.Colors.White : Constants.Colors.DarkGray);
+            _api.print((layer + 1).ToString(), lb.X + 2, lb.Y + 1,
+                enabled ? Constants.Colors.Indigo : Constants.Colors.White);
+
+            var vb = ViewHideButtonRect(layer);
+            bool visible = enabled || layerVisible[layer];
+            _api.icon(visible ? LayerViewIcon : LayerHideIcon, vb.X, vb.Y);
+        }
     }
 }

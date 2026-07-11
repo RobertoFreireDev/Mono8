@@ -112,10 +112,26 @@ internal class MapSheet
                 _copy[row, col] = Data[r.Y + row, r.X + col];
     }
 
-    public void PasteRegion(int x, int y)
+    /// <summary>
+    /// Pastes the clipboard with its top-left at (<paramref name="x"/>, <paramref name="y"/>).
+    /// The optional bounds restrict where tiles may land (the map editor passes the active
+    /// layer's quarter so a paste never bleeds into a neighbouring layer). The paste is only
+    /// ever trimmed on the right/bottom here, so the clipboard stays aligned to its top-left.
+    /// </summary>
+    public void PasteRegion(int x, int y,
+        int boundX = 0, int boundY = 0,
+        int boundW = Constants.GameDataSizes.MapSheetX,
+        int boundH = Constants.GameDataSizes.MapSheetY)
     {
         if (_copy == null) return;
         if (!TryClampRegion(x, y, _copy.GetLength(1), _copy.GetLength(0), out var r)) return;
+
+        int left = Math.Max(r.X, boundX);
+        int top = Math.Max(r.Y, boundY);
+        int right = Math.Min(r.X + r.Width, boundX + boundW);
+        int bottom = Math.Min(r.Y + r.Height, boundY + boundH);
+        if (right <= left || bottom <= top) return;
+        r = new Rectangle(left, top, right - left, bottom - top);
 
         SaveSnapshot();
         WriteRegion(r, _copy);

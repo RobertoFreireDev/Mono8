@@ -68,7 +68,7 @@ public static class ColorPalette
 
         if (id == WhiteColorIndex)
         {
-            return Color.White;
+            return Color.White * colorOpaqueness;
         }
 
         if (id < Constants.GameDataSizes.ColorPaletteMin || id > Constants.GameDataSizes.ColorPaletteMax)
