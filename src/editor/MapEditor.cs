@@ -1,6 +1,6 @@
 namespace mono8.editor;
 
-internal class MapEditor : IEditor
+internal class MapEditor : IEditor, IAutotileGrid
 {
     private enum Tool
     {
@@ -72,11 +72,8 @@ internal class MapEditor : IEditor
     // --- Autotile (15-piece) ---
     // Marks the selected sprite's 4x4 block as an autotile. The button sits on the tool row, one
     // tile past the layer buttons, and previews the block over the sheet while hovered.
-    private const int AutotileIcon = 16;
     private const int AutotileButtonX =
         LayerButtonsStartX + LayerCount * 2 * Constants.GameDataSizes.TileSize + Constants.GameDataSizes.TileSize;
-    // Half-transparent so the sprites under the preview stay readable.
-    private const float AutotilePreviewOpacity = 0.5f;
 
     private readonly Button autotileButton;
     private bool hoveringAutotile;
@@ -134,7 +131,7 @@ internal class MapEditor : IEditor
             (new Button(3 * size, labelRowY - 1, size, 26), Tool.Hand),
         };
 
-        autotileButton = new Button(AutotileButtonX, labelRowY - 1, size, AutotileIcon);
+        autotileButton = new Button(AutotileButtonX, labelRowY - 1, size, AutotileOverlay.Icon);
     }
 
     // The 4x4 block the selected sprite belongs to. The sheet's last two rows are too short to
@@ -144,6 +141,25 @@ internal class MapEditor : IEditor
 
     private bool SelectedBlockIsAutotile =>
         SelectedBlock(out int blockX, out int blockY) && Mono8API.AutotileSheet.IsEnabled(blockX, blockY);
+
+    // The autotile piece the pencil stamps: the selected sprite, once its block is marked as an
+    // autotile. False for any other sprite, which the pencil instead sets on the map as it is.
+    private bool SelectedPiece(out int blockX, out int blockY, out int cell)
+    {
+        cell = 0;
+        return SelectedBlock(out blockX, out blockY)
+            && Mono8API.AutotileSheet.IsEnabled(blockX, blockY)
+            && AutotileSheet.TryGetCell(navigator.SelectedSprite, blockX, blockY, out cell);
+    }
+
+    // The grid an autotile stroke paints on: the enabled layer's quarter of the map sheet, in the
+    // quarter-local cells the editor works in, offset into the layer on every read and write.
+    bool IAutotileGrid.Contains(int cellX, int cellY) => InQuarter(cellX, cellY);
+
+    int IAutotileGrid.GetTile(int cellX, int cellY) => _api.mget(cellX + EnabledOffX, cellY + EnabledOffY);
+
+    void IAutotileGrid.SetTile(int cellX, int cellY, int spriteId) =>
+        _api.mset(cellX + EnabledOffX, cellY + EnabledOffY, spriteId);
 
     public void Init()
     {
@@ -425,11 +441,9 @@ internal class MapEditor : IEditor
             if (_api.mouselp()) Mono8API.MapSheet.SaveSnapshot();
             if (!_api.mousel()) return;
 
-            if (SelectedBlock(out int blockX, out int blockY)
-                && Mono8API.AutotileSheet.IsEnabled(blockX, blockY)
-                && AutotileSheet.TryGetCell(navigator.SelectedSprite, blockX, blockY, out int cell))
+            if (SelectedPiece(out int blockX, out int blockY, out int cell))
             {
-                PaintAutotile(cellX, cellY, blockX, blockY, cell);
+                AutotileStamp.Paint(this, blockX, blockY, cellX, cellY, cell);
             }
             else if (InQuarter(cellX, cellY))
             {
@@ -472,107 +486,6 @@ internal class MapEditor : IEditor
                 CommitSelection(dragStartCellX, dragStartCellY, cellX, cellY);
                 dragging = false;
             }
-        }
-    }
-
-    // The pencil on an autotile block stamps the selected piece, and refits the map around it.
-    //
-    // Terrain sits on the corners of the cell grid, offset half a tile from the tiles that show it:
-    // corner (cx, cy) is the top-left corner of cell (cx, cy), and a cell shows terrain in a
-    // quadrant exactly when the corner at that quadrant carries it. The selected piece names the
-    // terrain of the cell the pencil marks - its four corners are set to exactly the quadrants the
-    // piece covers, laying terrain on them and clearing it off them alike - which is what makes the
-    // stamp come back out of the fit as the very piece that was picked, be that the solid tile, an
-    // edge, a diagonal, or the block's empty cell. The eight cells around it share those corners, so
-    // they are refitted against them and end up joining the stamp: they grow edges up against the
-    // terrain it lays and retract from the terrain it clears.
-    //
-    // Nothing stores the corners: away from the stamp they are read back off the tiles already on
-    // the map, so a stroke composes with whatever terrain it grows into.
-    private void PaintAutotile(int cellX, int cellY, int blockX, int blockY, int cell)
-    {
-        if (!InQuarter(cellX, cellY)) return;
-
-        int stamped = AutotileSheet.CellQuadrants[cell];
-
-        // The 3x3 around the stamp holds every cell sharing a corner with it, so nothing outside it
-        // can be disturbed. The masks are all worked out against the pre-paint map before any tile
-        // is written, so the order they are visited in can't feed a half-updated map back into the
-        // next fit.
-        Span<int> masks = stackalloc int[9];
-
-        for (int i = 0; i < 9; i++)
-        {
-            int x = cellX - 1 + i % 3;
-            int y = cellY - 1 + i / 3;
-
-            int mask = 0;
-            if (Terrain(x, y)) mask |= AutotileSheet.TopLeft;
-            if (Terrain(x + 1, y)) mask |= AutotileSheet.TopRight;
-            if (Terrain(x, y + 1)) mask |= AutotileSheet.BottomLeft;
-            if (Terrain(x + 1, y + 1)) mask |= AutotileSheet.BottomRight;
-
-            masks[i] = mask;
-        }
-
-        for (int i = 0; i < 9; i++)
-        {
-            int x = cellX - 1 + i % 3;
-            int y = cellY - 1 + i / 3;
-            if (!InQuarter(x, y)) continue;
-
-            // The pencil owns the tile it marks - whatever was there before gives way to the stamp,
-            // terrain or loose art alike - and so does any neighbour the terrain has grown into. A
-            // neighbour left with no terrain at all is only worth writing when it is a piece of this
-            // block, retracting to the block's empty cell; anything else there is loose art the
-            // stroke never reached, so it stays as it is.
-            bool stamp = x == cellX && y == cellY;
-            if (!stamp && masks[i] == 0 && !IsPiece(x, y)) continue;
-
-            _api.mset(x + EnabledOffX, y + EnabledOffY,
-                AutotileSheet.SpriteFor(blockX, blockY, AutotileSheet.CellForQuadrants[masks[i]]));
-        }
-
-        // The quadrant of the stamped cell a corner sits on, and 0 for a corner that is none of its
-        // four.
-        int StampQuadrant(int cx, int cy) => (cx - cellX, cy - cellY) switch
-        {
-            (0, 0) => AutotileSheet.TopLeft,
-            (1, 0) => AutotileSheet.TopRight,
-            (0, 1) => AutotileSheet.BottomLeft,
-            (1, 1) => AutotileSheet.BottomRight,
-            _ => 0,
-        };
-
-        // The stamp names its own four corners outright. Every other corner carries terrain when any
-        // of the four cells meeting there already covers the quadrant it shares with it - and the
-        // stamp is never one of those four, so it cannot speak for a corner it does not touch.
-        bool Terrain(int cx, int cy)
-        {
-            int quadrant = StampQuadrant(cx, cy);
-            if (quadrant != 0) return (stamped & quadrant) != 0;
-
-            return (Quadrants(cx - 1, cy - 1) & AutotileSheet.BottomRight) != 0
-                || (Quadrants(cx, cy - 1) & AutotileSheet.BottomLeft) != 0
-                || (Quadrants(cx - 1, cy) & AutotileSheet.TopRight) != 0
-                || (Quadrants(cx, cy) & AutotileSheet.TopLeft) != 0;
-        }
-
-        bool IsPiece(int x, int y) =>
-            InQuarter(x, y) && AutotileSheet.TryGetCell(_api.mget(x + EnabledOffX, y + EnabledOffY),
-                blockX, blockY, out _);
-
-        // The terrain a cell of the map already covers. Anything that is not a piece of this
-        // block - another block's tile, loose art, the far side of the layer's edge - covers none,
-        // so the stroke treats it as bare ground and fits its own edge against it.
-        int Quadrants(int x, int y)
-        {
-            if (!InQuarter(x, y)) return 0;
-
-            int tile = _api.mget(x + EnabledOffX, y + EnabledOffY);
-            return AutotileSheet.TryGetCell(tile, blockX, blockY, out int tileCell)
-                ? AutotileSheet.CellQuadrants[tileCell]
-                : 0;
         }
     }
 
@@ -761,15 +674,12 @@ internal class MapEditor : IEditor
 
     // Overlays the selected sprite's 4x4 block on the sheet while the autotile button is hovered:
     // which block the button will affect, and the terrain each of its sixteen cells is expected to
-    // hold. Green once the block is an autotile, blue while it is not.
+    // hold.
     private void DrawAutotilePreview()
     {
         if (!SelectedBlock(out int blockX, out int blockY)) return;
 
-        int fill = Mono8API.AutotileSheet.IsEnabled(blockX, blockY)
-            ? Constants.Colors.Green
-            : Constants.Colors.Blue;
-
+        int fill = AutotileOverlay.Fill(blockX, blockY);
         int size = Constants.GameDataSizes.TileSize;
         var viewer = navigator.ViewerArea;
         int firstSheetRow = navigator.Page * SpriteNavigator.VisibleRows;
@@ -786,31 +696,9 @@ internal class MapEditor : IEditor
             for (int cellX = 0; cellX < AutotileSheet.BlockSize; cellX++)
             {
                 int x = viewer.X + (blockX * AutotileSheet.BlockSize + cellX) * size;
-                DrawAutotileCell(x, y, cellY * AutotileSheet.BlockSize + cellX, fill);
+                AutotileOverlay.DrawCell(_api, x, y, size, cellY * AutotileSheet.BlockSize + cellX, fill);
             }
         }
-    }
-
-    // One cell of the preview: a quarter-tile block of colour for each quadrant the cell's piece
-    // covers with terrain, and nothing for the ones it leaves empty. Cell 0 covers none of them -
-    // it is the block's empty tile - so it draws nothing at all.
-    private void DrawAutotileCell(int x, int y, int cell, int fill)
-    {
-        int half = Constants.GameDataSizes.TileSize / 2;
-        int quadrants = AutotileSheet.CellQuadrants[cell];
-
-        DrawAutotileQuadrant(quadrants, AutotileSheet.TopLeft, x, y, fill);
-        DrawAutotileQuadrant(quadrants, AutotileSheet.TopRight, x + half, y, fill);
-        DrawAutotileQuadrant(quadrants, AutotileSheet.BottomLeft, x, y + half, fill);
-        DrawAutotileQuadrant(quadrants, AutotileSheet.BottomRight, x + half, y + half, fill);
-    }
-
-    private void DrawAutotileQuadrant(int quadrants, int quadrant, int x, int y, int fill)
-    {
-        if ((quadrants & quadrant) == 0) return;
-
-        int half = Constants.GameDataSizes.TileSize / 2;
-        _api.rectfill(x, y, x + half - 1, y + half - 1, fill, AutotilePreviewOpacity);
     }
 
     // The eight layer controls, in pairs: a numbered "layer" swatch (white when enabled, dark grey
