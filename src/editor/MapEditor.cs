@@ -521,8 +521,16 @@ internal class MapEditor : IEditor, IAutotileGrid
 
         // Screen-grid position, sitting just to the left of the zoom label.
         string gridText = GridLabel;
-        _api.print(gridText,
-            zoomX - labelGap - gridText.Length * charAdvance,
+        int gridX = zoomX - labelGap - gridText.Length * charAdvance;
+        _api.print(gridText, gridX, bottomBarY + 1, Constants.Colors.Indigo);
+
+        // The sprite the tools paint with, and its number just left of it.
+        int tileX = gridX - labelGap - Constants.GameDataSizes.TileSize;
+        DrawSelectedTile(tileX, bottomBarY);
+
+        string spriteText = navigator.SelectedSprite.ToString("D3");
+        _api.print(spriteText,
+            tileX - labelGap - spriteText.Length * charAdvance,
             bottomBarY + 1,
             Constants.Colors.Indigo);
 
@@ -537,6 +545,19 @@ internal class MapEditor : IEditor, IAutotileGrid
         }
 
         eventNotifier.Draw();
+    }
+
+    // The sprite the tools paint with, one tile tall so it fills the bar's height. Backed with
+    // black so its transparent pixels don't pick up the orange bar behind it.
+    private void DrawSelectedTile(int x, int y)
+    {
+        int size = Constants.GameDataSizes.TileSize;
+        _api.rectfill(x, y, x + size - 1, y + size - 1, Constants.Colors.Black);
+
+        if (MapSheet.IsValidTile(navigator.SelectedSprite))
+        {
+            _api.spr(navigator.SelectedSprite, x, y);
+        }
     }
 
     private void DrawMap()
@@ -668,8 +689,9 @@ internal class MapEditor : IEditor, IAutotileGrid
 
         autotileButton.Draw(_api, SelectedBlockIsAutotile);
 
+        // The selected sprite's number lives on the bottom bar here, next to its tile preview,
+        // so the navigator's own label is left out of this row.
         navigator.DrawPageButtons();
-        navigator.DrawNumberLabel();
     }
 
     // Overlays the selected sprite's 4x4 block on the sheet while the autotile button is hovered:
