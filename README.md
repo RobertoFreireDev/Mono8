@@ -36,7 +36,7 @@ On launch a short splash screen plays, then the Sprite editor opens. The icon bu
 
 ## Project Data
 
-Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes all of them at once.
+Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx and music files at once. `data.icons` is only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
 
 | File | Contents |
 |---|---|
@@ -282,7 +282,7 @@ Selected via the tool row below the palette:
 
 The button at the end of the tool row is **not a tool** — it toggles on its own, so the guide can be shown while any paint tool is selected. It overlays, on the canvas, the terrain each cell of a 4×4 [autotile](#autotile) block is expected to hold: a half-transparent quarter-tile of color per quadrant the piece covers, and nothing for the quadrants it leaves empty. The fill is **green** once the block is marked as an autotile and **blue** while it is not.
 
-The guide is always laid out from the canvas's top-left tile, so it only appears when the selected sprite is a **block's first cell** (its empty tile). Sprites elsewhere in a block, or in the sheet's leftover last two rows, start no block and draw no guide. Only the cells the current canvas zoom brings into view are overlaid: at `x1` the canvas holds a single tile and the guide covers just that one, so set the zoom (mouse wheel over the canvas) to `x4` or `x8` to see the whole block laid out while you draw it.
+The guide is laid out from the canvas's top-left tile, which holds the selected sprite's own cell, and the rest of the block runs right and down from there — so it is cut off both where the block ends and where the canvas zoom stops bringing tiles into view. Select a block's **first cell** (its empty tile) at zoom `x4` or `x8` to see all sixteen cells laid out while you draw it; at `x1` the canvas holds a single tile and the guide covers just that one. Sprites in the sheet's leftover last two rows belong to no block and draw no guide.
 
 ### Palette & Navigator
 
@@ -358,8 +358,8 @@ Eight buttons sit on the tool row (just right of the tool buttons), in pairs per
 
 | Button | Description |
 |---|---|
-| Layer *X* | **Right-click** to make layer *X* the enabled layer — the one every edit (painting, filling, selecting, copying, pasting, deleting) acts on. Only one layer is enabled at a time; the swatch is white when enabled and dark grey otherwise. |
-| View/hide *X* | **Right-click** to toggle whether layer *X* is drawn (open-eye icon when shown, closed-eye when hidden). The currently enabled layer is always drawn and cannot be hidden. |
+| Layer *X* | **Left-click** to make layer *X* the enabled layer — the one every edit (painting, filling, selecting, copying, pasting, deleting) acts on. Only one layer is enabled at a time; the swatch is white when enabled and dark grey otherwise. |
+| View/hide *X* | **Left-click** to toggle whether layer *X* is drawn (open-eye icon when shown, closed-eye when hidden). The currently enabled layer is always drawn and cannot be hidden. |
 
 Edits are confined to the enabled layer's quarter and never spill into a neighbour. Copy/paste share one clipboard across layers, so you can copy a region on one layer and paste it onto another.
 
@@ -381,7 +381,7 @@ The other tools are unaffected: **RectFill** fills a region with the raw selecte
 
 ### Tools
 
-Selected via the tool row (left of the sprite-number label and page buttons):
+Selected via the tool row (left of the layer buttons). The selected sprite's number and a preview of the tile itself sit on the bottom bar instead:
 
 | Tool | Description |
 |---|---|
@@ -425,11 +425,11 @@ The alternate view lays the 32 notes out as an 8-row × 4-column grid, with pale
 1. **Toggle the alternate view** using the menu-bar button in the top-left.
 2. **Pick the value palettes** for the notes you are about to enter:
    - Click a **waveform** icon to choose the instrument.
-   - Click an **OCT** box (1–4) to set the base octave.
-   - Click a cell in the **VOL** fader (7 at the top, 0 at the bottom) to set the volume.
+   - Click an **OCT** box (1–5) to set the base octave.
+   - Click a cell in the **VOL** fader (0 at the left, 7 at the right) to set the volume.
    - Click an **FX** icon (0–7) to set the effect.
-3. **Position the cursor** on the target cell — click a grid cell, or move with the arrow keys (`Up`/`Down` move within a column, `Left`/`Right` jump between columns).
-4. **Type a note** using the piano keys. This writes the note (pitch + selected waveform, volume and effect) into the cursor cell, previews it, then advances the cursor down one cell.
+3. **Position the cursor** on a cell, and on one of that cell's five parts (note, octave, waveform, volume, effect) — click the part directly, or move with the arrow keys (`Up`/`Down` move within a column, `Left`/`Right` step through the parts and cross into the neighbouring column at either end).
+4. **Type a note** with the piano keys while the **note** part is selected. This writes the note (pitch + selected waveform, volume and effect) into the cursor cell, previews it, then advances the cursor down one cell. With any other part selected, a digit key sets that part's value instead.
 5. **Clear a note** by right-clicking its cell, or by pressing `Delete`/`Backspace` on the cursor cell (which also advances the cursor).
 
 ### SFX Editor Hotkeys
@@ -437,22 +437,23 @@ The alternate view lays the 32 notes out as an 8-row × 4-column grid, with pale
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project. |
-| `Space` | Plays the current SFX. |
+| `Space` | Plays the current SFX, or stops it if it is already playing. |
 | `Left`/`Right` | Primary view: selects the previous/next SFX index. |
-| `Arrow keys` | Alternate view: moves the note cursor (`Up`/`Down` within a column, `Left`/`Right` between columns). |
+| `Arrow keys` | Alternate view: moves the note cursor (`Up`/`Down` within a column, `Left`/`Right` between the cell's five parts, crossing into the neighbouring column at either end). |
 | `Delete`/`Backspace` | Alternate view: clears the note at the cursor and advances it. |
-| `Z S X D C V G B H N J M , L .` | Alternate view: piano keys for the base octave (`Z` = root). |
+| `Z S X D C V G B H N J M , L .` | Alternate view: piano keys for the base octave (`Z` = root), when the note part is selected. |
 | `Q 2 W 3 E R 5 T 6 Y 7 U I` | Alternate view: piano keys one octave above the base. |
+| `0`-`9` | Alternate view: when an octave/waveform/volume/effect part is selected, sets that part's value. |
 
-The SFX index selector, speed (`SPD`), loop points (`LP`), and `PLAY`/`STOP` controls in the header are shared by both views. `PLAY` and loop/speed boxes also respond to the mouse wheel.
+The SFX index selector (`<`/`>`), speed (`SPD`), loop points (`LP`) and the waveform row in the header are shared by both views. The speed and loop boxes also respond to the mouse wheel. There is no play button — `Space` starts and stops playback.
 
 ## Music Editor
 
 A pattern bank where each pattern plays up to four SFX at once, one per channel. Each channel column shows a tracker-style note grid for the SFX assigned to it — editing a note here edits the underlying SFX directly.
 
-- **Pattern strip** (top) — click a pattern box, or the `<`/`>` arrows, to select it. The selected pattern is highlighted white; the currently playing pattern lights up orange below its number, and its index is shown in green.
+- **Pattern strip** (top) — click a pattern box, or the `<`/`>` arrows, to select it. The selected pattern is highlighted white; the currently playing pattern lights up orange below its number, and the pattern playback started from has its number drawn in green.
 - **Loop/Stop controls** (top-right) — click to toggle loop-start, loop-end and stop flags on the selected pattern.
-- **Channel header** (per column) — click the toggle box to enable/disable the channel for this pattern; while enabled, click the SFX number to scroll wheel through it (left-click +1, right-click -1), or click the pencil icon to jump to that SFX in the SFX Editor.
+- **Channel header** (per column) — click the toggle box to enable/disable the channel for this pattern; while enabled, click the SFX number to step through the SFX bank (left-click +1, right-click -1), or click the pencil icon to jump to that SFX in the SFX Editor.
 - **Note grid** (per enabled channel) — a scrollable 32-note tracker column (note, octave, waveform, volume, effect), identical semantics to the SFX editor's alternate view. Mouse wheel over a column scrolls it; while playing, each column auto-scrolls to keep the currently sounding note (highlighted yellow) centered.
 
 ### Music Editor Hotkeys
