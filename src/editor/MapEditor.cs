@@ -42,7 +42,7 @@ internal class MapEditor : IEditor
     private const int LayerViewIcon = 58;
     private const int LayerHideIcon = 59;
     // Opacity of layers drawn in front of the enabled layer, so it stays visible through them.
-    private const float FrontLayerOpacity = 0.35f;
+    private const float FrontLayerOpacity = 0.10f;
     // The eight layer buttons sit on the tool row, just past the four tool buttons.
     private const int LayerButtonsStartX = 5 * Constants.GameDataSizes.TileSize;
 
