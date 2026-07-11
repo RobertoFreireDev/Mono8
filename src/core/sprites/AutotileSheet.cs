@@ -53,6 +53,21 @@ internal class AutotileSheet
         TopLeft | BottomLeft,
     };
 
+    /// <summary>
+    /// Inverse of <see cref="CellQuadrants"/>: the cell of a block covering a given set of
+    /// quadrants. The sixteen cells cover the sixteen possible subsets exactly once, so every
+    /// subset names one cell and painting can pick a piece straight from the terrain it must show.
+    /// </summary>
+    public static readonly int[] CellForQuadrants = BuildCellForQuadrants();
+
+    private static int[] BuildCellForQuadrants()
+    {
+        var cells = new int[CellQuadrants.Length];
+        for (int cell = 0; cell < CellQuadrants.Length; cell++)
+            cells[CellQuadrants[cell]] = cell;
+        return cells;
+    }
+
     public const int BlocksX = Constants.GameDataSizes.SpriteSheetColumns / BlockSize; // 8
     public const int BlocksY = Constants.GameDataSizes.SpriteSheetRows / BlockSize;    // 7
 
@@ -74,6 +89,25 @@ internal class AutotileSheet
         blockY = spriteId / columns / BlockSize;
         return blockX < BlocksX && blockY < BlocksY;
     }
+
+    /// <summary>
+    /// The cell of a given block a sprite holds, in the same reading order as
+    /// <see cref="CellQuadrants"/>. False when the sprite belongs to some other block.
+    /// </summary>
+    public static bool TryGetCell(int spriteId, int blockX, int blockY, out int cell)
+    {
+        cell = 0;
+        if (!TryGetBlock(spriteId, out int bx, out int by) || bx != blockX || by != blockY) return false;
+
+        int columns = Constants.GameDataSizes.SpriteSheetColumns;
+        cell = spriteId / columns % BlockSize * BlockSize + spriteId % columns % BlockSize;
+        return true;
+    }
+
+    /// <summary>The sprite holding one cell of a block, the inverse of <see cref="TryGetCell"/>.</summary>
+    public static int SpriteFor(int blockX, int blockY, int cell) =>
+        (blockY * BlockSize + cell / BlockSize) * Constants.GameDataSizes.SpriteSheetColumns
+            + blockX * BlockSize + cell % BlockSize;
 
     private static bool InBounds(int blockX, int blockY) =>
         blockX >= 0 && blockX < BlocksX && blockY >= 0 && blockY < BlocksY;
