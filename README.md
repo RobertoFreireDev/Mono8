@@ -2,9 +2,13 @@
 
 A PICO-8 style game engine built on MonoGame (.NET 8), with built-in sprite, map, SFX and music editors. The screen is 256×144 pixels with a 32-color palette.
 
-<p align="center">
-  <video src="https://github.com/RobertoFreireDev/Mono8/raw/main/mono8.mp4" width="100%" controls></video>
-</p>
+## Preview
+
+https://github.com/RobertoFreireDev/Mono8/raw/main/mono8.mp4
+
+> **Disclaimers:** 
+
+> It does not include any game code, assets, cartridges, sprites, music, or any other creative content from PICO-8 games. 
 
 ## Specs
 
