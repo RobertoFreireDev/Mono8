@@ -1,6 +1,6 @@
 # Mono8
 
-A PICO-8 style fantasy console built on MonoGame (.NET 8), with built-in sprite, map, SFX and music editors. The screen is 256×144 pixels with a 32-color palette.
+A PICO-8 style game engine built on MonoGame (.NET 8), with built-in sprite, map, SFX and music editors. The screen is 256×144 pixels with a 32-color palette.
 
 ## Specs
 
