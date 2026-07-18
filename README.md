@@ -26,6 +26,10 @@ A PICO-8 style game engine built on MonoGame (.NET 8), with built-in sprite, map
 
 Color indices `0`-`31` have names in `Constants.Colors` (`Constants.Colors.DarkBlue` is `1`, and so on). Sprite `0` is the empty sprite: `map` never draws it, and color `0` is transparent by default.
 
+## Download
+
+https://mono8games.itch.io/mono8
+
 ## Building
 
 The project file lives in [src/](src/), so run from the repository root:
