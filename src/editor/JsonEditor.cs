@@ -147,6 +147,7 @@ internal sealed class JsonEditor : IEditor
         var mouse = _api.mousexy();
         UpdateWheel(mouse);
         UpdateTreeMouse(mouse);
+        UpdateInspectorHover(mouse);
         UpdateInspectorMouse(mouse);
         UpdateActions(mouse);
         UpdateKeys();
@@ -244,6 +245,29 @@ internal sealed class JsonEditor : IEditor
         }
 
         SelectRow(row);
+    }
+
+    /// <summary>
+    /// Spells the type badge out on the bottom bar while the cursor rests on it. The badge is one
+    /// character wide, so <c>p</c> and <c>b</c> are only guessable until something names them.
+    /// </summary>
+    private void UpdateInspectorHover((int x, int y) mouse)
+    {
+        if (_inspected == null) return;
+        if (mouse.x < BadgeX || mouse.x >= BadgeX + BadgeW) return;
+        if (mouse.y < ContentTop || mouse.y >= ContentBottom) return;
+
+        for (int i = 0; i < _blocks.Count; i++)
+        {
+            var block = _blocks[i];
+            if (!block.FirstOfField) continue;   // only the first line of a field carries the badge
+
+            int y = ContentTop + block.Top - _inspectorScroll;
+            if (!IsLineVisible(y) || mouse.y < y || mouse.y >= y + RowH) continue;
+
+            _events.SetHover(TypeHint(_inspected.Fields[block.Field], block.Item));
+            return;
+        }
     }
 
     private void UpdateInspectorMouse((int x, int y) mouse)
@@ -380,6 +404,32 @@ internal sealed class JsonEditor : IEditor
         "ARR" => "SCALAR / ARRAY",
         "+ITM" => "ADD ITEM",
         _ => "REMOVE ITEM"
+    };
+
+    /// <summary>
+    /// What the one-character type badge stands for. PosXY says more than its name because its
+    /// shape — two ints and a comma — is the one thing here that a name alone does not give away:
+    /// the position it already holds if that reads back, and an example if it does not.
+    /// </summary>
+    private static string TypeHint(JsonField field, int item)
+    {
+        string label = TypeLabel(field.Type);
+        if (field.Type != DataValueType.PosXY) return label;
+
+        return JsonSheet.IsValid(field, item)
+            ? label + " " + field.Values[item]
+            : label + " EG 40,88";
+    }
+
+    private static string TypeLabel(DataValueType type) => type switch
+    {
+        DataValueType.String => "STRING",
+        DataValueType.Text => "TEXT",
+        DataValueType.Int => "INT",
+        DataValueType.Decimal => "DECIMAL",
+        DataValueType.Money => "MONEY",
+        DataValueType.PosXY => "POSITION",
+        _ => "BOOL"
     };
 
     private void AddGroup()

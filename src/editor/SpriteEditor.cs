@@ -298,6 +298,7 @@ internal class SpriteEditor : IEditor
                 if (KeybrdInput.JustPressed(digitKeys[i]))
                 {
                     AnimFrames[i] = AnimFrames[i] == -1 ? sprNmbr : -1;
+                    eventNotifier.AddEvent($"ANIM {i + 1} {(AnimFrames[i] == -1 ? "OFF" : "ON")}");
                 }
             }
 
