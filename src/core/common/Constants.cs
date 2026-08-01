@@ -50,7 +50,7 @@ public static class Constants
         public const int Sfx = 64;
         public const int Music = 64;
         public const int IconSheetX = 256;
-        public const int IconSheetY = 16;
+        public const int IconSheetY = 24;
         public const int SpriteSheetX = 256;
         public const int SpriteSheetY = 48 * 5;
         public const int TileSize = 8;
