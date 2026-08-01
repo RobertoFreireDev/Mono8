@@ -67,7 +67,7 @@ On launch a short splash screen plays, then the Sprite editor opens. The icon bu
 
 ## Project Data
 
-Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx and music files at once. `data.icons` is only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
+Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx, music and json files at once. `data.icons` is only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
 
 | File | Contents |
 |---|---|
@@ -77,8 +77,57 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 | `data.map` | Map cells, as two hex digits per cell. |
 | `data.sfx` | The 64 sound effects. |
 | `data.music` | The 64 music patterns. |
+| `data.json` | Authored game data — groups, objects and typed fields (see below). |
 | `data.icons` | The editors' icon sheet. |
 | `data.save` | The 64 `dget`/`dset` slots, rewritten on every `dset`. |
+
+### data.json
+
+`data.json` holds the data your game reads rather than draws — enemy stats, level tables, item costs. It is a fixed three-level tree of **group → object → field**, with no nesting past that: a field's value is either one scalar or an array of scalars, never another object.
+
+A field's type is part of its key, written as a one-character suffix after a colon. It has to be, because the JSON value on its own cannot tell a decimal from a money amount, a short string from a long one, or a position from a two-element array.
+
+```json
+{
+  "ENEMY": {
+    "SLIME": {
+      "HP:i": 12,
+      "SPD:d": 1.25,
+      "COST:m": "3.50",
+      "SPAWN:p": [40, 88],
+      "BOSS:b": false,
+      "NAME:s": "Green slime",
+      "DESC:t": "Splits in two when hit by fire.",
+      "DROPS:i": [1, 4, 7],
+      "WAYPTS:p": [[8, 8], [8, 40]]
+    },
+    "BAT": { "HP:i": 6 }
+  }
+}
+```
+
+| Suffix | Type | Written as | Notes |
+|---|---|---|---|
+| `s` | String | `"Green slime"` | Up to 16 characters. |
+| `t` | Text | `"Splits in two…"` | Up to 256 characters. |
+| `i` | Int | `12` | |
+| `d` | Decimal | `1.25` | |
+| `m` | Money | `"3.50"` | Quoted and always two decimals, so trailing zeros survive the round trip. |
+| `p` | PosXY | `[40, 88]` | Two ints. An array of positions nests: `[[8, 8], [8, 40]]`. |
+| `b` | Bool | `false` | |
+
+Any field can hold an array of its own type in place of a single value — `"DROPS:i": [1, 4, 7]`. Arrays are homogeneous.
+
+Names of groups, objects and fields all obey one rule: at most 8 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing matters because [`print`](#graphics) draws everything upper-case, so `hp` and `HP` would be two different keys that look identical on screen. String and Text *values* keep the case you type.
+
+| Limit | Value |
+|---|---|
+| Groups | 16 |
+| Objects per group | 64 |
+| Fields per object | 16 |
+| Array items | 64 |
+
+There is no editor for this file yet, so write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk.
 
 ## Running Your Game
 

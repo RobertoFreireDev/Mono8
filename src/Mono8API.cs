@@ -9,6 +9,7 @@ internal class Mono8API : IEditorAPI
     public static SfxSheet SfxSheet = new SfxSheet();
     public static MusicSheet MusicSheet = new MusicSheet();
     public static MapSheet MapSheet = new MapSheet();
+    public static JsonSheet JsonSheet = new JsonSheet();
     private static string _folder = Constants.File.Folder;
     private EditorMenuBar _menuBar;
     private YourGame _game;
@@ -38,6 +39,8 @@ internal class Mono8API : IEditorAPI
             ReadLines(Constants.File.Extensions.Flags, path));
         AutotileSheet.LoadAutotiles(ReadLines(Constants.File.Extensions.Autotile, path));
         MapSheet.LoadMaps(ReadLines(Constants.File.Extensions.MapSheet, path));
+        // The only sheet that reads its own file: data.json is one document, not a line per record.
+        JsonSheet.Load(path);
         SaveData.Load(path);
 
         // The sheets are the only parsers; the engine plays the snapshots they hand it.
@@ -59,6 +62,7 @@ internal class Mono8API : IEditorAPI
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.MapSheet, string.Join("\n", MapSheet.ToMapLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Sfx, string.Join("\n", SfxSheet.ToSfxLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Music, string.Join("\n", MusicSheet.ToMusicLines()), path);
+        JsonSheet.Save(path);
     }
 
     /// <summary>Push the editor's current SFX edits into the live audio engine so previews reflect them.</summary>

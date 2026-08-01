@@ -24,6 +24,33 @@ public static class Text
         '<','>',' ','~','Ꮖ'
     };
 
+    private static readonly HashSet<char> _validChars = new HashSet<char>(_charIndexes);
+
+    /// <summary>Horizontal advance of one character: <see cref="CharWidth"/> minus the 1 px overlap.</summary>
+    public const int CharAdvance = 4;
+
+    /// <summary>Vertical advance of one text line, as used by <see cref="DrawText"/>.</summary>
+    public const int LineHeight = 9;
+
+    /// <summary>True when the font atlas can draw <paramref name="c"/>; anything else prints as '?'.</summary>
+    public static bool IsValidChar(char c) => _validChars.Contains(c);
+
+    /// <summary>Drops every character the font cannot draw, so stored data is always renderable.</summary>
+    public static string Sanitize(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return string.Empty;
+
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (char c in s)
+        {
+            if (IsValidChar(c)) sb.Append(c);
+        }
+        return sb.Length == s.Length ? s : sb.ToString();
+    }
+
+    /// <summary>Width in pixels of <paramref name="s"/> drawn on one line.</summary>
+    public static int Width(string s) => string.IsNullOrEmpty(s) ? 0 : s.Length * CharAdvance;
+
     public static void GetCharacterTextures(GraphicsDevice graphicsDevice)
     {
         int columns = Columns;
