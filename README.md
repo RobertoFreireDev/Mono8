@@ -570,7 +570,7 @@ One row block per field: the key name, a one-character type badge, and the value
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
 - **Hover the badge** to read the type out in full on the bottom bar — `STRING`, `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. A `PosXY` badge also shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
-- **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn in **red** and holds back `Ctrl+S` with a `BAD VAL` notice until you fix it, since writing it out would produce a file that will not load.
+- **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn in **red** and holds back `Ctrl+S` until you fix it, since writing it out would produce a file that will not load. The bottom bar names the first offender as `ERROR ON GROUP/OBJECT/KEY` and the editor jumps straight to it.
 - **Arrays**: `[ARR]` switches the selected field between one value and a list of them, and each item gets its own numbered row. `[+ITM]` appends and `[-ITM]` removes the selected item. Collapsing an array back to a single value keeps item `0` and says `KEEP 1`; an array never empties below one item.
 - **`[+KEY]`** prompts for a name and creates the field as a `String`; a name already used in that object is refused with `DUP KEY`.
 
@@ -584,7 +584,7 @@ Both panels scroll with the mouse wheel and with their own scrollbars, and the s
 
 | Key | Description |
 |---|---|
-| `Ctrl+S` | Saves the project, unless a value is invalid (`BAD VAL`). |
+| `Ctrl+S` | Saves the project, unless a value is invalid (`ERROR ON GROUP/OBJECT/KEY`). |
 | `Tab` | Moves focus between the tree and the inspector; while editing, commits and moves to the next row. |
 | `Up`/`Down` | Moves the selection within the focused panel. |
 | `Left`/`Right` | Collapses/expands the selected group. |

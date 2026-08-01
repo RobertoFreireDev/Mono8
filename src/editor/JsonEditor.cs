@@ -602,7 +602,10 @@ internal sealed class JsonEditor : IEditor
         // back, so the offender is put on screen instead and the save waits.
         if (Sheet.TryFindInvalid(out JsonObject obj, out JsonField field, out int index))
         {
-            _events.AddEvent("BAD VAL");
+            // Named rather than just flagged: the offender is often in a collapsed group nowhere
+            // near what is on screen, so the toast says which one before the reveal jumps there.
+            var group = Sheet.OwnerOf(obj);
+            _events.AddEvent($"ERROR ON {group?.Name}/{obj.Name}/{field.Name}");
             Reveal(obj, field, index);
             return;
         }

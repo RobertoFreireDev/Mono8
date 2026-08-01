@@ -24,7 +24,7 @@ Delivered as **three independent tasks**:
 | Global menu bar | `src/editor/EditorMenuBar.cs:28-34` — one 8×8 icon button per registered editor | Grows from 4 to 5 buttons automatically. No change needed. |
 | Icon buttons | `src/editor/Button.cs` (`IsClicked`, `Draw(selected)`, `api.pal` dimming) | Reused for every icon control. |
 | Shared widgets | `src/editor/EditorUI.cs` — `BottomBarY`, `Box`, `TextButton`, `CycleOnClick` | `Box`/`TextButton` for rows and actions; `CycleOnClick` for the value-type picker. |
-| Toast messages | `src/editor/EventNotifier.cs` | `SAVED`, `BAD VAL`, `DUP KEY`, `MAX GRP`… on the bottom bar. |
+| Toast messages | `src/editor/EventNotifier.cs` | `SAVED`, `BAD VAL`, `ERROR ON G/O/K`, `DUP KEY`, `MAX GRP`… on the bottom bar. |
 | Data bank pattern | `src/core/sfx/SfxSheet.cs` — mutable bank + `LoadX(string[])` / `ToXLines()`, sole parser of its format | `JsonSheet` follows the exact same shape. |
 | File IO | `src/core/common/FileIO.cs` (`Read`, `Write`, `BuildPath`) | Used **unchanged** — `data.json` is one more `data.<ext>` file. |
 | Load/save wiring | `src/Mono8API.cs:30-48` (`Load`) and `:53-62` (`Save`, `Ctrl+S`) | `JsonSheet` joins both methods. |
@@ -369,7 +369,7 @@ Wrapping is word-wrap with hard-break fallback for a 40+ char run. The block hei
   `DataValue.IsCharAllowed(type, …)`; `Esc` cancels, `Enter` commits, `Tab` commits and moves
   to the next row.
 - **Changing a type** re-validates every item. A value that no longer fits is **kept and drawn
-  in `Red`**, never silently dropped, and blocks the save with a `BAD VAL` toast.
+  in `Red`**, never silently dropped, and blocks the save with an `ERROR ON GROUP/OBJECT/KEY` toast.
 - **Create/delete**: `[+KEY]` prompts for a name (validated + dup-checked → `DUP KEY`) and
   creates it as `String` with `DataValue.Default`; `[DEL]` removes the selected field;
   `[ARR]` toggles the selected field between scalar and array (collapsing to array keeps
