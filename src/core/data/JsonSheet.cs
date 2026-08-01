@@ -274,12 +274,16 @@ internal sealed class JsonSheet
         return true;
     }
 
-    public bool TryAddItem(JsonField field)
+    /// <summary>
+    /// Inserts a default item at <paramref name="index"/>, which is clamped into the list rather
+    /// than rejected, so an out-of-range caller appends instead of silently doing nothing.
+    /// </summary>
+    public bool TryAddItem(JsonField field, int index)
     {
         if (field == null || !field.IsArray) return false;
         if (field.Values.Count >= Constants.JsonData.MaxArrayItems) return false;
 
-        field.Values.Add(DataValue.Default(field.Type));
+        field.Values.Insert(Math.Clamp(index, 0, field.Values.Count), DataValue.Default(field.Type));
         IsDirty = true;
         return true;
     }

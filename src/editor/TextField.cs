@@ -39,7 +39,7 @@ internal sealed class TextField
         _maxLength = maxLength;
     }
 
-    /// <summary>Opens the field on a group, object or field name — §1.3's rules, 7 characters.</summary>
+    /// <summary>Opens the field on a group, object or field name — §1.3's rules, 8 characters.</summary>
     public void BeginName(Rectangle bounds, string initial)
     {
         Open(bounds, initial);

@@ -4,7 +4,7 @@ namespace mono8.editor;
 /// Editor for <c>data.json</c>: a tree of groups and objects on the left, the selected object's
 /// keys and values on the right.
 /// <para>
-/// The tree is only ever two levels deep and names are at most 7 characters, so the whole navigator
+/// The tree is only ever two levels deep and names are at most 8 characters, so the whole navigator
 /// fits in 40 px and the panels can sit side by side instead of drilling in. Groups and objects are
 /// told apart by the fold marker and the text colour rather than by indentation.
 /// </para>
@@ -32,17 +32,21 @@ internal sealed class JsonEditor : IEditor
     private const int InspRight = 248;    // exclusive
     private const int InspScrollX = 252;
 
-    private const int NameW = 28;         // 7 characters
+    // A name column is one character wider than the name it holds. A glyph is 5 px wide on a 4 px
+    // advance, so 8 characters printed one pixel into the column reach 2 px past 8 × 4 — and the
+    // inline editor keeps (width - 2) / 4 characters on screen, which at an exact 32 would scroll
+    // the first character off the moment a name used all 8. The badge and the value follow from it.
+    private const int NameW = 36;         // 8 characters plus the character of slack
     private const int KeyX = InspX;
-    private const int BadgeX = 79;
+    private const int BadgeX = KeyX + NameW + 1;
     private const int BadgeW = 7;
-    private const int ValueX = 87;
+    private const int ValueX = BadgeX + BadgeW + 1;
     private const int ItemLabelW = 16;    // "63:" plus a gap
     private const int ItemValueX = ValueX + ItemLabelW;
 
     /// <summary>Characters that fit on one line of a scalar's value area, and of an array item's.</summary>
-    private const int ScalarCols = (InspRight - ValueX) / Text.CharAdvance;       // 40
-    private const int ItemCols = (InspRight - ItemValueX) / Text.CharAdvance;     // 36
+    private const int ScalarCols = (InspRight - ValueX) / Text.CharAdvance;       // 39
+    private const int ItemCols = (InspRight - ItemValueX) / Text.CharAdvance;     // 35
 
     private const int ActionY = 126;
     private const int ActionH = 9;
@@ -53,7 +57,8 @@ internal sealed class JsonEditor : IEditor
     private static readonly int TypeCount = Enum.GetValues<DataValueType>().Length;
 
     private static readonly string[] TreeActions = { "+GRP", "+OBJ", "REN", "DEL" };
-    private static readonly string[] InspectorActions = { "+KEY", "REN", "DEL", "ARR", "+ITM", "-ITM" };
+    private static readonly string[] ScalarActions = { "+KEY", "REN", "DEL", "ARR" };
+    private static readonly string[] ArrayActions = { "+KEY", "REN", "DEL", "ARR", "+ITM", "-ITM" };
 
     // ── State ─────────────────────────────────────────────────────────────────
     private enum Panel { Tree, Inspector }
@@ -352,7 +357,7 @@ internal sealed class JsonEditor : IEditor
 
     private void UpdateActions((int x, int y) mouse)
     {
-        var set = _focus == Panel.Tree ? TreeActions : InspectorActions;
+        var set = ActionSet();
         for (int i = 0; i < set.Length; i++)
         {
             if (!ActionRect(set, i).Contains(mouse.x, mouse.y)) continue;
@@ -434,13 +439,13 @@ internal sealed class JsonEditor : IEditor
         }
     }
 
-    private static string ActionHint(string label) => label switch
+    private string ActionHint(string label) => label switch
     {
         "+GRP" => "NEW GROUP",
         "+OBJ" => "NEW OBJECT",
         "+KEY" => "NEW KEY",
         "REN" => "RENAME [R]",
-        "DEL" => "DELETE",
+        "DEL" => DeleteTakesItem() ? "DELETE ITEM" : "DELETE",
         "ARR" => "SCALAR / ARRAY",
         "+ITM" => "ADD ITEM",
         _ => "REMOVE ITEM"
@@ -542,10 +547,32 @@ internal sealed class JsonEditor : IEditor
         ClampScroll();
     }
 
+    /// <summary>
+    /// True while [DEL] would take the selected array item rather than the whole key. The last item
+    /// is the exception: an array never empties, so once one is left the only delete left to mean is
+    /// the key itself — otherwise an array key could never be deleted without collapsing it first.
+    /// </summary>
+    private bool DeleteTakesItem()
+    {
+        if (_focus != Panel.Inspector) return false;   // the tree's [DEL] is the node's, not an item's
+
+        var field = SelectedField();
+        return field != null && field.IsArray && field.Values.Count > 1;
+    }
+
     private void DeleteField()
     {
         var field = SelectedField();
-        if (field == null || !ConfirmDelete(field)) return;
+        if (field == null) return;
+
+        // The highlighted row is one item of the list, so that is what a delete aimed at it takes.
+        if (DeleteTakesItem())
+        {
+            RemoveItem();
+            return;
+        }
+
+        if (!ConfirmDelete(field)) return;
 
         Sheet.Remove(field);
         _selItem = 0;
@@ -565,24 +592,22 @@ internal sealed class JsonEditor : IEditor
         EnsureBlockVisible();
     }
 
+    /// <summary>
+    /// Adds an item straight below the selected one and follows it, so a list is built in the order
+    /// it reads rather than by adding at the end and moving what was added.
+    /// </summary>
     private void AddItem()
     {
         var field = SelectedField();
-        if (field == null) return;
+        if (field == null || !field.IsArray) return;
 
-        if (!field.IsArray)
-        {
-            _events.AddEvent("NOT ARRAY");
-            return;
-        }
-
-        if (!Sheet.TryAddItem(field))
+        if (!Sheet.TryAddItem(field, _selItem + 1))
         {
             _events.AddEvent("MAX ITM");
             return;
         }
 
-        _selItem = field.Values.Count - 1;
+        _selItem = Math.Min(_selItem + 1, field.Values.Count - 1);
         RebuildBlocks();
         EnsureBlockVisible();
     }
@@ -590,13 +615,7 @@ internal sealed class JsonEditor : IEditor
     private void RemoveItem()
     {
         var field = SelectedField();
-        if (field == null) return;
-
-        if (!field.IsArray)
-        {
-            _events.AddEvent("NOT ARRAY");
-            return;
-        }
+        if (field == null || !field.IsArray) return;
 
         // Item 0 is what a field collapses back to, so an array never empties itself.
         if (field.Values.Count <= 1)
@@ -1129,7 +1148,7 @@ internal sealed class JsonEditor : IEditor
     {
         _api.rectfill(0, ActionY, Constants.Screen.ResolutionX, ActionY + ActionH - 1, Constants.Colors.DarkGray);
 
-        var set = _focus == Panel.Tree ? TreeActions : InspectorActions;
+        var set = ActionSet();
         for (int i = 0; i < set.Length; i++) EditorUI.TextButton(_api, ActionRect(set, i), set[i]);
 
         string path = Path();
@@ -1147,6 +1166,19 @@ internal sealed class JsonEditor : IEditor
 
         var field = SelectedField();
         return field == null ? path : path + "/" + field.Name;
+    }
+
+    /// <summary>
+    /// The buttons the current focus offers. [+ITM] and [-ITM] only mean anything with an item of an
+    /// array under the selection, so rather than sit there and answer with a toast they are not
+    /// drawn at all — which also keeps the row from claiming width the other buttons could use.
+    /// </summary>
+    private string[] ActionSet()
+    {
+        if (_focus == Panel.Tree) return TreeActions;
+
+        var field = SelectedField();
+        return field != null && field.IsArray ? ArrayActions : ScalarActions;
     }
 
     private static Rectangle ActionRect(string[] set, int index)

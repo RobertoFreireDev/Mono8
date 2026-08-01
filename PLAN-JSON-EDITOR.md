@@ -108,7 +108,7 @@ Group names, object names and field (key) names all obey the **same** rule:
 
 | Rule | Value |
 |---|---|
-| Max length | **7 chars** |
+| Max length | **8 chars** |
 | Allowed | valid font chars **minus** `"` `\` `:` `,` and space |
 | Normalisation | upper-cased, trimmed |
 | Uniqueness | unique among its siblings (groups globally; objects within a group; fields within an object) |
@@ -133,7 +133,7 @@ public static class JsonData
     public const int MaxGroups        = 16;
     public const int MaxObjectsPerGrp = 64;
     public const int MaxFieldsPerObj  = 16;
-    public const int MaxNameChars     = 7;
+    public const int MaxNameChars     = 8;
     public const int MaxStringChars   = 16;
     public const int MaxTextChars     = 256;
     public const int MaxArrayItems    = 64;   // see §9 — needs your call
@@ -313,7 +313,7 @@ the same `x`. They are told apart by the fold marker and the colour:
 
 ```
 x  0..3    fold marker: '+' / '-' on group rows, blank on object rows
-x  4..31   name, 7 chars × 4 px = 28 px
+x  4..36   name, 8 chars × 4 px + the last glyph's 5th column = 33 px
 ```
 
 | Row | Marker | Text colour |
@@ -345,10 +345,16 @@ The selected object's fields, one field per **row block**. Single-level by const
 value is either one scalar or an array of scalars, never another object.
 
 ```
-x  46..73   key name (7 chars, 28 px)
-x  79..83   type badge — 1 char (s t i d m p b), click to cycle via EditorUI.CycleOnClick
-x  86..247  value area — 162 px = 40 characters per line
+x  46..81   key name — 8 chars in a 36 px column, one character wider than the text it holds
+x  83..89   type badge — 1 char (s t i d m p b), click to cycle via EditorUI.CycleOnClick
+x  91..247  value area — 157 px = 39 characters per line
 ```
+
+The key column carries a character of slack on purpose. A glyph is 5 px wide on a 4 px advance
+and the name prints 1 px into its column, so 8 characters reach `46 + 1 + 33 = 80`, past an exact
+32 px; the inline rename editor also shows `(width - 2) / 4` characters, which at 32 px would
+scroll the first character off exactly when a name used all 8. 36 px holds all 8 either way, and
+the badge and the value area are derived from it rather than written down twice.
 
 **Row heights** — this is the "fits on the same line" rule made concrete:
 
@@ -356,11 +362,11 @@ x  86..247  value area — 162 px = 40 characters per line
 |---|---|
 | `Int`, `Decimal`, `Money`, `Bool` | one 9 px line, value on the key's line |
 | `PosXY` | one line, two small fields `x , y` |
-| `String` (≤16) | one line, always fits in 40 chars |
-| `Text` (≤256) | **starts on the key's line**, wraps at 40 chars into as many extra 9 px lines as needed (≤ 7) |
+| `String` (≤16) | one line, always fits in 39 chars |
+| `Text` (≤256) | **starts on the key's line**, wraps at 39 chars into as many extra 9 px lines as needed (≤ 7) |
 
-Wrapping is word-wrap with hard-break fallback for a 40+ char run. The block height is
-`1 + ceil((len - 40) / 40)` lines for `Text`, 1 otherwise.
+Wrapping is word-wrap with hard-break fallback for a 39+ char run. The block height is
+`1 + ceil((len - 39) / 39)` lines for `Text`, 1 otherwise.
 
 - `Bool` draws as a `[TRUE]`/`[FALSE]` `EditorUI.TextButton` — click toggles, no text entry.
 - **Arrays**: the badge shows `[n]` after the type code. The scalar row shows item `0`;
@@ -420,7 +426,7 @@ Inline single-line editor: draws text plus a blinking caret inside a `Rectangle`
 internal sealed class TextField
 {
     public void Begin(Rectangle bounds, string initial, DataValueType type, int maxLength);
-    public void BeginName(Rectangle bounds, string initial);   // §1.3 rules, 7 chars
+    public void BeginName(Rectangle bounds, string initial);   // §1.3 rules, 8 chars
     public bool Active { get; }
     public bool Update(out string committed, out bool cancelled);
     public void Draw();

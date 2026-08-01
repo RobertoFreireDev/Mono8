@@ -101,7 +101,7 @@ public static class Constants
         public const int MaxGroups = 16;
         public const int MaxObjectsPerGrp = 64;
         public const int MaxFieldsPerObj = 16;
-        public const int MaxNameChars = 7;
+        public const int MaxNameChars = 8;
         public const int MaxStringChars = 16;
         public const int MaxTextChars = 256;
         public const int MaxArrayItems = 64;

@@ -122,7 +122,7 @@ A field's type is part of its key, written as a one-character suffix after a col
 
 Any field can hold an array of its own type in place of a single value — `"DROPS:i": [1, 4, 7]`. Arrays are homogeneous.
 
-Names of groups, objects and fields all obey one rule: at most 7 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing matters because [`print`](#graphics) draws everything upper-case, so `hp` and `HP` would be two different keys that look identical on screen. String and Text *values* keep the case you type.
+Names of groups, objects and fields all obey one rule: at most 8 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing matters because [`print`](#graphics) draws everything upper-case, so `hp` and `HP` would be two different keys that look identical on screen. String and Text *values* keep the case you type.
 
 | Limit | Value |
 |---|---|
@@ -633,7 +633,7 @@ Groups and objects are **not indented** — they are told apart by the fold mark
 
 ### Inspector
 
-One row block per field: the key name, a one-character type badge, and the value. Everything fits on the key's line except a `Text` value, which wraps at 40 characters into as many extra lines as it needs and pushes the fields below it down.
+One row block per field: the key name, a one-character type badge, and the value. Everything fits on the key's line except a `Text` value, which wraps at 39 characters into as many extra lines as it needs and pushes the fields below it down.
 
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
@@ -644,7 +644,7 @@ One row block per field: the key name, a one-character type badge, and the value
 
 **Renaming** works the same in both panels: `[REN]`, the `R` key, or a **double click on the name itself** — a single click there only selects, so the second one is what opens the field. In the tree `Enter` renames too; in the inspector `Enter` belongs to the value, so a key is renamed with `R` or a double click. A name a sibling already uses is refused with `DUP NAME` in the tree and `DUP KEY` in the inspector.
 
-Names of groups, objects and keys are all capped at 7 characters, upper-cased as you type them, and cannot contain `:` `,` `"` `\` or a space — see [data.json](#datajson) for why.
+Names of groups, objects and keys are all capped at 8 characters, upper-cased as you type them, and cannot contain `:` `,` `"` `\` or a space — see [data.json](#datajson) for why.
 
 **Deleting** anything takes two presses: the first arms `[DEL]` and shows `HOLD DEL`, the second within a couple of seconds carries it out. There is no undo.
 
