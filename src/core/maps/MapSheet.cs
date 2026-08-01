@@ -76,6 +76,75 @@ internal class MapSheet
     }
 
     /// <summary>
+    /// Whether the tile under a point carries a flag. Coordinates are pixels over the whole map
+    /// sheet - map cell coordinates times the tile size, the same space GetTile reads - so a game
+    /// applies its own camera and room offsets before asking.
+    ///
+    /// The flag is a bit index, 0-7, read off the tile's sprite exactly as fget does, which leaves
+    /// what each one means entirely to the game: flag 0 for solid ground, another for ice, another
+    /// for hazards. Empty cells hold sprite 0, which map never draws, so they never collide however
+    /// that sprite is flagged.
+    /// </summary>
+    public bool Collides(int x, int y, int flag = 0)
+    {
+        int tileSize = Constants.GameDataSizes.TileSize;
+
+        // Negative coordinates are off the map, and saying so here keeps them out of the division
+        // below, which truncates towards zero and would otherwise fold them into the first cell.
+        if (x < 0 || y < 0) return false;
+        if (!TryFlagMask(flag, out int mask)) return false;
+
+        return HasFlag(x / tileSize, y / tileSize, mask);
+    }
+
+    /// <summary>
+    /// Whether any tile under a rectangle carries a flag: the same question as the point overload,
+    /// asked of every cell the rectangle overlaps. The rectangle runs from (<paramref name="x"/>,
+    /// <paramref name="y"/>) to (x + w - 1, y + h - 1), and an empty one - either side zero or
+    /// negative - meets nothing.
+    /// </summary>
+    /// <inheritdoc cref="Collides(int, int, int)"/>
+    public bool Collides(int x, int y, int w, int h, int flag = 0)
+    {
+        if (w <= 0 || h <= 0) return false;
+        if (!TryFlagMask(flag, out int mask)) return false;
+
+        int tileSize = Constants.GameDataSizes.TileSize;
+
+        // Clipped to the map, so a rectangle far larger than it costs no more than covering it.
+        int left = Math.Max(x, 0);
+        int top = Math.Max(y, 0);
+        int right = Math.Min(x + w - 1, Constants.GameDataSizes.MapSheetX * tileSize - 1);
+        int bottom = Math.Min(y + h - 1, Constants.GameDataSizes.MapSheetY * tileSize - 1);
+        if (right < left || bottom < top) return false;
+
+        for (int cellY = top / tileSize; cellY <= bottom / tileSize; cellY++)
+            for (int cellX = left / tileSize; cellX <= right / tileSize; cellX++)
+                if (HasFlag(cellX, cellY, mask)) return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// The bit a flag index names. False for an index outside 0-7, which is worth catching rather
+    /// than shifting by: C# shifts by the count modulo 32, so flag 32 would otherwise read as flag 0.
+    /// </summary>
+    private static bool TryFlagMask(int flag, out int mask)
+    {
+        mask = 0;
+        if (flag < 0 || flag >= Constants.GameDataSizes.SpriteFlags) return false;
+
+        mask = 1 << flag;
+        return true;
+    }
+
+    private bool HasFlag(int cellX, int cellY, int mask)
+    {
+        int tile = GetTile(cellX, cellY);
+        return tile > 0 && (Mono8API.SpriteSheet.GetFlags(tile) & mask) != 0;
+    }
+
+    /// <summary>
     /// Clips an arbitrary rectangle to the map's bounds. Returns false when nothing
     /// of it remains, which every region operation treats as "nothing to do".
     /// </summary>

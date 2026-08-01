@@ -57,6 +57,7 @@ public static class Constants
         public const int SpriteSheetColumns = 32; // SpriteSheetX / TileSize
         public const int SpriteSheetRows = 30; // SpriteSheetY / TileSize
         public const int MaxSpriteIndex = SpriteSheetColumns * SpriteSheetRows - 1;
+        public const int SpriteFlags = 8; // flag 0-7, one byte per sprite
         public const int MapSheetX = 512; // 16 * Screen.ResolutionX / TileSize
         public const int MapSheetY = 576; // 32 * Screen.ResolutionY / TileSize
         public const int ColorPalette = 32;

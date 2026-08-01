@@ -123,6 +123,33 @@ public interface IMono8API
         int layerMax = 0);
 
     // ============================================================
+    // TILE COLLISION
+    // ============================================================
+
+    /// <summary>
+    /// Whether the tile under the point (<paramref name="x"/>, <paramref name="y"/>) carries
+    /// <paramref name="flag"/>. Coordinates are pixels over the whole map sheet — map cell
+    /// coordinates times 8, the same space <see cref="mget"/> reads — so apply your own camera and
+    /// room offsets first.
+    /// <para>
+    /// The flag is a bit index, <c>0</c>-<c>7</c>, read off the tile's sprite exactly as
+    /// <see cref="fget(int, int)"/> does, which leaves what each one means entirely to your game:
+    /// flag <c>0</c> for solid ground, another for ice, another for hazards. An index outside
+    /// <c>0</c>-<c>7</c> collides with nothing. Empty cells hold sprite <c>0</c>, which
+    /// <see cref="map"/> never draws, so they never collide however that sprite is flagged.
+    /// </para>
+    /// </summary>
+    bool mcol(int x, int y, int flag = 0);
+
+    /// <summary>
+    /// Whether any tile under the rectangle running from (<paramref name="x"/>, <paramref name="y"/>)
+    /// to (x + <paramref name="w"/> - 1, y + <paramref name="h"/> - 1) carries
+    /// <paramref name="flag"/>. An empty rectangle — either side zero or negative — meets nothing.
+    /// </summary>
+    /// <inheritdoc cref="mcol(int, int, int)"/>
+    bool mcol(int x, int y, int w, int h, int flag = 0);
+
+    // ============================================================
     // AUTOTILE COLLISION
     // ============================================================
 

@@ -349,6 +349,10 @@ internal class Mono8API : IEditorAPI
             SnapMapScale(scale), colorOpaqueness, layerMax);
     }
 
+    public bool mcol(int x, int y, int flag = 0) => MapSheet.Collides(x, y, flag);
+
+    public bool mcol(int x, int y, int w, int h, int flag = 0) => MapSheet.Collides(x, y, w, h, flag);
+
     public bool acol(int x, int y, int spriteId = -1) => AutotileSheet.Collides(x, y, spriteId);
 
     public bool acol(int x, int y, int w, int h, int spriteId = -1) => AutotileSheet.Collides(x, y, w, h, spriteId);

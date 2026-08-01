@@ -229,6 +229,28 @@ Cells holding sprite `0` are skipped, so the background shows through them.
 
 `layerMax` filters which tiles are drawn, using the sprite flags as layer bits. The default of `0` draws every tile. Any other value is a bitmask: a tile is drawn only if at least one of its flags is set in the mask, i.e. `fget(tile) & layerMax` is non-zero. So if you set flag `0` on your background tiles and flag `1` on your foreground tiles, `map(..., layerMax: 1)` draws just the background and `map(..., layerMax: 2)` just the foreground — call `map` twice, with your sprites drawn in between, to get sprites sandwiched between two map layers.
 
+### Tile Collision
+
+| Function | Parameters | Description |
+|---|---|---|
+| `mcol` | `x, y, flag = 0` | Whether the tile under the point `x, y` carries `flag`. |
+| `mcol` | `x, y, w, h, flag = 0` | Whether any tile under the `w`×`h` rectangle whose top-left corner is `x, y` carries `flag`. |
+
+Coordinates are **pixels over the whole map sheet** — map cell coordinates times `8`, the same space [`mget`](#map) reads — so apply your own camera and room offsets before asking. The rectangle runs from `x, y` to `x + w - 1, y + h - 1`, and an empty one (either side zero or negative) meets nothing, as does any point off the map.
+
+`flag` is a bit index, `0`-`7`, read off the tile's sprite exactly as [`fget`](#sprite-flags) does, so what each one means is entirely your game's business — flag `0` for solid ground, another for ice, another for hazards. An index outside `0`-`7` collides with nothing. Cells holding sprite `0` never collide however that sprite is flagged, since `map` never draws them either.
+
+Nothing here is tied to a room size or a layer: `mcol` reads the whole map sheet, and your game decides which part of it the player is standing in.
+
+```csharp
+// The room is 16x16 cells; the player's hitbox is 8x8 at (x, y) within it.
+int ox = room.x * 16 * 8, oy = room.y * 16 * 8;
+
+bool solid = API.mcol(ox + x, oy + y, 8, 8);        // flag 0
+bool ice   = API.mcol(ox + x, oy + y, 8, 8, 4);     // flag 4
+bool ledge = API.mcol(ox + x, oy + y + 8);          // one point below the feet
+```
+
 ### Autotile Collision
 
 | Function | Parameters | Description |
@@ -257,6 +279,8 @@ if (!API.acol(x + dx, y, 8, 8, 64)) x += dx;
 | `fset` | `spriteId, value` | Sets all flag bits for a sprite. |
 
 Each sprite has 8 flags (`flag` `0`-`7`), free for you to use as collision, terrain type or anything else. `map` also reads them as layer bits when you pass `layerMax` (see [Map](#map)).
+
+To collide against flagged tiles, [`mcol`](#tile-collision) asks the question directly for a point or a rectangle instead of your walking the cells yourself.
 
 A flag is one bit for a whole 8×8 tile, which is all a hand-drawn tile needs. For terrain painted with an [autotile](#autotile) it is too coarse — half its pieces are solid in only part of their tile — so read that with [`acol`](#autotile-collision) instead.
 
