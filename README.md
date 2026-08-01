@@ -89,7 +89,7 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 
 `data.json` holds the data your game reads rather than draws — enemy stats, level tables, item costs. It is a fixed three-level tree of **group → object → field**, with no nesting past that: a field's value is either one scalar or an array of scalars, never another object.
 
-A field's type is part of its key, written as a one-character suffix after a colon. It has to be, because the JSON value on its own cannot tell a decimal from a money amount, a short string from a long one, or a position from a two-element array.
+A field's type is part of its key, written as a one-character suffix after a colon. It has to be, because the JSON value on its own cannot tell a decimal from a money amount, a text from a number written as text, or a position from a two-element array.
 
 ```json
 {
@@ -100,7 +100,7 @@ A field's type is part of its key, written as a one-character suffix after a col
       "COST:m": "3.50",
       "SPAWN:p": [40, 88],
       "BOSS:b": false,
-      "NAME:s": "Green slime",
+      "NAME:t": "Green slime",
       "DESC:t": "Splits in two when hit by fire.",
       "DROPS:i": [1, 4, 7],
       "WAYPTS:p": [[8, 8], [8, 40]]
@@ -112,8 +112,7 @@ A field's type is part of its key, written as a one-character suffix after a col
 
 | Suffix | Type | Written as | Notes |
 |---|---|---|---|
-| `s` | String | `"Green slime"` | Up to 16 characters. |
-| `t` | Text | `"Splits in two…"` | Up to 256 characters. |
+| `t` | Text | `"Green slime"` | Up to 256 characters. |
 | `i` | Int | `12` | |
 | `d` | Decimal | `1.25` | |
 | `m` | Money | `"3.50"` | Quoted and always two decimals, so trailing zeros survive the round trip. |
@@ -122,7 +121,7 @@ A field's type is part of its key, written as a one-character suffix after a col
 
 Any field can hold an array of its own type in place of a single value — `"DROPS:i": [1, 4, 7]`. Arrays are homogeneous.
 
-Names of groups, objects and fields all obey one rule: at most 8 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing matters because [`print`](#graphics) draws everything upper-case, so `hp` and `HP` would be two different keys that look identical on screen. String and Text *values* keep the case you type.
+Names of groups, objects and fields all obey one rule: at most 8 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing matters because [`print`](#graphics) draws everything upper-case, so `hp` and `HP` would be two different keys that look identical on screen. Text *values* keep the case you type.
 
 | Limit | Value |
 |---|---|
@@ -143,7 +142,7 @@ Every data file ships **empty**, `data.json` included, so the demo's data panel 
 {
   "DEMO": {
     "PLAYER": {
-      "NAME:s": "MONO8 TUTORIAL",
+      "NAME:t": "MONO8 TUTORIAL",
       "DESC:t": "The data is the tutorial too.",
       "SPEED:i": 70,
       "SCALE:d": 0.7,
@@ -352,7 +351,7 @@ Reads and writes the data authored in [`data.json`](#datajson).
 
 Names match without regard to case, so `gjson("enemy", "slime")` and `gjson("ENEMY", "SLIME")` are the same object. The lookup is two dictionary hits and allocates nothing, so calling it from `Update` every frame is fine.
 
-`sjson` takes one overload per type, and the compiler picks it from the value you pass — `20` writes an Int field, `1.5` a Decimal, `3.50m` a Money, `true` a Bool, `"text"` a String or Text, and `(40, 88)` a PosXY. Passing the wrong type for the field returns `false` and changes nothing rather than converting. It never creates a field, and the write lands **in memory only**: `data.json` is authored in the editor, and a running game does not rewrite its own data.
+`sjson` takes one overload per type, and the compiler picks it from the value you pass — `20` writes an Int field, `1.5` a Decimal, `3.50m` a Money, `true` a Bool, `"text"` a Text, and `(40, 88)` a PosXY. Passing the wrong type for the field returns `false` and changes nothing rather than converting. It never creates a field, and the write lands **in memory only**: `data.json` is authored in the editor, and a running game does not rewrite its own data.
 
 ```csharp
 var slime = API.gjson("ENEMY", "SLIME");
@@ -372,13 +371,13 @@ The object it returns holds every value already parsed into its runtime type, so
 | `GetDec` | `double` | Reads a Decimal field. |
 | `GetMoney` | `decimal` | Reads a Money field. |
 | `GetBool` | `bool` | Reads a Bool field. |
-| `GetStr` | `string` | Reads a String or a Text field. |
+| `GetStr` | `string` | Reads a Text field. |
 | `GetXY` | `(int x, int y)` | Reads a PosXY field. `(0, 0)` when there is nothing to read. |
 | `IntArray` | `ReadOnlySpan<int>` | A view straight onto an Int field's items — no copy. Empty on a missing or mismatched field. |
 | `DecArray` | `ReadOnlySpan<double>` | The same for a Decimal field. |
 | `BoolArray` | `ReadOnlySpan<bool>` | The same for a Bool field. |
 | `Has` | `bool` | True when the object declares that field. |
-| `TypeOf` | `DataValueType` | The field's declared type (`String` for a field that is not there). |
+| `TypeOf` | `DataValueType` | The field's declared type (`Text` for a field that is not there). |
 | `IsArray` | `bool` | True when the field was authored as a list. |
 | `Count` | `int` | Items in the field: `1` for a scalar, `0` when the field is not there. |
 
@@ -539,7 +538,7 @@ Selected via the tool row (left of the layer buttons). The selected sprite's num
 | Select | Drag from one cell to another to mark an area. The area stays highlighted with an animated marching-ants border until you right-click to cancel, pick another tool, or leave the editor. With a selection active: `Del` clears it, `Ctrl+C` copies it, `Ctrl+X` cuts it (copy then clear, as a single undo step), and `Ctrl+V` pastes the copied tiles at the selection's top-left. |
 | Hand | Drag to pan the map viewport with the mouse. |
 
-Map edits support undo/redo with `Ctrl+Z` / `Ctrl+Shift+Z` (up to 50 steps; history is cleared when a cart is loaded).
+Map edits support undo/redo with `Ctrl+Z` / `Ctrl+Shift+Z`, up to 50 steps.
 
 ### Sprite Navigator
 
@@ -556,6 +555,10 @@ The current zoom level is always shown on the bottom bar, immediately left of th
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project. |
+| `Ctrl+Z` | Undo (available when there is a change to undo). |
+| `Ctrl+Shift+Z` | Redo (available when there is a change to redo). |
+| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copies / cuts / pastes the active selection (Select tool only). |
+| `Delete` | Clears the active selection (Select tool only). |
 | `Arrow Left/Right/Up/Down` | Pans the map viewport by one tile in that direction, repeating while held. |
 | `Ctrl` + `Arrow Left/Right/Up/Down` | Pans the map viewport by 8 tiles in that direction, repeating while held. |
 
@@ -638,10 +641,10 @@ One row block per field: the key name, a one-character type badge, and the value
 
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
-- **Hover the badge** to read the type out in full on the bottom bar — `STRING`, `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. A `PosXY` badge also shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
+- **Hover the badge** to read the type out in full on the bottom bar — `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. `Text` also carries its cap (`TEXT MAX 256`), and a `PosXY` badge shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
 - **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn in **red** and holds back `Ctrl+S` until you fix it, since writing it out would produce a file that will not load. The bottom bar names the first offender as `ERROR ON GROUP/OBJECT/KEY` and the editor jumps straight to it.
 - **Arrays**: `[ARR]` switches the selected field between one value and a list of them, and each item gets its own numbered row. `[+ITM]` appends and `[-ITM]` removes the selected item. Collapsing an array back to a single value keeps item `0` and says `KEEP 1`; an array never empties below one item.
-- **`[+KEY]`** prompts for a name and creates the field as a `String`; a name already used in that object is refused with `DUP KEY`.
+- **`[+KEY]`** prompts for a name and creates the field as a `Text`; a name already used in that object is refused with `DUP KEY`, and an object already holding 16 fields with `MAX KEY`.
 
 **Renaming** works the same in both panels: `[REN]`, the `R` key, or a **double click on the name itself** — a single click there only selects, so the second one is what opens the field. In the tree `Enter` renames too; in the inspector `Enter` belongs to the value, so a key is renamed with `R` or a double click. A name a sibling already uses is refused with `DUP NAME` in the tree and `DUP KEY` in the inspector.
 
