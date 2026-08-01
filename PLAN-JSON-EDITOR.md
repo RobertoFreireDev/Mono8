@@ -331,7 +331,8 @@ x  4..35   name, 8 chars × 4 px = 32 px
   (16 groups + up to 1024 objects = 1040 rows worst case), mouse wheel via
   `InputBinding.ScrollUp/ScrollDown`, plus the `ScrollBar` widget (§5.2), plus
   `EnsureVisible()` on selection change — same idea as `MusicEditor.EnsureCellVisible`.
-- **Rename**: `Enter` or `[REN]` opens a `TextField` (§5.3) in place, gated by §1.3.
+- **Rename**: `Enter`, `R`, `[REN]` or a double click on the row's name opens a `TextField`
+  (§5.3) in place, gated by §1.3.
 - **Create/delete**: `[+GRP]` appends a group; `[+OBJ]` appends an object to the selected
   group (or to the parent group of the selected object); `[DEL]` removes the selected node
   after a `HOLD DEL` confirm-by-second-press (no modal dialogs exist in the project).
@@ -370,6 +371,8 @@ Wrapping is word-wrap with hard-break fallback for a 40+ char run. The block hei
   to the next row.
 - **Changing a type** re-validates every item. A value that no longer fits is **kept and drawn
   in `Red`**, never silently dropped, and blocks the save with an `ERROR ON GROUP/OBJECT/KEY` toast.
+- **Renaming a key**: `R`, `[REN]` or a double click on the key name — a single click there
+  only selects, so the second one opens the `TextField`.
 - **Create/delete**: `[+KEY]` prompts for a name (validated + dup-checked → `DUP KEY`) and
   creates it as `String` with `DataValue.Default`; `[DEL]` removes the selected field;
   `[ARR]` toggles the selected field between scalar and array (collapsing to array keeps
@@ -386,7 +389,8 @@ inspector focused  [+KEY] [REN] [DEL] [ARR] [+ITM] [-ITM]
 ```
 
 `Ctrl+S` → `Mono8Game.GameAPI.Save()` + `eventNotifier.AddEvent("SAVED")`, exactly as
-`MusicEditor.cs:112-116`. `Tab` moves focus between panels.
+`MusicEditor.cs:112-116`. `Tab` moves focus between panels. `R` is `[REN]`'s shortcut in both
+panels — bare only, since `Ctrl+R` runs the game.
 
 ## 3.5 Shared widgets
 

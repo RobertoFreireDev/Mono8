@@ -48,6 +48,7 @@ internal sealed class JsonEditor : IEditor
     private const int ActionH = 9;
 
     private const float DeleteArmSeconds = 2f;
+    private const float DoubleClickSeconds = 0.4f;
 
     private static readonly int TypeCount = Enum.GetValues<DataValueType>().Length;
 
@@ -93,6 +94,9 @@ internal sealed class JsonEditor : IEditor
     private object _deleteArmed;
     private float _deleteArmLeft;
 
+    private object _clickTarget;       // the node or field the last name click landed on
+    private float _clickLeft;
+
     public JsonEditor(IMono8API api)
     {
         _api = api;
@@ -129,6 +133,12 @@ internal sealed class JsonEditor : IEditor
         {
             _deleteArmLeft -= elapsedSeconds;
             if (_deleteArmLeft <= 0f) _deleteArmed = null;
+        }
+
+        if (_clickLeft > 0f)
+        {
+            _clickLeft -= elapsedSeconds;
+            if (_clickLeft <= 0f) _clickTarget = null;
         }
 
         RebuildRows();
@@ -241,10 +251,12 @@ internal sealed class JsonEditor : IEditor
         {
             group.Collapsed = !group.Collapsed;
             _selected = group;
+            _clickTarget = null;   // folding is not half of a rename
             return;
         }
 
         SelectRow(row);
+        if (IsDoubleClick(obj ?? (object)group)) BeginNodeRename();
     }
 
     /// <summary>
@@ -310,6 +322,13 @@ internal sealed class JsonEditor : IEditor
                 Sheet.SetType(field, (DataValueType)type);
                 return;
             }
+
+            // A single click on the name only selects the key, so the second one opens its rename.
+            if (left && mouse.x < BadgeX && IsDoubleClick(field))
+            {
+                BeginKeyRename();
+                return;
+            }
         }
 
         if (!left || mouse.x < ValueColumnX(field)) return;
@@ -336,6 +355,14 @@ internal sealed class JsonEditor : IEditor
         if (KeybrdInput.JustPressed(Keys.Tab))
         {
             _focus = _focus == Panel.Tree ? Panel.Inspector : Panel.Tree;
+            return;
+        }
+
+        // [REN]'s shortcut. Ctrl+R runs the game, so only a bare R renames.
+        if (KeybrdInput.NoModifiersPressed() && KeybrdInput.JustPressed(Keys.R))
+        {
+            if (_focus == Panel.Tree) BeginNodeRename();
+            else BeginKeyRename();
             return;
         }
 
@@ -399,7 +426,7 @@ internal sealed class JsonEditor : IEditor
         "+GRP" => "NEW GROUP",
         "+OBJ" => "NEW OBJECT",
         "+KEY" => "NEW KEY",
-        "REN" => "RENAME",
+        "REN" => "RENAME [R]",
         "DEL" => "DELETE",
         "ARR" => "SCALAR / ARRAY",
         "+ITM" => "ADD ITEM",
@@ -583,6 +610,20 @@ internal sealed class JsonEditor : IEditor
         _deleteArmLeft = DeleteArmSeconds;
         _events.AddEvent("HOLD DEL");
         return false;
+    }
+
+    /// <summary>
+    /// True when this click repeats the last one on the same target soon enough to read as a double
+    /// click. Either way the target becomes what the next click is measured against, so a third
+    /// click starts a fresh pair rather than renaming again.
+    /// </summary>
+    private bool IsDoubleClick(object target)
+    {
+        bool again = _clickLeft > 0f && ReferenceEquals(_clickTarget, target);
+
+        _clickTarget = again ? null : target;
+        _clickLeft = again ? 0f : DoubleClickSeconds;
+        return again;
     }
 
     /// <summary>First unused <c>G1</c>..<c>G16</c> / <c>O1</c>..<c>O64</c>, so a new node is never invalid.</summary>
