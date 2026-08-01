@@ -1,0 +1,25 @@
+{
+  "ROOMS": {
+    "1": {
+      "FLAGPOS:p": [128, 125]
+    }
+  },
+  "PLAYER": {
+    "STATS": {
+      "SPR:i": 8,
+      "HITPOS:p": [0, 0],
+      "HITSIZE:p": [8, 8],
+      "SPEED:d": 60,
+      "GRAVITY:d": 450,
+      "JUMP:d": 130,
+      "MAXFALL:d": 200
+    }
+  },
+  "ANIM": {
+    "FLAG": {
+      "ID:t": ["4", "5", "6", "7"],
+      "SPEED:i": 4,
+      "MODE:t": "FW"
+    }
+  }
+}

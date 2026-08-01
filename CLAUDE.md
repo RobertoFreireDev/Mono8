@@ -1,6 +1,6 @@
 # Mono8 — Agent Guide
 
-Mono8 is a PICO-8 style fantasy console built on MonoGame (.NET 8). The repo contains **two things**:
+Mono8 is a PICO-8 game engine built on MonoGame (.NET 8). The repo contains **two things**:
 
 1. **The engine** — everything under [src/](src/) except [src/game/](src/game/). Editors, renderer, audio, file formats. **Off limits.**
 2. **The game** — [src/game/](src/game/). This is the only place game code lives, and the only place you write.
