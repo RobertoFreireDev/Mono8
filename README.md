@@ -136,26 +136,9 @@ Your game reads it with [`gjson`](#json-data). Author it in the [JSON Editor](#j
 
 ## Running Your Game
 
-Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`). It ships with a commented demo — a player you move with the arrow keys, a particle burst on `C`, and a `DEMO/PLAYER` object read out of [`data.json`](#json-data) with `V` writing a value of every type back into it. Delete the body of `Draw` to start from scratch.
+Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs). It ships as an empty skeleton with the three methods the engine calls: `Init()` once before the first frame, `Update(elapsedSeconds)` once per frame for logic, and `Draw()` once per frame for drawing. Everything the engine can do is on the `API` object — see the [API Reference](#api-reference).
 
-Every data file ships **empty**, `data.json` included, so the demo's data panel reads `NO DEMO/PLAYER` in red until you author that object. Everything else falls back cleanly — the player starts centred and moves at 70 px/s, and the title subtitle reads `THE CODE IS THE TUTORIAL`. To see the data half of the demo, build the object in the [JSON Editor](#json-editor) or paste this into `data/data.json`:
-
-```json
-{
-  "DEMO": {
-    "PLAYER": {
-      "NAME:t": "MONO8 TUTORIAL",
-      "DESC:t": "The data is the tutorial too.",
-      "SPEED:i": 70,
-      "SCALE:d": 0.7,
-      "COST:m": "7.00",
-      "SOLID:b": false,
-      "START:p": [128, 72],
-      "COLORS:i": [8, 12, 14, 7]
-    }
-  }
-}
-```
+Every data file ships **empty**, `data.json` included, so author your sprites, map, sounds and data in the editors first and read them back with [`spr`](#graphics), [`map`](#map), [`sfx`](#audio) and [`gjson`](#json-data).
 
 | Key | Description |
 |---|---|
