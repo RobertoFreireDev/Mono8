@@ -436,16 +436,27 @@ internal sealed class JsonEditor : IEditor
     /// <summary>
     /// What the one-character type badge stands for. PosXY says more than its name because its
     /// shape — two ints and a comma — is the one thing here that a name alone does not give away:
-    /// the position it already holds if that reads back, and an example if it does not.
+    /// the position it already holds if that reads back, and an example if it does not. String and
+    /// Text differ only in how much they hold, so each carries its cap — otherwise the pair reads
+    /// as two names for the same thing until an entry stops taking characters.
     /// </summary>
     private static string TypeHint(JsonField field, int item)
     {
         string label = TypeLabel(field.Type);
-        if (field.Type != DataValueType.PosXY) return label;
+        switch (field.Type)
+        {
+            case DataValueType.String:
+            case DataValueType.Text:
+                return label + " MAX " + DataValue.MaxLength(field.Type);
 
-        return JsonSheet.IsValid(field, item)
-            ? label + " " + field.Values[item]
-            : label + " EG 40,88";
+            case DataValueType.PosXY:
+                return JsonSheet.IsValid(field, item)
+                    ? label + " " + field.Values[item]
+                    : label + " EG 40,88";
+
+            default:
+                return label;
+        }
     }
 
     private static string TypeLabel(DataValueType type) => type switch
