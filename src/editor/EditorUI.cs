@@ -33,12 +33,19 @@ internal static class EditorUI
     }
 
     /// <summary>
-    /// Word-wraps <paramref name="s"/> to <paramref name="columns"/> characters, breaking mid-word
-    /// only for a run that cannot fit a line on its own. Each line is returned as its
-    /// <c>(Start, Length)</c> inside <paramref name="s"/> rather than as a substring, which is what
-    /// lets a caret be turned into a line and a column and back: the spaces a break swallowed are
-    /// still between one line's end and the next line's start, so no index is ever lost. Always
-    /// returns at least one span.
+    /// Lays <paramref name="s"/> out over lines of <paramref name="columns"/> characters, cut on
+    /// the count rather than between words. Each line is returned as its <c>(Start, Length)</c>
+    /// inside <paramref name="s"/> rather than as a substring, which is what lets a caret be turned
+    /// into a line and a column and back.
+    /// <para>
+    /// The spans are contiguous and cover the string whole, so every character — a space on a break
+    /// included — holds a cell of its own and the lines read as the one string they are: a
+    /// character typed anywhere pushes every character after it along by one cell, wrapping the end
+    /// of each line onto the next, and a deleted one pulls them all back the same way. Word-wrap
+    /// cannot do that, because the space it breaks on has nowhere to be drawn and a single
+    /// character inserted early on throws whole words across a line at a time.
+    /// </para>
+    /// Always returns at least one span.
     /// </summary>
     public static List<(int Start, int Length)> WrapSpans(string s, int columns)
     {
@@ -49,26 +56,7 @@ internal static class EditorUI
             return spans;
         }
 
-        int i = 0;
-        while (i < s.Length)
-        {
-            if (s.Length - i <= columns)
-            {
-                spans.Add((i, s.Length - i));
-                return spans;
-            }
-
-            int space = s.LastIndexOf(' ', i + columns, columns + 1);
-            int take = space > i ? space - i : columns;
-            spans.Add((i, take));
-
-            i += take;
-            while (i < s.Length && s[i] == ' ') i++;
-        }
-
-        // Only reachable when the text ended on the spaces a break swallowed; the line before them
-        // is already in the list, so there is nothing left to add.
-        if (spans.Count == 0) spans.Add((0, 0));
+        for (int i = 0; i < s.Length; i += columns) spans.Add((i, Math.Min(columns, s.Length - i)));
         return spans;
     }
 

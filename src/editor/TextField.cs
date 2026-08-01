@@ -299,8 +299,9 @@ internal sealed class TextField
     }
 
     /// <summary>
-    /// Where the caret sits in the wrapped text. A caret that landed among the spaces a break
-    /// swallowed belongs to the end of the line before them, since that is where it is drawn.
+    /// Where the caret sits in the wrapped text: the last line that starts at or before it, and how
+    /// far into that line it is. A caret at the very end of a line that filled its width has no line
+    /// after it yet, so it stays at that line's end rather than jumping to a line that is not there.
     /// </summary>
     private (int Line, int Column) CaretLineColumn(List<(int Start, int Length)> spans)
     {

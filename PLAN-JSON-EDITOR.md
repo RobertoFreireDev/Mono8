@@ -365,8 +365,9 @@ the badge and the value area are derived from it rather than written down twice.
 | `String` (≤16) | one line, always fits in 39 chars |
 | `Text` (≤256) | **starts on the key's line**, wraps at 39 chars into as many extra 9 px lines as needed (≤ 7) |
 
-Wrapping is word-wrap with hard-break fallback for a 39+ char run. The block height is
-`1 + ceil((len - 39) / 39)` lines for `Text`, 1 otherwise.
+Wrapping cuts on the character count, not between words, so every character — a space on a break
+included — keeps a cell of its own and the lines edit as the one string they are. The block height
+is `ceil(len / 39)` lines for `Text`, 1 otherwise.
 
 - `Bool` draws as a `[TRUE]`/`[FALSE]` `EditorUI.TextButton` — click toggles, no text entry.
 - **Arrays**: the badge shows `[n]` after the type code. The scalar row shows item `0`;
