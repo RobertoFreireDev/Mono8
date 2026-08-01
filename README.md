@@ -1,6 +1,6 @@
 # Mono8
 
-A PICO-8 style game engine built on MonoGame (.NET 8), with built-in sprite, map, SFX and music editors. The screen is 256×144 pixels with a 32-color palette.
+A PICO-8 style game engine built on MonoGame (.NET 8), with built-in sprite, map, SFX, music and JSON data editors. The screen is 256×144 pixels with a 32-color palette.
 
 ## Images
 
@@ -56,7 +56,7 @@ dotnet publish src/mono8.csproj -c Release -r linux-arm64 --self-contained true 
 
 ## Editors
 
-On launch a short splash screen plays, then the Sprite editor opens. The icon buttons at the **top-right of the menu bar** switch between the four editors: **Sprite**, **Map**, **Sfx** and **Music**. The button at the top-left is context-sensitive — it toggles the full-screen map view in the Map editor and the alternate (tracker) view in the SFX editor.
+On launch a short splash screen plays, then the Sprite editor opens. The icon buttons at the **top-right of the menu bar** switch between the five editors: **Sprite**, **Map**, **Sfx**, **Music** and **Json**. The button at the top-left is context-sensitive — it toggles the full-screen map view in the Map editor and the alternate (tracker) view in the SFX editor.
 
 ### Global Keys
 
@@ -127,7 +127,7 @@ Names of groups, objects and fields all obey one rule: at most 8 characters, uni
 | Fields per object | 16 |
 | Array items | 64 |
 
-There is no editor for this file yet, so write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk.
+Author it in the [JSON Editor](#json-editor) or write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk.
 
 ## Running Your Game
 
@@ -550,3 +550,43 @@ A pattern bank where each pattern plays up to four SFX at once, one per channel.
 | `0`-`9` | When an octave/waveform/volume/effect part is selected, sets that part's value. |
 
 Left-click a note cell to select it (and the part clicked); right-click a note cell to clear it.
+
+## JSON Editor
+
+Edits [`data.json`](#datajson) — the group → object → field tree your game reads with `gjson`. The screen is split in two: a **tree** of groups and objects on the left, and an **inspector** showing the selected object's keys and values on the right. The action row above the bottom bar follows whichever panel has focus, and `Tab` moves focus between them.
+
+### Tree
+
+Groups and objects are **not indented** — they are told apart by the fold marker and the text colour. A group is white with a `+`/`-` marker; an object is light grey with none.
+
+- **Select** by clicking a row or with `Up`/`Down`. Clicking an **object** is what repaints the inspector; clicking a group selects it for rename or delete and leaves the inspector alone, so an orange mark on the right edge of a row shows which object is still on display.
+- **Collapse/expand** a group by clicking its marker, or with `Left`/`Right` while it is selected. The fold state is per session and is never written to the file.
+- **`[+GRP]`** appends a group and **`[+OBJ]`** appends an object to the selected group (or to the group of the selected object), each named with the first free `G1`-`G16` / `O1`-`O64`, so a new node is never invalid. Past the limits you get a `MAX GRP` / `MAX OBJ` notice.
+
+### Inspector
+
+One row block per field: the key name, a one-character type badge, and the value. Everything fits on the key's line except a `Text` value, which wraps at 40 characters into as many extra lines as it needs and pushes the fields below it down.
+
+- **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
+- **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
+- **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn in **red** and holds back `Ctrl+S` with a `BAD VAL` notice until you fix it, since writing it out would produce a file that will not load.
+- **Arrays**: `[ARR]` switches the selected field between one value and a list of them, and each item gets its own numbered row. `[+ITM]` appends and `[-ITM]` removes the selected item. Collapsing an array back to a single value keeps item `0` and says `KEEP 1`; an array never empties below one item.
+- **`[+KEY]`** prompts for a name and creates the field as a `String`; a name already used in that object is refused with `DUP KEY`.
+
+Names of groups, objects and keys are all capped at 8 characters, upper-cased as you type them, and cannot contain `:` `,` `"` `\` or a space — see [data.json](#datajson) for why.
+
+**Deleting** anything takes two presses: the first arms `[DEL]` and shows `HOLD DEL`, the second within a couple of seconds carries it out. There is no undo.
+
+Both panels scroll with the mouse wheel and with their own scrollbars, and the selection is always scrolled into view.
+
+### JSON Editor Hotkeys
+
+| Key | Description |
+|---|---|
+| `Ctrl+S` | Saves the project, unless a value is invalid (`BAD VAL`). |
+| `Tab` | Moves focus between the tree and the inspector; while editing, commits and moves to the next row. |
+| `Up`/`Down` | Moves the selection within the focused panel. |
+| `Left`/`Right` | Collapses/expands the selected group. |
+| `Enter` | Renames the selected group or object; in the inspector, edits the selected value (or toggles a `Bool`). |
+| `Esc` | Cancels the edit in progress and restores the previous value. |
+| `Delete` | Deletes the selected node — press twice to confirm. |

@@ -238,6 +238,7 @@ internal class MapEditor : IEditor, IAutotileGrid
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
+        if (Mono8API.MenuBar.HoverLabel != null) eventNotifier.SetHover(Mono8API.MenuBar.HoverLabel);
 
         antsElapsed += elapsedSeconds;
         while (antsElapsed >= AntsFrameSeconds)

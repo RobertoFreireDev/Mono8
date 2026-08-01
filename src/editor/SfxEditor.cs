@@ -151,6 +151,7 @@ internal class SfxEditor : IEditor
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
+        if (Mono8API.MenuBar.HoverLabel != null) eventNotifier.SetHover(Mono8API.MenuBar.HoverLabel);
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {

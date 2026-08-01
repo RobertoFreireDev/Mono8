@@ -15,6 +15,12 @@ internal class EditorMenuBar
 
     public Rectangle Bounds { get; }
 
+    /// <summary>
+    /// Name of the bar button under the cursor, or null. The bar is shared by every editor, so
+    /// the active editor picks this up in its own Update and hands it to its event notifier.
+    /// </summary>
+    public string HoverLabel { get; private set; }
+
     public EditorMenuBar(IMono8API api, EditorRegistry registry)
     {
         _api = api;
@@ -38,6 +44,8 @@ internal class EditorMenuBar
     {
         var mouse = _api.mousexy();
 
+        HoverLabel = HoverLabelAt(mouse);
+
         if (_registry.Active is MapEditor mapEditor && _mapViewToggle.IsClicked(_api, mouse))
         {
             mapEditor.FullMapView = !mapEditor.FullMapView;
@@ -58,6 +66,21 @@ internal class EditorMenuBar
                 break;
             }
         }
+    }
+
+    // The two view toggles share the same spot and only one of them is on screen at a time, so
+    // each is only a candidate while its own editor is active.
+    private string HoverLabelAt((int x, int y) mouse)
+    {
+        if (_registry.Active is MapEditor && _mapViewToggle.Bounds.Contains(mouse.x, mouse.y)) return "MAP VIEW";
+        if (_registry.Active is SfxEditor && _sfxViewToggle.Bounds.Contains(mouse.x, mouse.y)) return "SFX VIEW";
+
+        for (int i = 0; i < _buttons.Length; i++)
+        {
+            if (_buttons[i].Bounds.Contains(mouse.x, mouse.y)) return _registry.Entries[i].Label.ToUpperInvariant();
+        }
+
+        return null;
     }
 
     public void Draw()

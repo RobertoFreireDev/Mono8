@@ -11,11 +11,14 @@ internal class Mono8API : IEditorAPI
     public static MapSheet MapSheet = new MapSheet();
     public static JsonSheet JsonSheet = new JsonSheet();
     private static string _folder = Constants.File.Folder;
-    private EditorMenuBar _menuBar;
+    // Static because every editor reads its hover label off the shared bar.
+    public static EditorMenuBar MenuBar;
     private YourGame _game;
     private bool _playingGame;
 
     public bool IsPlayingGame => _playingGame;
+
+    private const int JsonEditorIcon = 65;
 
     public Mono8API()
     {
@@ -24,7 +27,8 @@ internal class Mono8API : IEditorAPI
         Editors.Register(new MapEditor(this), 16, "Map");
         Editors.Register(new SfxEditor(this), 17, "Sfx");
         Editors.Register(new MusicEditor(this), 18, "Music");
-        _menuBar = new EditorMenuBar(this, Editors);
+        Editors.Register(new JsonEditor(this), JsonEditorIcon, "Json");
+        MenuBar = new EditorMenuBar(this, Editors);
         _game = new YourGame(this);
     }
 
@@ -106,7 +110,7 @@ internal class Mono8API : IEditorAPI
                 }
                 else
                 {
-                    _menuBar.Update();
+                    MenuBar.Update();
                     Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
                 }
             }
@@ -131,7 +135,7 @@ internal class Mono8API : IEditorAPI
             else
             {
                 Editors.Active.Draw();
-                _menuBar.Draw();
+                MenuBar.Draw();
             }
 
             camera(0, 0);

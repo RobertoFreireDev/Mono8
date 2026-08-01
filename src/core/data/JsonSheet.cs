@@ -293,6 +293,75 @@ internal sealed class JsonSheet
         IsDirty = true;
     }
 
+    /// <summary>
+    /// Re-declares a field's type, keeping every value exactly as it is. A value that does not read
+    /// as the new type is deliberately left alone rather than dropped or defaulted: it is the user's
+    /// data, the editor draws it in red, and <see cref="TryFindInvalid"/> holds the save back until
+    /// it is dealt with.
+    /// </summary>
+    public void SetType(JsonField field, DataValueType type)
+    {
+        if (field == null || field.Type == type) return;
+
+        field.Type = type;
+        IsDirty = true;
+    }
+
+    /// <summary>
+    /// Switches a field between one value and a list of them. Collapsing keeps item 0 and returns
+    /// true when that dropped anything, so the editor can say so.
+    /// </summary>
+    public bool SetIsArray(JsonField field, bool isArray)
+    {
+        if (field == null || field.IsArray == isArray) return false;
+
+        field.IsArray = isArray;
+        IsDirty = true;
+
+        if (isArray || field.Values.Count <= 1) return false;
+
+        field.Values.RemoveRange(1, field.Values.Count - 1);
+        return true;
+    }
+
+    /// <summary>True when the slot holds something that reads back as the field's declared type.</summary>
+    public static bool IsValid(JsonField field, int index)
+    {
+        if (field == null || index < 0 || index >= field.Values.Count) return false;
+        return DataValue.TryNormalize(field.Type, field.Values[index], out _);
+    }
+
+    /// <summary>
+    /// The first value in the sheet that no longer reads as its field's type — the one thing that
+    /// stops the editor saving, since writing it out would produce a file that will not load back.
+    /// </summary>
+    public bool TryFindInvalid(out JsonObject obj, out JsonField field, out int index)
+    {
+        foreach (var g in _groups)
+        {
+            foreach (var o in g.Objects)
+            {
+                foreach (var f in o.Fields)
+                {
+                    for (int i = 0; i < f.Values.Count; i++)
+                    {
+                        if (IsValid(f, i)) continue;
+
+                        obj = o;
+                        field = f;
+                        index = i;
+                        return true;
+                    }
+                }
+            }
+        }
+
+        obj = null;
+        field = null;
+        index = -1;
+        return false;
+    }
+
     // ── Serializer ────────────────────────────────────────────────────────────
 
     /// <summary>

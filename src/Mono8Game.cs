@@ -70,6 +70,7 @@ public class Mono8Game : Game
             SurfaceFormat.Color,
             DepthFormat.None);
         Text.GetCharacterTextures(GraphicsDevice);
+        TextEntry.Attach(Window);
         LoadFiles();
     }
 

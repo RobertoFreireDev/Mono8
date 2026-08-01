@@ -355,8 +355,9 @@ internal class SpriteEditor : IEditor
         }
 
         // Read-only pass over every control, kept out of the click chain below because the palette
-        // takes its own branch there and never reaches UpdateSideButtons.
-        string controlLabel = HoverLabelAt(mouse);
+        // takes its own branch there and never reaches UpdateSideButtons. The shared menu bar sits
+        // above everything here, so it gets asked first.
+        string controlLabel = Mono8API.MenuBar.HoverLabel ?? HoverLabelAt(mouse);
         if (controlLabel != null) eventNotifier.SetHover(controlLabel);
 
         hoverLabel = null;
