@@ -26,9 +26,16 @@ public static class DataValue
 {
     private const int IntChars = 11;     // -2147483648
     private const int DecimalChars = 24; // round-trip double, e.g. -1.7976931348623157E+308
-    private const int MoneyChars = 20;
+    private const int MoneyChars = 20;   // -9999999999999999.99
     private const int PosXYChars = 23;   // -2147483648,-2147483648
     private const int BoolChars = 5;     // "false"
+
+    /// <summary>
+    /// The largest magnitude Money holds. Every other type's range is the range of the .NET type
+    /// behind it, and each character cap above is exactly the widest form its range can print to —
+    /// so a value clamped by <see cref="TryNormalize"/> always fits back in the field it came from.
+    /// </summary>
+    private const decimal MoneyLimit = 9999999999999999.99m;
 
     /// <summary>Longest raw entry accepted for <paramref name="type"/>, in characters.</summary>
     public static int MaxLength(DataValueType type) => type switch
@@ -42,52 +49,105 @@ public static class DataValue
     };
 
     /// <summary>
-    /// True when <paramref name="c"/> may be appended to <paramref name="current"/> in a field of
-    /// <paramref name="type"/>. This is the per-keystroke gate: it is what stops a second '.' in a
-    /// Money field or a third decimal digit, before anything reaches <see cref="TryNormalize"/>.
+    /// True when <paramref name="c"/> may be inserted into <paramref name="current"/> at
+    /// <paramref name="caret"/> in a field of <paramref name="type"/>. This is the per-keystroke
+    /// gate: it is what stops a second '.' in a Money field or a third decimal digit, before
+    /// anything reaches <see cref="TryNormalize"/>.
+    /// <para>
+    /// Where the caret is matters, because a value is edited in the middle and not only at its end:
+    /// a '-' belongs at the front of a number and nowhere else, and a ',' typed before the x of a
+    /// PosXY would leave it without one. So what is tested is the whole entry the keystroke would
+    /// produce, rather than the character on its own.
+    /// </para>
     /// </summary>
-    public static bool IsCharAllowed(DataValueType type, char c, string current)
+    public static bool IsCharAllowed(DataValueType type, char c, string current, int caret)
     {
         current ??= string.Empty;
         if (current.Length >= MaxLength(type)) return false;
         if (!Text.IsValidChar(c)) return false;
 
+        return IsPartial(type, current.Insert(Math.Clamp(caret, 0, current.Length), c.ToString()));
+    }
+
+    /// <summary>
+    /// True when <paramref name="s"/> is an entry of <paramref name="type"/> or the start of one.
+    /// Half-typed entries have to pass — <c>-</c>, <c>1.</c> and <c>8,</c> are each on the way to
+    /// something valid — so this is deliberately weaker than <see cref="TryNormalize"/>: it says
+    /// what may still be typed, not what may be stored.
+    /// </summary>
+    private static bool IsPartial(DataValueType type, string s)
+    {
         switch (type)
         {
             case DataValueType.Text:
                 return true;
 
             case DataValueType.Int:
-                return char.IsDigit(c) || (c == '-' && current.Length == 0);
+                return IsPartialInt(s);
 
             case DataValueType.Decimal:
-                if (c == '-') return current.Length == 0;
-                if (c == '.') return current.IndexOf('.') < 0;
-                return char.IsDigit(c);
+                return IsPartialNumber(s, -1);
 
             case DataValueType.Money:
-                if (c == '-') return current.Length == 0;
-                if (c == '.') return current.IndexOf('.') < 0;
-                if (!char.IsDigit(c)) return false;
-                int dot = current.IndexOf('.');
-                return dot < 0 || current.Length - dot - 1 < 2;
+                return IsPartialNumber(s, 2);
 
             case DataValueType.PosXY:
-                int comma = current.IndexOf(',');
+                int comma = s.IndexOf(',');
+                if (comma < 0) return IsPartialInt(s);
+
                 // ',' closes the x part, so it needs an x to close and may only appear once.
-                if (c == ',') return comma < 0 && current.Length > 0 && current != "-";
-                if (c == '-') return current.Length == 0 || comma == current.Length - 1;
-                return char.IsDigit(c);
+                string x = s.Substring(0, comma);
+                return x.Length > 0 && x != "-"
+                    && s.IndexOf(',', comma + 1) < 0
+                    && IsPartialInt(x)
+                    && IsPartialInt(s.Substring(comma + 1));
 
             default:
-                return false; // Bool is toggled, never typed.
+                return s.Length == 0;   // Bool is toggled, never typed.
         }
+    }
+
+    /// <summary>An optional leading '-' and then digits, with any number of either still to come.</summary>
+    private static bool IsPartialInt(string s)
+    {
+        for (int i = s.Length > 0 && s[0] == '-' ? 1 : 0; i < s.Length; i++)
+        {
+            if (!char.IsDigit(s[i])) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The same, plus at most one '.' — and at most <paramref name="maxDecimals"/> digits after it
+    /// when that is not negative.
+    /// </summary>
+    private static bool IsPartialNumber(string s, int maxDecimals)
+    {
+        int dot = -1;
+        for (int i = s.Length > 0 && s[0] == '-' ? 1 : 0; i < s.Length; i++)
+        {
+            if (s[i] == '.')
+            {
+                if (dot >= 0) return false;
+                dot = i;
+                continue;
+            }
+            if (!char.IsDigit(s[i])) return false;
+        }
+
+        return maxDecimals < 0 || dot < 0 || s.Length - dot - 1 <= maxDecimals;
     }
 
     /// <summary>
     /// Turns a raw entry into its stored form: <c>5</c> becomes <c>5.00</c> for Money, leading
-    /// zeros disappear from an Int, <c>8 , 40</c> becomes <c>8,40</c>. Returns false when the entry
-    /// cannot be read as <paramref name="type"/> at all, in which case the caller keeps the old value.
+    /// zeros disappear from an Int, <c>8 , 40</c> becomes <c>8,40</c>, and surrounding spaces come
+    /// off every type. Returns false when the entry cannot be read as <paramref name="type"/> at
+    /// all, in which case the caller keeps the old value.
+    /// <para>
+    /// A number that reads as its type but falls outside its range is clamped to the nearest edge
+    /// rather than refused. A hand-edited <c>99999999999</c> is an Int the file cannot hold, not an
+    /// entry that failed to be one, and the nearest Int says more than putting the old value back.
+    /// </para>
     /// <para>
     /// Text is sanitised and truncated rather than rejected — a value is data, and clipping a
     /// hand-edited over-long string loses less than dropping the whole field would.
@@ -101,35 +161,35 @@ public static class DataValue
         switch (type)
         {
             case DataValueType.Text:
-                string clean = Text.Sanitize(raw);
+                string clean = Text.Sanitize(raw).Trim();
                 int max = MaxLength(type);
                 normalized = clean.Length > max ? clean.Substring(0, max) : clean;
                 return true;
 
             case DataValueType.Int:
-                if (!int.TryParse(raw.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int i))
-                    return false;
+                if (!TryReadInt(raw, out int i)) return false;
                 normalized = i.ToString(CultureInfo.InvariantCulture);
                 return true;
 
             case DataValueType.Decimal:
                 if (!double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double d)
-                    || double.IsNaN(d) || double.IsInfinity(d))
+                    || double.IsNaN(d))
                     return false;
+
+                // Overflow parses as an infinity, which has no stored form. The edge of the range has.
+                if (double.IsInfinity(d)) d = d > 0 ? double.MaxValue : double.MinValue;
                 normalized = d.ToString("R", CultureInfo.InvariantCulture);
                 return true;
 
             case DataValueType.Money:
-                if (!decimal.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out decimal m))
-                    return false;
-                normalized = Math.Round(m, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture);
+                if (!TryReadMoney(raw, out decimal m)) return false;
+                normalized = m.ToString("0.00", CultureInfo.InvariantCulture);
                 return true;
 
             case DataValueType.PosXY:
                 string[] parts = raw.Split(',');
                 if (parts.Length != 2) return false;
-                if (!int.TryParse(parts[0].Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int x)) return false;
-                if (!int.TryParse(parts[1].Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int y)) return false;
+                if (!TryReadInt(parts[0], out int x) || !TryReadInt(parts[1], out int y)) return false;
                 normalized = x.ToString(CultureInfo.InvariantCulture) + "," + y.ToString(CultureInfo.InvariantCulture);
                 return true;
 
@@ -139,6 +199,50 @@ public static class DataValue
                 if (string.Equals(b, "false", StringComparison.OrdinalIgnoreCase)) { normalized = "false"; return true; }
                 return false;
         }
+    }
+
+    /// <summary>
+    /// Reads a whole number, holding one that is too big for an Int at the edge of the range rather
+    /// than refusing it. Anything that is not a whole number at all — a stray letter, a lone '-', the
+    /// empty half of a PosXY — still fails, because there is no nearest Int to those to hold it at.
+    /// </summary>
+    private static bool TryReadInt(string raw, out int value)
+    {
+        string s = raw.Trim();
+        if (int.TryParse(s, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value)) return true;
+
+        if (!IsPartialInt(s) || !HasDigit(s)) return false;
+        value = s[0] == '-' ? int.MinValue : int.MaxValue;
+        return true;
+    }
+
+    /// <summary>
+    /// The same for Money, which is clamped to <see cref="MoneyLimit"/> and then rounded to the two
+    /// decimals it stores. Clamping comes first so the rounding can never overflow the decimal.
+    /// </summary>
+    private static bool TryReadMoney(string raw, out decimal value)
+    {
+        value = 0m;
+        string s = raw.Trim();
+
+        if (!decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+        {
+            // More digits than a decimal itself can hold. It is still a number, so it still clamps.
+            if (!IsPartialNumber(s, -1) || !HasDigit(s)) return false;
+            value = s[0] == '-' ? -MoneyLimit : MoneyLimit;
+        }
+
+        value = Math.Round(Math.Clamp(value, -MoneyLimit, MoneyLimit), 2, MidpointRounding.AwayFromZero);
+        return true;
+    }
+
+    private static bool HasDigit(string s)
+    {
+        foreach (char c in s)
+        {
+            if (char.IsDigit(c)) return true;
+        }
+        return false;
     }
 
     /// <summary>Display form of a stored value. Only Bool differs: it reads as a word, not a literal.</summary>

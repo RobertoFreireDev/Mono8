@@ -6,11 +6,11 @@ namespace mono8.editor;
 /// enforced — every character is gated by <see cref="DataValue.IsCharAllowed"/> for a value or
 /// <see cref="JsonNames.IsValidNameChar"/> for a name, so a rejected key simply does nothing.
 /// <para>
-/// A Text value opens in multiline mode (<see cref="BeginText"/>), because it is the one kind of
-/// value that wraps: it is laid out with the very same wrap the inspector draws it with, and it
-/// carries a caret the mouse can place and the arrow keys can move, with characters inserted and
-/// deleted where that caret is. Everything else — a name, a number, a position — is single-line
-/// and appends at the end, which is all it ever needed.
+/// Every field carries a caret the mouse can place and the arrow keys can move, with characters
+/// inserted and both deletes taken where that caret is. A Text value opens in multiline mode
+/// (<see cref="BeginText"/>), because it is the one kind of value that wraps: it is laid out with
+/// the very same wrap the inspector draws it with, so its caret moves by line as well. Everything
+/// else — a name, a number, a position — is one line that scrolls sideways under its caret.
 /// </para>
 /// <para>
 /// <c>Enter</c> commits, <c>Tab</c> commits and asks the caller to move on, <c>Esc</c> cancels and
@@ -41,6 +41,7 @@ internal sealed class TextField
 
     private int _columns;      // characters per line while multiline; 0 while the field is single-line
     private int _caret;        // an index into _text, from 0 to its length
+    private int _window;       // first character shown while single-line; the sideways scroll
     private int _clipTop = int.MinValue;
     private int _clipBottom = int.MaxValue;
     private int _leftFrames;
@@ -115,9 +116,9 @@ internal sealed class TextField
 
     /// <summary>
     /// Puts the caret under (<paramref name="x"/>, <paramref name="y"/>) — how a click inside a
-    /// multiline value picks where the next character lands, including the click that opened it.
-    /// The point is clamped onto a line and then into that line, so a click past the last line or
-    /// past the end of a short one still leaves the caret somewhere the text actually has.
+    /// value picks where the next character lands, including the click that opened it. The point is
+    /// clamped onto a line and then into that line, so a click past the last line or past the end of
+    /// a short one still leaves the caret somewhere the text actually has.
     /// </summary>
     public void PlaceCaret(int x, int y) => PlaceCaretIn(x - _bounds.X, y - _bounds.Y);
 
@@ -128,18 +129,31 @@ internal sealed class TextField
     /// </summary>
     public void PlaceCaretIn(int offsetX, int offsetY)
     {
-        if (!Active || _columns <= 0) return;
+        if (!Active) return;
+
+        if (_columns <= 0)
+        {
+            // One line, so only the x matters — measured from the pixel the single-line view insets
+            // its text by, and read against the window rather than the buffer, since a long value
+            // may have been scrolled sideways under the caret.
+            _caret = Math.Clamp(_window + Column(offsetX - 1), 0, _text.Length);
+            _blink = 0;
+            return;
+        }
 
         var spans = EditorUI.WrapSpans(_text, _columns);
         int line = Math.Clamp(offsetY / Text.LineHeight, 0, spans.Count - 1);
-
-        // Round to the nearest gap between characters rather than truncating into one, so the half
-        // of a glyph nearer the next gap puts the caret there — a caret sits between characters.
-        int column = offsetX <= 0 ? 0 : (offsetX + Text.CharAdvance / 2) / Text.CharAdvance;
-
-        SetCaret(spans, line, column);
+        SetCaret(spans, line, Column(offsetX));
         _blink = 0;   // show it where it just landed instead of mid-blink
     }
+
+    /// <summary>
+    /// Which gap between characters <paramref name="offsetX"/> points at. It rounds to the nearest
+    /// gap rather than truncating into a glyph, so the half of a character nearer the next gap puts
+    /// the caret there — a caret sits between characters, not on one.
+    /// </summary>
+    private static int Column(int offsetX) =>
+        offsetX <= 0 ? 0 : (offsetX + Text.CharAdvance / 2) / Text.CharAdvance;
 
     public void Cancel() => Active = false;
 
@@ -177,7 +191,7 @@ internal sealed class TextField
             }
         }
 
-        if (_columns > 0) UpdateCaretKeys();
+        UpdateCaretKeys();
 
         if (KeybrdInput.JustPressed(Keys.Escape))
         {
@@ -218,15 +232,37 @@ internal sealed class TextField
 
         _api.rectfill(_bounds.X, _bounds.Y, _bounds.Right - 1, _bounds.Bottom - 1, Constants.Colors.Indigo);
 
-        // A value can be far longer than the field is wide, so the window follows the caret at the end.
-        int columns = Math.Max(1, (_bounds.Width - 2) / Text.CharAdvance);
-        string shown = _text.Length <= columns ? _text : _text.Substring(_text.Length - columns);
-        _api.print(shown, _bounds.X + 1, _bounds.Y + 1, Constants.Colors.White);
+        ScrollToCaret();
+
+        int columns = SingleLineColumns();
+        _api.print(_text.Substring(_window, Math.Min(columns, _text.Length - _window)),
+            _bounds.X + 1, _bounds.Y + 1, Constants.Colors.White);
 
         if ((_blink / BlinkFrames) % 2 != 0) return;
 
-        int caret = Math.Min(_bounds.X + 1 + Text.Width(shown), _bounds.Right - 1);
+        int caret = Math.Min(_bounds.X + 1 + (_caret - _window) * Text.CharAdvance, _bounds.Right - 1);
         _api.rectfill(caret, _bounds.Y + 1, caret, _bounds.Bottom - 2, CaretColor);
+    }
+
+    /// <summary>Characters of the buffer the single-line view has room for.</summary>
+    private int SingleLineColumns() => Math.Max(1, (_bounds.Width - 2) / Text.CharAdvance);
+
+    /// <summary>
+    /// Slides the single-line window so the caret is always inside it. A value can be far longer
+    /// than the field is wide, and now that the caret walks it, the window follows the caret rather
+    /// than sitting at the end of the text — otherwise arrowing back into a long value would move a
+    /// caret nobody can see.
+    /// </summary>
+    private void ScrollToCaret()
+    {
+        int columns = SingleLineColumns();
+
+        if (_window > _caret) _window = _caret;
+        else if (_caret - _window > columns) _window = _caret - columns;
+
+        // Deleting can leave the window past the end of what is left; it never raises it past the
+        // caret, since it only ever lowers a window that is already at or before it.
+        _window = Math.Clamp(_window, 0, Math.Max(0, _text.Length - columns));
     }
 
     /// <summary>
@@ -260,9 +296,11 @@ internal sealed class TextField
     }
 
     /// <summary>
-    /// Arrow keys and forward delete, which only exist while a value is multiline. Left and right
-    /// walk the buffer; up and down keep the column and change the line, both of them clamped, so
-    /// the top line has nowhere above it and a short line takes the caret to its end.
+    /// Arrow keys and forward delete. Left and right walk the buffer and Delete takes the character
+    /// they are sitting in front of, in any field — the backspace <see cref="Update"/> handles is
+    /// the same thing pointed the other way. Up and down only exist while a value is multiline: they
+    /// keep the column and change the line, both clamped, so the top line has nowhere above it and a
+    /// short line takes the caret to its end.
     /// </summary>
     private void UpdateCaretKeys()
     {
@@ -270,13 +308,16 @@ internal sealed class TextField
         if (Repeats(Keys.Right, ref _rightFrames)) _caret++;
         _caret = Math.Clamp(_caret, 0, _text.Length);
 
-        bool up = Repeats(Keys.Up, ref _upFrames);
-        bool down = Repeats(Keys.Down, ref _downFrames);
-        if (up || down)
+        if (_columns > 0)
         {
-            var spans = EditorUI.WrapSpans(_text, _columns);
-            var (line, column) = CaretLineColumn(spans);
-            SetCaret(spans, line + (down ? 1 : 0) - (up ? 1 : 0), column);
+            bool up = Repeats(Keys.Up, ref _upFrames);
+            bool down = Repeats(Keys.Down, ref _downFrames);
+            if (up || down)
+            {
+                var spans = EditorUI.WrapSpans(_text, _columns);
+                var (line, column) = CaretLineColumn(spans);
+                SetCaret(spans, line + (down ? 1 : 0) - (up ? 1 : 0), column);
+            }
         }
 
         if (Repeats(Keys.Delete, ref _deleteFrames) && _caret < _text.Length) _text = _text.Remove(_caret, 1);
@@ -330,6 +371,7 @@ internal sealed class TextField
         _bounds = bounds;
         _text = initial ?? string.Empty;
         _caret = _text.Length;
+        _window = 0;
         _blink = 0;
         _leftFrames = 0;
         _rightFrames = 0;
@@ -344,5 +386,5 @@ internal sealed class TextField
     }
 
     private bool IsAllowed(char c) =>
-        _isName ? JsonNames.IsValidNameChar(c) : DataValue.IsCharAllowed(_type, c, _text);
+        _isName ? JsonNames.IsValidNameChar(c) : DataValue.IsCharAllowed(_type, c, _text, _caret);
 }

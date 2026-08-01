@@ -211,9 +211,19 @@ internal sealed class JsonEditor : IEditor
         ClampScroll();
     }
 
-    /// <summary>Sends what the field accepted wherever the edit that opened it was aimed.</summary>
+    /// <summary>
+    /// Sends what the field accepted wherever the edit that opened it was aimed.
+    /// <para>
+    /// A name field only ever accepts characters <see cref="JsonNames"/> allows and stops at its 8,
+    /// so the one entry that can fail to be a name is an empty one — and clearing a name and pressing
+    /// Enter reads as having changed nothing, not as an error. It is let through silently, leaving
+    /// the old name in place; the only refusal left worth a toast is a sibling that has the name.
+    /// </para>
+    /// </summary>
     private void Commit(Editing mode, string committed, bool advance)
     {
+        if (mode != Editing.Value && string.IsNullOrWhiteSpace(committed)) return;
+
         switch (mode)
         {
             case Editing.NodeName:
@@ -772,11 +782,7 @@ internal sealed class JsonEditor : IEditor
 
     private void BeginNewKey()
     {
-        if (_inspected == null)
-        {
-            _events.AddEvent("NO OBJECT");
-            return;
-        }
+        if (_inspected == null) return;
 
         if (_inspected.Fields.Count >= Constants.JsonData.MaxFieldsPerObj)
         {
@@ -1006,6 +1012,12 @@ internal sealed class JsonEditor : IEditor
         // The object may have been deleted from under the inspector.
         if (_inspected != null && Sheet.OwnerOf(_inspected) == null) Inspect(null);
         if (_selected != null && SelectedRow() < 0) _selected = null;
+
+        // Nothing to inspect is nothing to focus. The panel's keys and its [+KEY] both want an
+        // object, so a Tab into it — or a focus left behind by the object being deleted — hands
+        // straight back to the tree instead of sitting on an empty panel offering a button that
+        // could only answer with a toast.
+        if (_inspected == null) _focus = Panel.Tree;
 
         if (_inspected == null || _inspected.Fields.Count == 0)
         {
