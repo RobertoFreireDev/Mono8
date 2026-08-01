@@ -113,11 +113,13 @@ A field's type is part of its key, written as a one-character suffix after a col
 | Suffix | Type | Written as | Notes |
 |---|---|---|---|
 | `t` | Text | `"Green slime"` | Up to 256 characters. |
-| `i` | Int | `12` | |
-| `d` | Decimal | `1.25` | |
+| `i` | Int | `12` | Whole numbers, `-2147483648` to `2147483647`. |
+| `d` | Decimal | `1.25` | Up to nine whole digits and six decimals, written out in full — never `1.25e2`. |
 | `m` | Money | `"3.50"` | Quoted and always two decimals, so trailing zeros survive the round trip. |
 | `p` | PosXY | `[40, 88]` | Two ints. An array of positions nests: `[[8, 8], [8, 40]]`. |
-| `b` | Bool | `false` | |
+| `b` | Bool | `false` | `true` or `false`, unquoted. |
+
+Every value is written the plainest way its type can be written, because the file is read and hand-edited as often as it is loaded. A number outside its type's range is not thrown away on load — it is held at the nearest edge, and the load is reported as repaired.
 
 Any field can hold an array of its own type in place of a single value — `"DROPS:i": [1, 4, 7]`. Arrays are homogeneous.
 
@@ -642,7 +644,7 @@ One row block per field: the key name, a one-character type badge, and the value
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
 - **Hover the badge** to read the type out in full on the bottom bar — `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. `Text` also carries its cap (`TEXT MAX 256`), and a `PosXY` badge shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
-- **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn in **red** and holds back `Ctrl+S` until you fix it, since writing it out would produce a file that will not load. The bottom bar names the first offender as `ERROR ON GROUP/OBJECT/KEY` and the editor jumps straight to it.
+- **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn on a **red row** and holds back `Ctrl+S` until you fix it, since writing it out would produce a file that will not load. The bottom bar names the first offender as `ERROR ON GROUP/OBJECT/KEY` and the editor jumps straight to it.
 - **Arrays**: `[ARR]` switches the selected field between one value and a list of them, and each item gets its own numbered row. `[+ITM]` appends and `[-ITM]` removes the selected item. Collapsing an array back to a single value keeps item `0` and says `KEEP 1`; an array never empties below one item.
 - **`[+KEY]`** prompts for a name and creates the field as a `Text`; a name already used in that object is refused with `DUP KEY`, and an object already holding 16 fields with `MAX KEY`.
 

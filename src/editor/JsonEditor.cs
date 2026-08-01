@@ -1191,9 +1191,12 @@ internal sealed class JsonEditor : IEditor
 
         // A value that no longer reads as its field's type is kept and shown as it is stored, never
         // erased and never dressed up — a 12 left over from an Int has to read as 12, not as FALSE.
-        int color = !valid ? Constants.Colors.Red
-            : selected ? Constants.Colors.White
-            : Constants.Colors.LightGray;
+        // What marks it is the row behind it rather than the text on it: red under a value the eye
+        // finds at a glance, where red text has to be read before it says anything, and a long one
+        // wraps its warning over several lines.
+        int color = selected ? Constants.Colors.White : Constants.Colors.LightGray;
+        bool filled = selected || !valid;
+        int background = valid ? Constants.Colors.DarkBlue : Constants.Colors.Red;
 
         var lines = EditorUI.Wrap(valid ? DataValue.Format(field.Type, stored) : stored, Columns(field));
         for (int i = 0; i < lines.Count; i++)
@@ -1201,7 +1204,7 @@ internal sealed class JsonEditor : IEditor
             int lineY = y + i * RowH;
             if (!IsLineVisible(lineY)) continue;
 
-            if (selected) _api.rectfill(x, lineY, InspRight - 1, lineY + RowH - 1, Constants.Colors.DarkBlue);
+            if (filled) _api.rectfill(x, lineY, InspRight - 1, lineY + RowH - 1, background);
             _api.print(lines[i], x, lineY + 1, color);
         }
     }

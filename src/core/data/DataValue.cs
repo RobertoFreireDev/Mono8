@@ -25,17 +25,29 @@ public enum DataValueType
 public static class DataValue
 {
     private const int IntChars = 11;     // -2147483648
-    private const int DecimalChars = 24; // round-trip double, e.g. -1.7976931348623157E+308
+    private const int DecimalChars = 17; // -999999999.999999
     private const int MoneyChars = 20;   // -9999999999999999.99
     private const int PosXYChars = 23;   // -2147483648,-2147483648
     private const int BoolChars = 5;     // "false"
 
     /// <summary>
-    /// The largest magnitude Money holds. Every other type's range is the range of the .NET type
-    /// behind it, and each character cap above is exactly the widest form its range can print to —
+    /// The largest magnitude Decimal and Money hold. Int and PosXY take the range of the <c>int</c>
+    /// behind them, and each character cap above is exactly the widest form its range can print to —
     /// so a value clamped by <see cref="TryNormalize"/> always fits back in the field it came from.
+    /// <para>
+    /// Decimal stops at nine whole digits and six decimals because that is fifteen significant
+    /// digits, the most a <c>double</c> — what the game reads a Decimal back as — carries exactly.
+    /// A number the file can hold is therefore a number the game gets back unchanged.
+    /// </para>
     /// </summary>
+    private const decimal DecimalLimit = 999999999.999999m;
     private const decimal MoneyLimit = 9999999999999999.99m;
+
+    /// <summary>Decimals each fixed-point type stores, and the format that prints exactly that many.</summary>
+    private const int DecimalPlaces = 6;
+    private const int MoneyPlaces = 2;
+    private const string DecimalFormat = "0.######";   // one '#' per DecimalPlaces: 1.25 stays 1.25, 3 stays 3
+    private const string MoneyFormat = "0.00";
 
     /// <summary>Longest raw entry accepted for <paramref name="type"/>, in characters.</summary>
     public static int MaxLength(DataValueType type) => type switch
@@ -86,10 +98,10 @@ public static class DataValue
                 return IsPartialInt(s);
 
             case DataValueType.Decimal:
-                return IsPartialNumber(s, -1);
+                return IsPartialNumber(s, DecimalPlaces);
 
             case DataValueType.Money:
-                return IsPartialNumber(s, 2);
+                return IsPartialNumber(s, MoneyPlaces);
 
             case DataValueType.PosXY:
                 int comma = s.IndexOf(',');
@@ -149,6 +161,12 @@ public static class DataValue
     /// entry that failed to be one, and the nearest Int says more than putting the old value back.
     /// </para>
     /// <para>
+    /// Numbers come out written in full, never in the exponent form JSON allows: an entry that
+    /// arrived as <c>1e3</c> is stored as <c>1000</c> and one that arrived as <c>1E-05</c> as
+    /// <c>0.00001</c>. So whatever a file holds, what the editor is left holding is a value it
+    /// could have typed itself.
+    /// </para>
+    /// <para>
     /// Text is sanitised and truncated rather than rejected — a value is data, and clipping a
     /// hand-edited over-long string loses less than dropping the whole field would.
     /// </para>
@@ -172,18 +190,13 @@ public static class DataValue
                 return true;
 
             case DataValueType.Decimal:
-                if (!double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double d)
-                    || double.IsNaN(d))
-                    return false;
-
-                // Overflow parses as an infinity, which has no stored form. The edge of the range has.
-                if (double.IsInfinity(d)) d = d > 0 ? double.MaxValue : double.MinValue;
-                normalized = d.ToString("R", CultureInfo.InvariantCulture);
+                if (!TryReadFixed(raw, DecimalLimit, DecimalPlaces, out decimal d)) return false;
+                normalized = d.ToString(DecimalFormat, CultureInfo.InvariantCulture);
                 return true;
 
             case DataValueType.Money:
-                if (!TryReadMoney(raw, out decimal m)) return false;
-                normalized = m.ToString("0.00", CultureInfo.InvariantCulture);
+                if (!TryReadFixed(raw, MoneyLimit, MoneyPlaces, out decimal m)) return false;
+                normalized = m.ToString(MoneyFormat, CultureInfo.InvariantCulture);
                 return true;
 
             case DataValueType.PosXY:
@@ -203,36 +216,51 @@ public static class DataValue
 
     /// <summary>
     /// Reads a whole number, holding one that is too big for an Int at the edge of the range rather
-    /// than refusing it. Anything that is not a whole number at all — a stray letter, a lone '-', the
-    /// empty half of a PosXY — still fails, because there is no nearest Int to those to hold it at.
+    /// than refusing it. What counts as a whole number here is exactly what
+    /// <see cref="IsPartialInt"/> lets you type — digits and an optional leading '-' — so an Int
+    /// reads back the same whether it was typed or hand-written. Anything else — a stray letter, a
+    /// decimal point, a lone '-', the empty half of a PosXY — fails, because there is no nearest
+    /// Int to those to hold it at.
     /// </summary>
     private static bool TryReadInt(string raw, out int value)
     {
+        value = 0;
         string s = raw.Trim();
+        if (!IsPartialInt(s) || !HasDigit(s)) return false;
+
         if (int.TryParse(s, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value)) return true;
 
-        if (!IsPartialInt(s) || !HasDigit(s)) return false;
         value = s[0] == '-' ? int.MinValue : int.MaxValue;
         return true;
     }
 
     /// <summary>
-    /// The same for Money, which is clamped to <see cref="MoneyLimit"/> and then rounded to the two
-    /// decimals it stores. Clamping comes first so the rounding can never overflow the decimal.
+    /// Reads the fixed-point number behind Decimal and Money: clamped to <paramref name="limit"/>
+    /// and then rounded to the <paramref name="places"/> decimals it stores. Clamping comes first so
+    /// the rounding can never overflow the decimal.
+    /// <para>
+    /// The parse takes the exponent form JSON allows even though neither type is typed or written
+    /// that way, so a hand-written <c>1e3</c> comes back as <c>1000</c> instead of being dropped.
+    /// What comes out is always plain digits and a dot — the file never gains an exponent of its
+    /// own, and a value the editor cannot type is not a value it can be left holding.
+    /// </para>
     /// </summary>
-    private static bool TryReadMoney(string raw, out decimal value)
+    private static bool TryReadFixed(string raw, decimal limit, int places, out decimal value)
     {
-        value = 0m;
         string s = raw.Trim();
 
         if (!decimal.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
         {
-            // More digits than a decimal itself can hold. It is still a number, so it still clamps.
-            if (!IsPartialNumber(s, -1) || !HasDigit(s)) return false;
-            value = s[0] == '-' ? -MoneyLimit : MoneyLimit;
+            // Bigger than a decimal itself can hold. It is still a number, so it still clamps.
+            if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double big)
+                || double.IsNaN(big))
+                return false;
+
+            value = big > 0 ? limit : -limit;
         }
 
-        value = Math.Round(Math.Clamp(value, -MoneyLimit, MoneyLimit), 2, MidpointRounding.AwayFromZero);
+        value = Math.Round(Math.Clamp(value, -limit, limit), places, MidpointRounding.AwayFromZero);
+        if (value == 0m) value = 0m;   // a decimal keeps the sign of a rounded-away -0.001; "-0" is not a value.
         return true;
     }
 
