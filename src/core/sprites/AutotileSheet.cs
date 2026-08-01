@@ -19,6 +19,9 @@ internal class AutotileSheet
     /// <summary>A block is BlockSize x BlockSize sprites.</summary>
     public const int BlockSize = 4;
 
+    /// <summary>A quadrant is a quarter of a tile, so terrain is read to this many pixels.</summary>
+    public const int QuadrantSize = Constants.GameDataSizes.TileSize / 2;
+
     // The four quadrants of a tile, each covering a quarter of it.
     public const int TopLeft = 1;
     public const int TopRight = 2;
@@ -121,6 +124,118 @@ internal class AutotileSheet
     }
 
     public void Toggle(int blockX, int blockY) => SetEnabled(blockX, blockY, !IsEnabled(blockX, blockY));
+
+    /// <summary>
+    /// Whether a point of the map is covered by autotile terrain. Coordinates are pixels over the
+    /// whole map sheet - map cell coordinates times the tile size, the same space mget reads - so a
+    /// game applies its own camera and layer offsets before asking.
+    ///
+    /// Terrain is read off the tiles at quadrant precision, a quarter of a tile, because that is how
+    /// finely a piece describes it: an edge piece covers half its tile and a diagonal two opposite
+    /// quarters of it, which no per-sprite flag can say. Only tiles belonging to a block marked as an
+    /// autotile carry terrain; loose art and unmarked blocks carry none.
+    ///
+    /// <paramref name="spriteId"/> narrows the question to the terrain of one block - the one that
+    /// sprite belongs to - so a game can ask about its walls without its water answering. The default
+    /// of -1 asks about every autotile alike.
+    /// </summary>
+    public bool Collides(int x, int y, int spriteId = -1)
+    {
+        int tileSize = Constants.GameDataSizes.TileSize;
+
+        // Negative coordinates are off the map, and saying so here keeps them out of the division
+        // below, which truncates towards zero and would otherwise fold them into the first cell.
+        if (x < 0 || y < 0) return false;
+
+        int quadrants = QuadrantsAt(x / tileSize, y / tileSize, spriteId);
+        return (quadrants & QuadrantOf(x % tileSize, y % tileSize)) != 0;
+    }
+
+    /// <summary>
+    /// Whether a rectangle of the map meets autotile terrain anywhere: the same question as the
+    /// point overload, asked of every quadrant the rectangle overlaps. The rectangle runs from
+    /// (<paramref name="x"/>, <paramref name="y"/>) to (x + w - 1, y + h - 1), and an empty one -
+    /// either side zero or negative - meets nothing.
+    /// </summary>
+    /// <inheritdoc cref="Collides(int, int, int)"/>
+    public bool Collides(int x, int y, int w, int h, int spriteId = -1)
+    {
+        if (w <= 0 || h <= 0) return false;
+
+        int tileSize = Constants.GameDataSizes.TileSize;
+
+        // Clipped to the map, so a rectangle far larger than it costs no more than covering it.
+        int left = Math.Max(x, 0);
+        int top = Math.Max(y, 0);
+        int right = Math.Min(x + w - 1, Constants.GameDataSizes.MapSheetX * tileSize - 1);
+        int bottom = Math.Min(y + h - 1, Constants.GameDataSizes.MapSheetY * tileSize - 1);
+        if (right < left || bottom < top) return false;
+
+        for (int cellY = top / tileSize; cellY <= bottom / tileSize; cellY++)
+        {
+            for (int cellX = left / tileSize; cellX <= right / tileSize; cellX++)
+            {
+                int quadrants = QuadrantsAt(cellX, cellY, spriteId);
+                if (quadrants == 0) continue;
+
+                if ((quadrants & Coverage(cellX, cellY, left, top, right, bottom)) != 0) return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The terrain the tile at a map cell covers, and none at all for anything that is not a piece of
+    /// a block marked as an autotile. An empty cell needs no special case: sprite 0 is the first
+    /// block's empty tile, which covers no quadrant.
+    /// </summary>
+    private int QuadrantsAt(int cellX, int cellY, int spriteId)
+    {
+        int tile = Mono8API.MapSheet.GetTile(cellX, cellY);
+
+        if (!TryGetBlock(tile, out int blockX, out int blockY)) return 0;
+        if (!IsEnabled(blockX, blockY)) return 0;
+
+        if (spriteId >= 0
+            && (!TryGetBlock(spriteId, out int askedX, out int askedY)
+                || askedX != blockX || askedY != blockY))
+        {
+            return 0;
+        }
+
+        TryGetCell(tile, blockX, blockY, out int cell);
+        return CellQuadrants[cell];
+    }
+
+    /// <summary>The quadrant a pixel sits on, given its position within its tile.</summary>
+    private static int QuadrantOf(int tileX, int tileY) => tileY < QuadrantSize
+        ? tileX < QuadrantSize ? TopLeft : TopRight
+        : tileX < QuadrantSize ? BottomLeft : BottomRight;
+
+    /// <summary>
+    /// The quadrants of one cell a rectangle overlaps. Only cells the rectangle already reaches are
+    /// asked, so each half of the cell needs one comparison: it is covered unless the rectangle stops
+    /// short of it.
+    /// </summary>
+    private static int Coverage(int cellX, int cellY, int left, int top, int right, int bottom)
+    {
+        int tileSize = Constants.GameDataSizes.TileSize;
+        int midX = cellX * tileSize + QuadrantSize;
+        int midY = cellY * tileSize + QuadrantSize;
+
+        int mask = 0;
+        if (top < midY)
+        {
+            if (left < midX) mask |= TopLeft;
+            if (right >= midX) mask |= TopRight;
+        }
+        if (bottom >= midY)
+        {
+            if (left < midX) mask |= BottomLeft;
+            if (right >= midX) mask |= BottomRight;
+        }
+        return mask;
+    }
 
     /// <summary>One line per block row, one '0' / '1' per block. A missing or short file reads as all-off.</summary>
     public void LoadAutotiles(string[] sheet)

@@ -229,6 +229,24 @@ Cells holding sprite `0` are skipped, so the background shows through them.
 
 `layerMax` filters which tiles are drawn, using the sprite flags as layer bits. The default of `0` draws every tile. Any other value is a bitmask: a tile is drawn only if at least one of its flags is set in the mask, i.e. `fget(tile) & layerMax` is non-zero. So if you set flag `0` on your background tiles and flag `1` on your foreground tiles, `map(..., layerMax: 1)` draws just the background and `map(..., layerMax: 2)` just the foreground — call `map` twice, with your sprites drawn in between, to get sprites sandwiched between two map layers.
 
+### Autotile Collision
+
+| Function | Parameters | Description |
+|---|---|---|
+| `acol` | `x, y, spriteId = -1` | Whether the point `x, y` is covered by [autotile](#autotile) terrain. |
+| `acol` | `x, y, w, h, spriteId = -1` | Whether the `w`×`h` rectangle whose top-left corner is `x, y` meets autotile terrain anywhere. |
+
+Coordinates are **pixels over the whole map sheet** — map cell coordinates times `8`, the same space [`mget`](#map) reads — so apply your own camera and layer offsets before asking. The rectangle runs from `x, y` to `x + w - 1, y + h - 1`, and an empty one (either side zero or negative) meets nothing, as does any point off the map.
+
+Terrain is read at **quadrant precision**, a quarter of a tile, because that is how finely an autotile piece describes it: an edge piece covers half its tile and a diagonal two opposite quarters. That is what these functions are for — a sprite flag is one bit for a whole 8×8 tile, so it can only ever be wrong by half a tile on the pieces an autotile stroke lays down. Only tiles belonging to a block **marked as an autotile** carry terrain; loose art, unmarked blocks and the block's own empty cell carry none.
+
+`spriteId` narrows the question to the terrain of the block that sprite belongs to, so a game can ask about its walls without its water answering. The default of `-1` asks about every autotile alike.
+
+```csharp
+// The block sprite 64 belongs to is the solid one; grass elsewhere is walked over.
+if (!API.acol(x + dx, y, 8, 8, 64)) x += dx;
+```
+
 ### Sprite Flags
 
 | Function | Parameters | Description |
@@ -239,6 +257,8 @@ Cells holding sprite `0` are skipped, so the background shows through them.
 | `fset` | `spriteId, value` | Sets all flag bits for a sprite. |
 
 Each sprite has 8 flags (`flag` `0`-`7`), free for you to use as collision, terrain type or anything else. `map` also reads them as layer bits when you pass `layerMax` (see [Map](#map)).
+
+A flag is one bit for a whole 8×8 tile, which is all a hand-drawn tile needs. For terrain painted with an [autotile](#autotile) it is too coarse — half its pieces are solid in only part of their tile — so read that with [`acol`](#autotile-collision) instead.
 
 ### Input
 
@@ -400,6 +420,10 @@ Terrain is tracked per **quadrant**, not per edge: each cell covers some subset 
 ### Marking a block
 
 A block only behaves as an autotile once you mark it as such, which you do with the autotile button in the **Map Editor** (see below). The marks live in `data.atl`, one line per block row and one `0`/`1` per block, written with the rest of the project on `Ctrl+S`. A missing or short file reads as all-off, so an older project simply loads with no autotiles.
+
+### Colliding with it
+
+Because terrain is tracked per quadrant, your game can collide against it directly with [`acol`](#autotile-collision) — no sprite flags to set, and no half-tile of error on the edges and diagonals a stroke lays down.
 
 ## Sprite Editor
 
