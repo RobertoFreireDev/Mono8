@@ -480,6 +480,13 @@ internal class MapEditor : IEditor, IAutotileGrid
             eventNotifier.AddEvent("COPY");
         }
 
+        if (KeybrdInput.IsCutShortcutPressed())
+        {
+            map.CopyRegion(selection.X + offX, selection.Y + offY, selection.Width, selection.Height);
+            map.ClearRegion(selection.X + offX, selection.Y + offY, selection.Width, selection.Height);
+            eventNotifier.AddEvent("CUT");
+        }
+
         if (KeybrdInput.IsPasteShortcutPressed() && map.HasClipboard)
         {
             map.PasteRegion(selection.X + offX, selection.Y + offY, offX, offY, QuarterCols, QuarterRows);

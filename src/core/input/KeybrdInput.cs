@@ -48,6 +48,8 @@ public static class KeybrdInput
 
     public static bool IsCopyShortcutPressed() => IsCtrlShortcut(Keys.C);
 
+    public static bool IsCutShortcutPressed() => IsCtrlShortcut(Keys.X);
+
     public static bool IsPasteShortcutPressed() => IsCtrlShortcut(Keys.V);
 
     public static bool IsRunGameShortcutPressed() => IsCtrlShortcut(Keys.R);

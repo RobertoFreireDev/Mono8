@@ -262,6 +262,14 @@ internal class SpriteEditor : IEditor
             eventNotifier.AddEvent("COPY");
         }
 
+        if (KeybrdInput.IsCutShortcutPressed())
+        {
+            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            Mono8API.SpriteSheet.CopyRegion(regionX, regionY, regionW, regionH);
+            Mono8API.SpriteSheet.ClearGrid(regionX, regionY, regionW, regionH);
+            eventNotifier.AddEvent("CUT");
+        }
+
         if (KeybrdInput.IsPasteShortcutPressed())
         {
             var (regionX, regionY, _, _) = CurrentCanvasRegion();

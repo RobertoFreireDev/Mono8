@@ -472,6 +472,7 @@ Instead of typing a number, you can **right-click any sprite in the bottom navig
 | `Ctrl+Z` | Undo (available when there is a change to undo). |
 | `Ctrl+Shift+Z` | Redo (available when there is a change to redo). |
 | `Ctrl+C` | Copies the current sprite region. |
+| `Ctrl+X` | Cuts the current sprite region — copies it, then clears it, as a single undo step. |
 | `Ctrl+V` | Pastes the copied region at the current sprite's position. |
 | `Arrow Left/Right/Up/Down` | Shifts the pixels of the current sprite by one pixel in that direction. |
 | `Delete` | Clears the current sprite region (or, while editing the reference-sprite number, clears the reference instead). |
@@ -535,7 +536,7 @@ Selected via the tool row (left of the layer buttons). The selected sprite's num
 |---|---|
 | Pixel | Left-click (or drag) to set cells to the selected sprite. A whole drag stroke is a single undo step. |
 | RectFill | Drag from one cell to another to fill the rectangular region with the selected sprite. |
-| Select | Drag from one cell to another to mark an area. The area stays highlighted with an animated marching-ants border until you right-click to cancel, pick another tool, or leave the editor. With a selection active: `Del` clears it, `Ctrl+C` copies it, and `Ctrl+V` pastes the copied tiles at the selection's top-left. |
+| Select | Drag from one cell to another to mark an area. The area stays highlighted with an animated marching-ants border until you right-click to cancel, pick another tool, or leave the editor. With a selection active: `Del` clears it, `Ctrl+C` copies it, `Ctrl+X` cuts it (copy then clear, as a single undo step), and `Ctrl+V` pastes the copied tiles at the selection's top-left. |
 | Hand | Drag to pan the map viewport with the mouse. |
 
 Map edits support undo/redo with `Ctrl+Z` / `Ctrl+Shift+Z` (up to 50 steps; history is cleared when a cart is loaded).
