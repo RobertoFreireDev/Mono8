@@ -28,7 +28,7 @@ A PICO-8 style game engine built on MonoGame (.NET 8), with built-in sprite, map
 
 ![alt text](images/mono8json.png)
 
-### Ctrl + R to go to YourGame
+### Ctrl + R to go to YourGame and Esc to go back to Editors
 
 ![alt text](images/tutorial.png)
 
