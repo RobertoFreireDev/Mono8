@@ -131,11 +131,30 @@ Names of groups, objects and fields all obey one rule: at most 8 characters, uni
 | Fields per object | 16 |
 | Array items | 64 |
 
-Your game reads it with [`gjson`](#json-data). Author it in the [JSON Editor](#json-editor) or write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk.
+Your game reads it with [`gjson`](#json-data). Author it in the [JSON Editor](#json-editor) or write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk. When a load did drop or repair anything, the [JSON Editor](#json-editor) says `LOAD FIX` the first time you open it, since until you save, the file on disk and the tree you are editing are two different things.
 
 ## Running Your Game
 
 Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`). It ships with a commented demo — a player you move with the arrow keys, a particle burst on `C`, and a `DEMO/PLAYER` object read out of [`data.json`](#json-data) with `V` writing a value of every type back into it. Delete the body of `Draw` to start from scratch.
+
+Every data file ships **empty**, `data.json` included, so the demo's data panel reads `NO DEMO/PLAYER` in red until you author that object. Everything else falls back cleanly — the player starts centred and moves at 70 px/s, and the title subtitle reads `THE CODE IS THE TUTORIAL`. To see the data half of the demo, build the object in the [JSON Editor](#json-editor) or paste this into `data/data.json`:
+
+```json
+{
+  "DEMO": {
+    "PLAYER": {
+      "NAME:s": "MONO8 TUTORIAL",
+      "DESC:t": "The data is the tutorial too.",
+      "SPEED:i": 70,
+      "SCALE:d": 0.7,
+      "COST:m": "7.00",
+      "SOLID:b": false,
+      "START:p": [128, 72],
+      "COLORS:i": [8, 12, 14, 7]
+    }
+  }
+}
+```
 
 | Key | Description |
 |---|---|
@@ -623,6 +642,8 @@ One row block per field: the key name, a one-character type badge, and the value
 - **Arrays**: `[ARR]` switches the selected field between one value and a list of them, and each item gets its own numbered row. `[+ITM]` appends and `[-ITM]` removes the selected item. Collapsing an array back to a single value keeps item `0` and says `KEEP 1`; an array never empties below one item.
 - **`[+KEY]`** prompts for a name and creates the field as a `String`; a name already used in that object is refused with `DUP KEY`.
 
+**Renaming** works the same in both panels: `[REN]`, the `R` key, or a **double click on the name itself** — a single click there only selects, so the second one is what opens the field. In the tree `Enter` renames too; in the inspector `Enter` belongs to the value, so a key is renamed with `R` or a double click. A name a sibling already uses is refused with `DUP NAME` in the tree and `DUP KEY` in the inspector.
+
 Names of groups, objects and keys are all capped at 8 characters, upper-cased as you type them, and cannot contain `:` `,` `"` `\` or a space — see [data.json](#datajson) for why.
 
 **Deleting** anything takes two presses: the first arms `[DEL]` and shows `HOLD DEL`, the second within a couple of seconds carries it out. There is no undo.
@@ -638,5 +659,6 @@ Both panels scroll with the mouse wheel and with their own scrollbars, and the s
 | `Up`/`Down` | Moves the selection within the focused panel. |
 | `Left`/`Right` | Collapses/expands the selected group. |
 | `Enter` | Renames the selected group or object; in the inspector, edits the selected value (or toggles a `Bool`). |
+| `R` | Renames the selected group or object, or the selected key in the inspector — the `[REN]` shortcut. |
 | `Esc` | Cancels the edit in progress and restores the previous value. |
 | `Delete` | Deletes the selected node — press twice to confirm. |

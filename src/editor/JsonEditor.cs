@@ -97,6 +97,9 @@ internal sealed class JsonEditor : IEditor
     private object _clickTarget;       // the node or field the last name click landed on
     private float _clickLeft;
 
+    /// <summary>Set once LOAD FIX has been said; it is about the file that was read, so it is said once.</summary>
+    private bool _loadIssuesReported;
+
     public JsonEditor(IMono8API api)
     {
         _api = api;
@@ -112,6 +115,16 @@ internal sealed class JsonEditor : IEditor
     {
         RebuildRows();
         if (_selected == null && _rows.Count > 0) SelectRow(0);
+
+        // data.json is parsed before any editor exists, so a load that dropped or repaired
+        // something has nowhere to say so until the editor is first opened. It is worth saying
+        // because the repair only reaches the file on the next Ctrl+S — until then, what is on
+        // disk and what is in the tree are two different things.
+        if (Sheet.HadLoadIssues && !_loadIssuesReported)
+        {
+            _loadIssuesReported = true;
+            _events.AddEvent("LOAD FIX");
+        }
     }
 
     /// <summary>Leaving mid-edit drops the edit; the selection and both scroll positions stay put.</summary>
