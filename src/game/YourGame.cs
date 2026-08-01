@@ -23,6 +23,7 @@ namespace mono8.game;
 ///     Z           change color    (btn 4)
 ///     X           toggle shape    (btn 5)
 ///     C           spawn particles (btn 6)
+///     V           tune the data   (btn 7)
 ///
 /// ============================================================================
 /// </summary>
@@ -48,6 +49,7 @@ internal class YourGame : IEditor
     private const int BtnA     = 4;  // keyboard Z / gamepad A
     private const int BtnB     = 5;  // keyboard X / gamepad B
     private const int BtnX     = 6;  // keyboard C / gamepad X
+    private const int BtnY     = 7;  // keyboard V / gamepad Y
 
     // ------------------------------------------------------------------------
     // 2. GAME STATE
@@ -55,8 +57,8 @@ internal class YourGame : IEditor
     // Position is stored as float so movement is smooth and frame-rate
     // independent. Only the final pixel coordinates get rounded to int.
 
-    private const float MoveSpeed  = 70f;  // pixels per second
-    private const int   PlayerSize = 6;    // radius, in pixels
+    private const int DefaultSpeed = 70;  // pixels per second, when data.json has none
+    private const int PlayerSize   = 6;   // radius, in pixels
 
     private float _playerX;
     private float _playerY;
@@ -100,14 +102,77 @@ internal class YourGame : IEditor
     private readonly List<Particle> _particles = [];
 
     // ------------------------------------------------------------------------
-    // 4. INIT — runs once
+    // 4. GAME DATA — data.json, via gjson / sjson
+    // ------------------------------------------------------------------------
+    // The numbers you want to tune without recompiling belong in data.json,
+    // authored in the Json editor. It is a tree of group -> object -> field,
+    // so everything below reads the "PLAYER" object of the "DEMO" group.
+    //
+    // gjson() hands you that object with every value ALREADY PARSED into its
+    // real C# type — reading one is an array lookup, no parsing and no garbage,
+    // so it is fine to call inside Update. It returns null when the group or
+    // the object is not there, which is why every read below has a fallback.
+
+    private const string DataGroup  = "DEMO";
+    private const string DataObject = "PLAYER";
+
+    // One getter per type, and one sjson overload per type. That is how the
+    // data stays typed all the way from the editor to your game: no casts, no
+    // `object`, no "is this string a number?".
+    //
+    //     s String   GetStr    "MONO8 TUTORIAL"
+    //     t Text     GetStr    a longer string, up to 256 chars
+    //     i Int      GetInt    70
+    //     d Decimal  GetDec    0.7          (double)
+    //     m Money    GetMoney  7.00         (decimal)
+    //     p PosXY    GetXY     (128, 72)    (tuple)
+    //     b Bool     GetBool   false
+    //
+    // Any field can hold an ARRAY of its own type instead of one value. Then
+    // the second argument picks the item, or IntArray/DecArray/BoolArray give
+    // you the whole thing as a span with no copy.
+
+    /// Press V: writes one value of every type back into the object.
+    private void TuneData()
+    {
+        Mono8JsonObject data = API.gjson(DataGroup, DataObject);
+        if (data == null) return;   // no data.json, or the object was renamed
+
+        // Step the speed 70 -> 100 -> 130 -> 40 -> 70 ...
+        int speed = data.GetInt("SPEED", 0, DefaultSpeed) + 30;
+        if (speed > 130) speed = 40;
+
+        // The compiler picks the overload from the value you pass. Pass the
+        // wrong type for the field and sjson returns false and changes
+        // nothing — it never converts behind your back and never throws.
+        API.sjson(DataGroup, DataObject, "SPEED", speed);                            // int
+        API.sjson(DataGroup, DataObject, "SCALE", speed / 100.0);                    // double
+        API.sjson(DataGroup, DataObject, "COST",  speed / 10m);                      // decimal
+        API.sjson(DataGroup, DataObject, "SOLID", speed >= 100);                     // bool
+        API.sjson(DataGroup, DataObject, "NAME",  speed >= 100 ? "QUICK" : "STEADY");// string
+        API.sjson(DataGroup, DataObject, "START", ((int)_playerX, (int)_playerY));   // PosXY
+
+        // A trailing index writes ONE item of an array and leaves the rest be.
+        API.sjson(DataGroup, DataObject, "COLORS", PlayerColor, 0);
+
+        // These writes live in memory only: data.json is the editor's to write,
+        // so pressing Esc and coming back gives you the authored values again.
+    }
+
+    // ------------------------------------------------------------------------
+    // 5. INIT — runs once
     // ------------------------------------------------------------------------
 
     public void Init()
     {
-        // Start in the middle of the screen.
-        _playerX = Constants.Screen.ResolutionX / 2f;
-        _playerY = Constants.Screen.ResolutionY / 2f;
+        // Where the player starts is authored, not hard-coded. A PosXY field
+        // comes back as a tuple, so it deconstructs straight into two ints.
+        Mono8JsonObject data = API.gjson(DataGroup, DataObject);
+        (int startX, int startY) = data?.GetXY("START")
+            ?? (Constants.Screen.ResolutionX / 2, Constants.Screen.ResolutionY / 2);
+
+        _playerX = startX;
+        _playerY = startY;
 
         _colorIndex = 0;
         _playerIsCircle = true;
@@ -115,7 +180,7 @@ internal class YourGame : IEditor
     }
 
     // ------------------------------------------------------------------------
-    // 5. UPDATE — runs every frame, before Draw
+    // 6. UPDATE — runs every frame, before Draw
     // ------------------------------------------------------------------------
     // `elapsedSeconds` is the time since the previous frame. Multiplying by it
     // ("delta time") makes movement run at the same real-world speed no matter
@@ -140,9 +205,14 @@ internal class YourGame : IEditor
         if (API.btn(BtnUp))    dy -= 1f;
         if (API.btn(BtnDown))  dy += 1f;
 
+        // Read straight out of data.json, every frame. Change SPEED in the Json
+        // editor (or press V) and the player really does move faster, with no
+        // recompile — that is the whole point of authoring data outside code.
+        int speed = API.gjson(DataGroup, DataObject)?.GetInt("SPEED", 0, DefaultSpeed) ?? DefaultSpeed;
+
         // Y grows DOWNWARD: y = 0 is the top of the screen.
-        _playerX += dx * MoveSpeed * elapsedSeconds;
-        _playerY += dy * MoveSpeed * elapsedSeconds;
+        _playerX += dx * speed * elapsedSeconds;
+        _playerY += dy * speed * elapsedSeconds;
 
         // mid() returns the middle of three values, which is a neat way to
         // clamp: never below PlayerSize, never past the far edge.
@@ -170,6 +240,11 @@ internal class YourGame : IEditor
         if (API.btnp(BtnX))
         {
             SpawnParticles();
+        }
+
+        if (API.btnp(BtnY))
+        {
+            TuneData();
         }
     }
 
@@ -215,7 +290,7 @@ internal class YourGame : IEditor
     }
 
     // ------------------------------------------------------------------------
-    // 6. DRAW — runs every frame, after Update
+    // 7. DRAW — runs every frame, after Update
     // ------------------------------------------------------------------------
     // Draw calls paint on top of each other, so order matters: background
     // first, then particles, then the player, then the interface.
@@ -228,13 +303,69 @@ internal class YourGame : IEditor
         DrawParticles();
         DrawPlayer();
         DrawControls();
+        DrawData();
     }
 
     private void DrawTitle()
     {
         PrintCentered("MONO8 TUTORIAL", 10, Constants.Colors.White);
-        PrintCentered("THE CODE IS THE TUTORIAL", 21, Constants.Colors.Blue);
+
+        // A Text field (up to 256 chars) reads back with the same GetStr as a
+        // String field — both are just a string once they reach your game.
+        string subtitle = API.gjson(DataGroup, DataObject)?.GetStr("DESC", 0, "THE CODE IS THE TUTORIAL")
+            ?? "THE CODE IS THE TUTORIAL";
+
+        PrintCentered(subtitle, 21, Constants.Colors.Blue);
     }
+
+    // Everything in DEMO/PLAYER, one line per type, so you can watch the values
+    // change as you press V and see what the Json editor is actually storing.
+    private static void DrawData()
+    {
+        const int PanelX = 148;
+        const int LineHeight = 9;
+        int y = 32;
+
+        Mono8JsonObject data = API.gjson(DataGroup, DataObject);
+        if (data == null)
+        {
+            API.print("NO DEMO/PLAYER", PanelX, y, Constants.Colors.Red);
+            return;
+        }
+
+        API.print("DEMO/PLAYER", PanelX, y, Constants.Colors.White);
+
+        API.print($"NAME  {data.GetStr("NAME")}",        PanelX, y += LineHeight, Constants.Colors.LightGray);
+        API.print($"SPEED {data.GetInt("SPEED")}",       PanelX, y += LineHeight, Constants.Colors.LightGray);
+        API.print($"SCALE {Num(data.GetDec("SCALE"))}",  PanelX, y += LineHeight, Constants.Colors.LightGray);
+        API.print($"COST  {Num(data.GetMoney("COST"))}", PanelX, y += LineHeight, Constants.Colors.LightGray);
+        API.print($"SOLID {data.GetBool("SOLID")}",      PanelX, y += LineHeight, Constants.Colors.LightGray);
+
+        // PosXY is a tuple — deconstruct it, or use .x / .y.
+        (int startX, int startY) = data.GetXY("START");
+        API.print($"START {startX},{startY}", PanelX, y += LineHeight, Constants.Colors.LightGray);
+
+        // An array field. Count() says how many items it holds, and IntArray()
+        // is a view straight onto them: no copy, no allocation, so drawing a
+        // swatch per item costs nothing.
+        y += LineHeight;
+        API.print($"COLORS[{data.Count("COLORS")}]", PanelX, y, Constants.Colors.LightGray);
+
+        ReadOnlySpan<int> colors = data.IntArray("COLORS");
+        for (int i = 0; i < colors.Length; i++)
+        {
+            int x = PanelX + 40 + i * 6;
+            API.rectfill(x, y, x + 4, y + 4, colors[i]);
+        }
+    }
+
+    // The file stores numbers the invariant way (a dot, always two decimals for
+    // money), so print them the same way rather than in the machine's locale.
+    private static string Num(double value) =>
+        value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Num(decimal value) =>
+        value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 
     private void DrawParticles()
     {
@@ -272,16 +403,17 @@ internal class YourGame : IEditor
     private void DrawControls()
     {
         const int LineHeight = 9;
-        int y = Constants.Screen.ResolutionY - 4 - LineHeight * 4;
+        int y = Constants.Screen.ResolutionY - 4 - LineHeight * 5;
 
         API.print("ARROWS  MOVE",         8, y,                  Constants.Colors.LightGray);
         API.print("Z       COLOR",        8, y + LineHeight,     Constants.Colors.LightGray);
         API.print("X       SHAPE",        8, y + LineHeight * 2, Constants.Colors.LightGray);
         API.print("C       PARTICLES",    8, y + LineHeight * 3, Constants.Colors.LightGray);
+        API.print("V       TUNE DATA",    8, y + LineHeight * 4, Constants.Colors.LightGray);
 
         // A tiny live readout, so you can see the state you are editing.
         string shape = _playerIsCircle ? "CIRCLE" : "SQUARE";
-        API.print($"{shape}  PARTICLES:{_particles.Count}", 150, y + LineHeight * 3, PlayerColor);
+        API.print($"{shape}  PARTICLES:{_particles.Count}", 150, y + LineHeight * 4, PlayerColor);
     }
 
     // The font is fixed-width: every character advances 4 pixels.

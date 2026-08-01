@@ -131,11 +131,11 @@ Names of groups, objects and fields all obey one rule: at most 8 characters, uni
 | Fields per object | 16 |
 | Array items | 64 |
 
-Author it in the [JSON Editor](#json-editor) or write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk.
+Your game reads it with [`gjson`](#json-data). Author it in the [JSON Editor](#json-editor) or write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk.
 
 ## Running Your Game
 
-Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`). It ships with a small demo that draws the map at each supported scale; delete the body of `Draw` to start from scratch.
+Write your game's logic in [src/game/YourGame.cs](src/game/YourGame.cs) (`Init`, `Update`, `Draw`). It ships with a commented demo — a player you move with the arrow keys, a particle burst on `C`, and a `DEMO/PLAYER` object read out of [`data.json`](#json-data) with `V` writing a value of every type back into it. Delete the body of `Draw` to start from scratch.
 
 | Key | Description |
 |---|---|
@@ -321,6 +321,51 @@ There are 64 integer slots (`index` `0`-`63`), persisted to disk on every `dset`
 |---|---|---|
 | `dget` | `index` | Reads a persisted value at `index`. |
 | `dset` | `index, value` | Writes a persisted value at `index` and saves to disk. |
+
+### JSON Data
+
+Reads and writes the data authored in [`data.json`](#datajson).
+
+| Function | Parameters | Description |
+|---|---|---|
+| `gjson` | `group, obj` | Returns the object authored at `group` / `obj`, or `null` when either name is unknown. |
+| `sjson` | `group, obj, field, value, index = 0` | Writes one value into an existing field. Returns `false` when the group, object or field is unknown, when `index` is past the end of an array, or when `value`'s type is not the field's declared type. |
+
+Names match without regard to case, so `gjson("enemy", "slime")` and `gjson("ENEMY", "SLIME")` are the same object. The lookup is two dictionary hits and allocates nothing, so calling it from `Update` every frame is fine.
+
+`sjson` takes one overload per type, and the compiler picks it from the value you pass — `20` writes an Int field, `1.5` a Decimal, `3.50m` a Money, `true` a Bool, `"text"` a String or Text, and `(40, 88)` a PosXY. Passing the wrong type for the field returns `false` and changes nothing rather than converting. It never creates a field, and the write lands **in memory only**: `data.json` is authored in the editor, and a running game does not rewrite its own data.
+
+```csharp
+var slime = API.gjson("ENEMY", "SLIME");
+if (slime != null)
+{
+    int hp = slime.GetInt("HP");
+    var (x, y) = slime.GetXY("SPAWN");
+    API.sjson("ENEMY", "SLIME", "HP", hp - 1);
+}
+```
+
+The object it returns holds every value already parsed into its runtime type, so reading one is an array index — there is no parsing, casting or boxing in the game loop.
+
+| Method | Returns | Description |
+|---|---|---|
+| `GetInt` | `int` | Reads an Int field. |
+| `GetDec` | `double` | Reads a Decimal field. |
+| `GetMoney` | `decimal` | Reads a Money field. |
+| `GetBool` | `bool` | Reads a Bool field. |
+| `GetStr` | `string` | Reads a String or a Text field. |
+| `GetXY` | `(int x, int y)` | Reads a PosXY field. `(0, 0)` when there is nothing to read. |
+| `IntArray` | `ReadOnlySpan<int>` | A view straight onto an Int field's items — no copy. Empty on a missing or mismatched field. |
+| `DecArray` | `ReadOnlySpan<double>` | The same for a Decimal field. |
+| `BoolArray` | `ReadOnlySpan<bool>` | The same for a Bool field. |
+| `Has` | `bool` | True when the object declares that field. |
+| `TypeOf` | `DataValueType` | The field's declared type (`String` for a field that is not there). |
+| `IsArray` | `bool` | True when the field was authored as a list. |
+| `Count` | `int` | Items in the field: `1` for a scalar, `0` when the field is not there. |
+
+Every getter takes `field, i = 0, fallback` — `i` picks the item out of an array, and `fallback` is what comes back when the field is missing, `i` is past the end, or the getter does not match the field's declared type. Nothing here throws, so a typo in a field name costs you a fallback value rather than the game; use `Has` or `Count` when you need to tell "missing" from "zero".
+
+The data the game sees is compiled from `data.json` at launch and again on every `Ctrl+S`, so a value you change in the [JSON Editor](#json-editor) reaches `gjson` as soon as you save — no restart.
 
 ## Autotile
 

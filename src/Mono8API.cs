@@ -10,6 +10,8 @@ internal class Mono8API : IEditorAPI
     public static MusicSheet MusicSheet = new MusicSheet();
     public static MapSheet MapSheet = new MapSheet();
     public static JsonSheet JsonSheet = new JsonSheet();
+    // The sheet is the editor's shape; this is the game's. Rebuilt from it on load and on save.
+    private static readonly JsonRuntime _jsonData = new JsonRuntime();
     private static string _folder = Constants.File.Folder;
     // Static because every editor reads its hover label off the shared bar.
     public static EditorMenuBar MenuBar;
@@ -45,6 +47,7 @@ internal class Mono8API : IEditorAPI
         MapSheet.LoadMaps(ReadLines(Constants.File.Extensions.MapSheet, path));
         // The only sheet that reads its own file: data.json is one document, not a line per record.
         JsonSheet.Load(path);
+        _jsonData.Build(JsonSheet);
         SaveData.Load(path);
 
         // The sheets are the only parsers; the engine plays the snapshots they hand it.
@@ -67,6 +70,8 @@ internal class Mono8API : IEditorAPI
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Sfx, string.Join("\n", SfxSheet.ToSfxLines()), path);
         FileIO.Write(Constants.File.Name, Constants.File.Extensions.Music, string.Join("\n", MusicSheet.ToMusicLines()), path);
         JsonSheet.Save(path);
+        // Ctrl+S is the moment an edit becomes the game's data, so gjson sees it without a restart.
+        _jsonData.Build(JsonSheet);
     }
 
     /// <summary>Push the editor's current SFX edits into the live audio engine so previews reflect them.</summary>
@@ -395,6 +400,28 @@ internal class Mono8API : IEditorAPI
     public int dget(int index) => SaveData.Get(index);
 
     public void dset(int index, int value) => SaveData.Set(index, value);
+
+    public Mono8JsonObject gjson(string group, string obj) => _jsonData.Find(group, obj);
+
+    // One overload per runtime type: the compiler picks the setter, so no value is ever boxed and
+    // a mismatched type is a false rather than a silent conversion.
+    public bool sjson(string group, string obj, string field, int value, int index = 0)
+        => _jsonData.Find(group, obj)?.SetInt(field, value, index) ?? false;
+
+    public bool sjson(string group, string obj, string field, double value, int index = 0)
+        => _jsonData.Find(group, obj)?.SetDec(field, value, index) ?? false;
+
+    public bool sjson(string group, string obj, string field, decimal value, int index = 0)
+        => _jsonData.Find(group, obj)?.SetMoney(field, value, index) ?? false;
+
+    public bool sjson(string group, string obj, string field, bool value, int index = 0)
+        => _jsonData.Find(group, obj)?.SetBool(field, value, index) ?? false;
+
+    public bool sjson(string group, string obj, string field, string value, int index = 0)
+        => _jsonData.Find(group, obj)?.SetStr(field, value, index) ?? false;
+
+    public bool sjson(string group, string obj, string field, (int x, int y) value, int index = 0)
+        => _jsonData.Find(group, obj)?.SetXY(field, value.x, value.y, index) ?? false;
 
     public void menuitem(int index, string label, Action callback)
         => Menu.SetItem(index, label, callback);

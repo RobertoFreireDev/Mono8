@@ -228,6 +228,50 @@ public interface IMono8API
     int dget(int index);
 
     void dset(int index, int value);
+
+    // ============================================================
+    // JSON DATA
+    // ============================================================
+
+    /// <summary>
+    /// The object authored at <paramref name="group"/> / <paramref name="obj"/> in
+    /// <c>data.json</c>, or null when either name is unknown. Names are matched without regard to
+    /// case. The lookup allocates nothing, so holding the result is an optimisation, not a
+    /// requirement.
+    /// </summary>
+    Mono8JsonObject gjson(string group, string obj);
+
+    /// <summary>
+    /// Writes one value into an existing field. Returns false — and changes nothing — when the
+    /// group, object or field is unknown, when <paramref name="index"/> is past the end of an
+    /// array, or when the overload does not match the field's declared type. Never throws and
+    /// never creates a field.
+    /// <para>
+    /// The write lands in memory only: <c>data.json</c> is authored in the editor, and a running
+    /// game does not rewrite its own data.
+    /// </para>
+    /// </summary>
+    bool sjson(string group, string obj, string field, int value, int index = 0);
+
+    /// <inheritdoc cref="sjson(string, string, string, int, int)"/>
+    bool sjson(string group, string obj, string field, double value, int index = 0);
+
+    /// <inheritdoc cref="sjson(string, string, string, int, int)"/>
+    bool sjson(string group, string obj, string field, decimal value, int index = 0);
+
+    /// <inheritdoc cref="sjson(string, string, string, int, int)"/>
+    bool sjson(string group, string obj, string field, bool value, int index = 0);
+
+    /// <inheritdoc cref="sjson(string, string, string, int, int)"/>
+    bool sjson(string group, string obj, string field, string value, int index = 0);
+
+    /// <summary>
+    /// Writes a PosXY field, as a tuple: <c>sjson("ENEMY", "SLIME", "SPAWN", (40, 88))</c>. The
+    /// pair is one argument rather than two so it cannot be read as the int overload's
+    /// <c>value, index</c>.
+    /// </summary>
+    /// <inheritdoc cref="sjson(string, string, string, int, int)"/>
+    bool sjson(string group, string obj, string field, (int x, int y) value, int index = 0);
 }
 
 /// <summary>
