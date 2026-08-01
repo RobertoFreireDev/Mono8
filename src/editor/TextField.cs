@@ -21,6 +21,10 @@ internal sealed class TextField
 {
     private const int BlinkFrames = 15;   // half a second at the fixed 30 fps
 
+    // The caret reads as the caret and not as another character: it is the one thing in the field
+    // that is not the white the text is drawn in.
+    private const int CaretColor = Constants.Colors.Orange;
+
     // A held arrow repeats on the cadence TextEntry gives backspace: ~0.33 s, then ~15 a second.
     // Without it a 256-character value would have to be crossed one key press at a time.
     private const int RepeatDelayFrames = 10;
@@ -222,7 +226,7 @@ internal sealed class TextField
         if ((_blink / BlinkFrames) % 2 != 0) return;
 
         int caret = Math.Min(_bounds.X + 1 + Text.Width(shown), _bounds.Right - 1);
-        _api.rectfill(caret, _bounds.Y + 1, caret, _bounds.Bottom - 2, Constants.Colors.White);
+        _api.rectfill(caret, _bounds.Y + 1, caret, _bounds.Bottom - 2, CaretColor);
     }
 
     /// <summary>
@@ -252,7 +256,7 @@ internal sealed class TextField
         if (!IsVisible(caretY)) return;
 
         int caretX = Math.Min(_bounds.X + column * Text.CharAdvance, _bounds.Right - 1);
-        _api.rectfill(caretX, caretY + 1, caretX, caretY + Text.LineHeight - 2, Constants.Colors.White);
+        _api.rectfill(caretX, caretY + 1, caretX, caretY + Text.LineHeight - 2, CaretColor);
     }
 
     /// <summary>

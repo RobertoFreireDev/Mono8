@@ -202,8 +202,18 @@ internal sealed class JsonEditor : IEditor
         var mode = _editing;
         bool advance = _field.Advance;
         _editing = Editing.None;
-        if (cancelled) return;
 
+        if (!cancelled) Commit(mode, committed, advance);
+
+        // A pending key's row was only ever room the open field was holding. It is gone now — added
+        // as a real block, refused as a duplicate, or dropped with an Esc — so the scroll that
+        // opened it up comes back off in the same frame rather than leaving a blank row behind.
+        ClampScroll();
+    }
+
+    /// <summary>Sends what the field accepted wherever the edit that opened it was aimed.</summary>
+    private void Commit(Editing mode, string committed, bool advance)
+    {
         switch (mode)
         {
             case Editing.NodeName:
@@ -774,8 +784,10 @@ internal sealed class JsonEditor : IEditor
             return;
         }
 
-        // The new key lands one row past the last block, so scroll far enough to show it.
-        int top = InspectorHeight();
+        // The new key lands one row past the last block, so scroll far enough to show it. The row it
+        // lands on is part of the panel's height for as long as the field is open, so this is the
+        // bottom of the scroll rather than one row past it and it survives the next clamp.
+        int top = BlocksHeight();
         _inspectorScroll = Math.Max(0, top + RowH - ContentH);
 
         _field.BeginName(new Rectangle(KeyX, ContentTop + top - _inspectorScroll, BadgeX - KeyX - 1, RowH), string.Empty);
@@ -880,8 +892,19 @@ internal sealed class JsonEditor : IEditor
         }
     }
 
-    private int InspectorHeight() =>
+    /// <summary>The height of the blocks as they are drawn, with no room held for anything pending.</summary>
+    private int BlocksHeight() =>
         _blocks.Count == 0 ? 0 : _blocks[_blocks.Count - 1].Top + _blocks[_blocks.Count - 1].Height;
+
+    /// <summary>
+    /// The height the inspector scrolls over. A key being named has no block until it is committed,
+    /// so while its field is open the panel is one row taller than the blocks in it — otherwise the
+    /// scroll that brought the empty name on screen is clamped straight back off it and the field
+    /// ends up sitting over the last key instead of under it. The row goes back the moment the edit
+    /// ends without adding anything.
+    /// </summary>
+    private int InspectorHeight() =>
+        BlocksHeight() + (_field.Active && _editing == Editing.NewKey ? RowH : 0);
 
     private static int Columns(JsonField field) => field.IsArray ? ItemCols : ScalarCols;
 
