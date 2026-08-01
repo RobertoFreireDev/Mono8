@@ -450,15 +450,29 @@ internal class MapEditor : IEditor, IAutotileGrid
     {
         var map = Mono8API.MapSheet;
 
-        if (KeybrdInput.IsUndoShortcutPressed() && map.CanUndo)
+        if (KeybrdInput.IsUndoShortcutPressed())
         {
-            map.Undo();
-            eventNotifier.AddEvent("UNDO");
+            if (map.CanUndo)
+            {
+                map.Undo();
+                eventNotifier.AddEvent("UNDO");
+            }
+            else
+            {
+                eventNotifier.AddEvent(EditorUI.NothingToUndoLabel);
+            }
         }
-        else if (KeybrdInput.IsRedoShortcutPressed() && map.CanRedo)
+        else if (KeybrdInput.IsRedoShortcutPressed())
         {
-            map.Redo();
-            eventNotifier.AddEvent("REDO");
+            if (map.CanRedo)
+            {
+                map.Redo();
+                eventNotifier.AddEvent("REDO");
+            }
+            else
+            {
+                eventNotifier.AddEvent(EditorUI.NothingToRedoLabel);
+            }
         }
 
         if (!hasSelection) return;

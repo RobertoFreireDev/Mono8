@@ -129,7 +129,7 @@ Names of groups, objects and fields all obey one rule: at most 8 characters, uni
 | Groups | 16 |
 | Objects per group | 64 |
 | Fields per object | 16 |
-| Array items | 64 |
+| Array items | 16 |
 
 Your game reads it with [`gjson`](#json-data). Author it in the [JSON Editor](#json-editor) or write it by hand; the engine reads it on launch and rewrites it on `Ctrl+S`. Loading is deliberately forgiving. A missing or unparseable file loads as an empty tree, and an unknown type suffix, an over-long or duplicate name, a value that will not parse, or a count past the limits drops that one node while the rest of the file still loads. Characters the font cannot draw are stripped from values. The next `Ctrl+S` then writes the file back in canonical form — 2-space indent, keys in the order they were read — so whatever was repaired on the way in is what ends up on disk. When a load did drop or repair anything, the [JSON Editor](#json-editor) says `LOAD FIX` the first time you open it, since until you save, the file on disk and the tree you are editing are two different things.
 

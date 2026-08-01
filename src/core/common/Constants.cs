@@ -103,6 +103,6 @@ public static class Constants
         public const int MaxFieldsPerObj = 16;
         public const int MaxNameChars = 8;
         public const int MaxTextChars = 256;
-        public const int MaxArrayItems = 64;
+        public const int MaxArrayItems = 16;
     }
 }

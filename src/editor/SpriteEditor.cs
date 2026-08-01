@@ -226,16 +226,30 @@ internal class SpriteEditor : IEditor
             eventNotifier.AddEvent("SAVED");
         }
 
-        if (KeybrdInput.IsUndoShortcutPressed() && Mono8API.SpriteSheet.CanUndo)
+        if (KeybrdInput.IsUndoShortcutPressed())
         {
-            Mono8API.SpriteSheet.Undo();
-            eventNotifier.AddEvent("UNDO");
+            if (Mono8API.SpriteSheet.CanUndo)
+            {
+                Mono8API.SpriteSheet.Undo();
+                eventNotifier.AddEvent("UNDO");
+            }
+            else
+            {
+                eventNotifier.AddEvent(EditorUI.NothingToUndoLabel);
+            }
         }
 
-        if (KeybrdInput.IsRedoShortcutPressed() && Mono8API.SpriteSheet.CanRedo)
+        if (KeybrdInput.IsRedoShortcutPressed())
         {
-            Mono8API.SpriteSheet.Redo();
-            eventNotifier.AddEvent("REDO");
+            if (Mono8API.SpriteSheet.CanRedo)
+            {
+                Mono8API.SpriteSheet.Redo();
+                eventNotifier.AddEvent("REDO");
+            }
+            else
+            {
+                eventNotifier.AddEvent(EditorUI.NothingToRedoLabel);
+            }
         }
 
         int moveX = 0, moveY = 0;

@@ -6,6 +6,10 @@ internal static class EditorUI
     /// <summary>Top of the orange status bar that every editor reserves along the bottom.</summary>
     public static int BottomBarY => Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize;
 
+    /// <summary>Event labels for an undo/redo shortcut that had no history left to walk.</summary>
+    public const string NothingToUndoLabel = "NOTHING TO UNDO";
+    public const string NothingToRedoLabel = "NOTHING TO REDO";
+
     /// <summary>A filled box with a label in its top-left corner.</summary>
     public static void Box(IMono8API api, Rectangle b, string text, int bg, int fg)
     {
