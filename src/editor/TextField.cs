@@ -43,7 +43,7 @@ internal sealed class TextField
     public void BeginName(Rectangle bounds, string initial)
     {
         Open(bounds, initial);
-        _type = DataValueType.String;
+        _type = DataValueType.Text;
         _isName = true;
         _maxLength = JsonNames.MaxChars;
     }

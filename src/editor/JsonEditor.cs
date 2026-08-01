@@ -209,7 +209,7 @@ internal sealed class JsonEditor : IEditor
                 break;
 
             case Editing.NewKey:
-                if (Sheet.TryAddField(_inspected, committed, DataValueType.String, false, out JsonField added))
+                if (Sheet.TryAddField(_inspected, committed, DataValueType.Text, false, out JsonField added))
                 {
                     _selField = _inspected.Fields.IndexOf(added);
                     _selItem = 0;
@@ -454,16 +454,14 @@ internal sealed class JsonEditor : IEditor
     /// <summary>
     /// What the one-character type badge stands for. PosXY says more than its name because its
     /// shape — two ints and a comma — is the one thing here that a name alone does not give away:
-    /// the position it already holds if that reads back, and an example if it does not. String and
-    /// Text differ only in how much they hold, so each carries its cap — otherwise the pair reads
-    /// as two names for the same thing until an entry stops taking characters.
+    /// the position it already holds if that reads back, and an example if it does not. Text
+    /// carries its cap, since where it stops taking characters is not something the name says.
     /// </summary>
     private static string TypeHint(JsonField field, int item)
     {
         string label = TypeLabel(field.Type);
         switch (field.Type)
         {
-            case DataValueType.String:
             case DataValueType.Text:
                 return label + " MAX " + DataValue.MaxLength(field.Type);
 
@@ -479,7 +477,6 @@ internal sealed class JsonEditor : IEditor
 
     private static string TypeLabel(DataValueType type) => type switch
     {
-        DataValueType.String => "STRING",
         DataValueType.Text => "TEXT",
         DataValueType.Int => "INT",
         DataValueType.Decimal => "DECIMAL",

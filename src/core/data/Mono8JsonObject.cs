@@ -21,7 +21,7 @@ namespace mono8.core.data;
 /// </summary>
 public sealed class Mono8JsonObject
 {
-    /// <summary>Which backing array a field's values live in. String and Text share one.</summary>
+    /// <summary>Which backing array a field's values live in.</summary>
     private enum Store { Int, Dec, Money, Bool, Str, Xy }
 
     /// <summary>Where one field's values are: the array is implied by <see cref="Type"/>.</summary>
@@ -178,7 +178,7 @@ public sealed class Mono8JsonObject
         DataValueType.Money => Store.Money,
         DataValueType.Bool => Store.Bool,
         DataValueType.PosXY => Store.Xy,
-        _ => Store.Str          // String and Text are both a string at runtime.
+        _ => Store.Str          // Text is the only string-backed type.
     };
 
     // ── Shape ─────────────────────────────────────────────────────────────────
@@ -187,11 +187,11 @@ public sealed class Mono8JsonObject
     public bool Has(string field) => field != null && _index.ContainsKey(field);
 
     /// <summary>
-    /// The field's declared type. A field that is not here reads as <see cref="DataValueType.String"/>,
+    /// The field's declared type. A field that is not here reads as <see cref="DataValueType.Text"/>,
     /// so pair this with <see cref="Has"/> when the difference matters.
     /// </summary>
     public DataValueType TypeOf(string field) =>
-        field != null && _index.TryGetValue(field, out Slot slot) ? slot.Type : DataValueType.String;
+        field != null && _index.TryGetValue(field, out Slot slot) ? slot.Type : DataValueType.Text;
 
     /// <summary>True when the field was authored as a list rather than a single value.</summary>
     public bool IsArray(string field) =>
@@ -215,7 +215,7 @@ public sealed class Mono8JsonObject
     public bool GetBool(string field, int i = 0, bool fallback = false) =>
         TryFind(field, Store.Bool, i, out int at) ? _bools[at] : fallback;
 
-    /// <summary>Reads a String or a Text field — both are a <see cref="string"/> at runtime.</summary>
+    /// <summary>Reads a Text field.</summary>
     public string GetStr(string field, int i = 0, string fallback = "") =>
         TryFind(field, Store.Str, i, out int at) ? _strs[at] : fallback;
 

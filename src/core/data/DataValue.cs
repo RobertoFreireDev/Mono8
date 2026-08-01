@@ -2,10 +2,9 @@ using System.Globalization;
 
 namespace mono8.core.data;
 
-/// <summary>The seven kinds of value a <c>data.json</c> field can hold.</summary>
+/// <summary>The six kinds of value a <c>data.json</c> field can hold.</summary>
 public enum DataValueType
 {
-    String,
     Text,
     Int,
     Decimal,
@@ -34,7 +33,6 @@ public static class DataValue
     /// <summary>Longest raw entry accepted for <paramref name="type"/>, in characters.</summary>
     public static int MaxLength(DataValueType type) => type switch
     {
-        DataValueType.String => Constants.JsonData.MaxStringChars,
         DataValueType.Text => Constants.JsonData.MaxTextChars,
         DataValueType.Int => IntChars,
         DataValueType.Decimal => DecimalChars,
@@ -56,7 +54,6 @@ public static class DataValue
 
         switch (type)
         {
-            case DataValueType.String:
             case DataValueType.Text:
                 return true;
 
@@ -92,8 +89,8 @@ public static class DataValue
     /// zeros disappear from an Int, <c>8 , 40</c> becomes <c>8,40</c>. Returns false when the entry
     /// cannot be read as <paramref name="type"/> at all, in which case the caller keeps the old value.
     /// <para>
-    /// String and Text are sanitised and truncated rather than rejected — a value is data, and
-    /// clipping a hand-edited over-long string loses less than dropping the whole field would.
+    /// Text is sanitised and truncated rather than rejected — a value is data, and clipping a
+    /// hand-edited over-long string loses less than dropping the whole field would.
     /// </para>
     /// </summary>
     public static bool TryNormalize(DataValueType type, string raw, out string normalized)
@@ -103,7 +100,6 @@ public static class DataValue
 
         switch (type)
         {
-            case DataValueType.String:
             case DataValueType.Text:
                 string clean = Text.Sanitize(raw);
                 int max = MaxLength(type);
@@ -161,12 +157,11 @@ public static class DataValue
     /// number so its trailing zeros survive the round trip ("3.50" would come back as 3.5).
     /// </summary>
     public static bool IsQuoted(DataValueType type) =>
-        type == DataValueType.String || type == DataValueType.Text || type == DataValueType.Money;
+        type == DataValueType.Text || type == DataValueType.Money;
 
     /// <summary>The one-character code that suffixes the key in the file, as in <c>"HP:i"</c>.</summary>
     public static string Code(DataValueType type) => type switch
     {
-        DataValueType.String => "s",
         DataValueType.Text => "t",
         DataValueType.Int => "i",
         DataValueType.Decimal => "d",
@@ -175,15 +170,22 @@ public static class DataValue
         _ => "b"
     };
 
-    /// <summary>Reads a key suffix back into a type. Unknown codes fail so the loader can drop the field.</summary>
+    /// <summary>
+    /// Reads a key suffix back into a type. Unknown codes fail so the loader can drop the field.
+    /// <para>
+    /// <c>s</c> was the old 16-character String type. It reads as a Text so a file authored before
+    /// the two were merged keeps its fields; the key no longer matches <see cref="Code"/>, so the
+    /// load is reported as repaired and the next save writes it back as <c>:t</c>.
+    /// </para>
+    /// </summary>
     public static bool TryParse(string code, out DataValueType type)
     {
-        type = DataValueType.String;
+        type = DataValueType.Text;
         if (string.IsNullOrEmpty(code) || code.Length != 1) return false;
 
         switch (code[0])
         {
-            case 's': type = DataValueType.String; return true;
+            case 's': type = DataValueType.Text; return true;
             case 't': type = DataValueType.Text; return true;
             case 'i': type = DataValueType.Int; return true;
             case 'd': type = DataValueType.Decimal; return true;
@@ -194,14 +196,13 @@ public static class DataValue
         }
     }
 
-    /// <summary>Same as <see cref="TryParse"/>, falling back to String for an unknown code.</summary>
+    /// <summary>Same as <see cref="TryParse"/>, falling back to Text for an unknown code.</summary>
     public static DataValueType Parse(string code) =>
-        TryParse(code, out DataValueType type) ? type : DataValueType.String;
+        TryParse(code, out DataValueType type) ? type : DataValueType.Text;
 
     /// <summary>The value a newly created field of <paramref name="type"/> starts with.</summary>
     public static string Default(DataValueType type) => type switch
     {
-        DataValueType.String => "",
         DataValueType.Text => "",
         DataValueType.Int => "0",
         DataValueType.Decimal => "0",
