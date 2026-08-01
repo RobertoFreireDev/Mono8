@@ -876,6 +876,13 @@ internal class SpriteEditor : IEditor
             var bounds = animFrameSlots[i];
             if (AnimFrames[i] == -1) continue;
 
+            // Active marker: a 1x6 line left of the slot, inset by 1px so it keeps a
+            // one pixel gap from the slot and from the markers above and below it.
+            int markerX = bounds.X + bounds.Width + 1;
+            _api.rectfill(markerX, bounds.Y + 1,
+                markerX, bounds.Y + bounds.Height - 2,
+                Constants.Colors.Green);
+
             var (regionX, regionY, regionW, regionH) = CanvasRegion(AnimFrames[i], Zooms[AnimSclIdx]);
             var (validW, validH) = VisibleSize(regionX, regionY, regionW, regionH);
 
