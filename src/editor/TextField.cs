@@ -1,10 +1,17 @@
 namespace mono8.editor;
 
 /// <summary>
-/// A single-line inline editor: text plus a blinking caret inside a <see cref="Rectangle"/>, fed by
+/// An inline editor: text plus a blinking caret inside a <see cref="Rectangle"/>, fed by
 /// <see cref="TextEntry"/>. This is where "you can only type what this field accepts" is actually
 /// enforced — every character is gated by <see cref="DataValue.IsCharAllowed"/> for a value or
 /// <see cref="JsonNames.IsValidNameChar"/> for a name, so a rejected key simply does nothing.
+/// <para>
+/// A Text value opens in multiline mode (<see cref="BeginText"/>), because it is the one kind of
+/// value that wraps: it is laid out with the very same wrap the inspector draws it with, and it
+/// carries a caret the mouse can place and the arrow keys can move, with characters inserted and
+/// deleted where that caret is. Everything else — a name, a number, a position — is single-line
+/// and appends at the end, which is all it ever needed.
+/// </para>
 /// <para>
 /// <c>Enter</c> commits, <c>Tab</c> commits and asks the caller to move on, <c>Esc</c> cancels and
 /// the caller keeps the value it had.
@@ -13,6 +20,11 @@ namespace mono8.editor;
 internal sealed class TextField
 {
     private const int BlinkFrames = 15;   // half a second at the fixed 30 fps
+
+    // A held arrow repeats on the cadence TextEntry gives backspace: ~0.33 s, then ~15 a second.
+    // Without it a 256-character value would have to be crossed one key press at a time.
+    private const int RepeatDelayFrames = 10;
+    private const int RepeatRateFrames = 2;
 
     private readonly IMono8API _api;
 
@@ -23,6 +35,16 @@ internal sealed class TextField
     private int _maxLength;
     private int _blink;
 
+    private int _columns;      // characters per line while multiline; 0 while the field is single-line
+    private int _caret;        // an index into _text, from 0 to its length
+    private int _clipTop = int.MinValue;
+    private int _clipBottom = int.MaxValue;
+    private int _leftFrames;
+    private int _rightFrames;
+    private int _upFrames;
+    private int _downFrames;
+    private int _deleteFrames;
+
     public TextField(IMono8API api) => _api = api;
 
     public bool Active { get; private set; }
@@ -30,13 +52,33 @@ internal sealed class TextField
     /// <summary>True when the commit that just ended the edit was a <c>Tab</c>.</summary>
     public bool Advance { get; private set; }
 
-    /// <summary>Opens the field on a value of <paramref name="type"/>.</summary>
+    /// <summary>
+    /// What is in the buffer right now. A multiline value grows and shrinks by whole lines as it is
+    /// typed, so the caller needs it to lay out what sits under the field.
+    /// </summary>
+    public string Value => _text;
+
+    /// <summary>Opens the field on a single-line value of <paramref name="type"/>.</summary>
     public void Begin(Rectangle bounds, string initial, DataValueType type, int maxLength)
     {
         Open(bounds, initial);
         _type = type;
         _isName = false;
         _maxLength = maxLength;
+        _columns = 0;
+    }
+
+    /// <summary>
+    /// Opens the field on a Text value that wraps at <paramref name="columns"/> characters —
+    /// <paramref name="bounds"/> is the whole block it occupies, not just its first line.
+    /// </summary>
+    public void BeginText(Rectangle bounds, string initial, int columns, int maxLength)
+    {
+        Open(bounds, initial);
+        _type = DataValueType.Text;
+        _isName = false;
+        _maxLength = maxLength;
+        _columns = Math.Max(1, columns);
     }
 
     /// <summary>Opens the field on a group, object or field name — §1.3's rules, 8 characters.</summary>
@@ -46,6 +88,53 @@ internal sealed class TextField
         _type = DataValueType.Text;
         _isName = true;
         _maxLength = JsonNames.MaxChars;
+        _columns = 0;
+    }
+
+    /// <summary>
+    /// Moves the open field. A multiline value changes height as it is typed, and the rows under it
+    /// move with it, so the caller re-states where the block is every frame.
+    /// </summary>
+    public void SetBounds(Rectangle bounds) => _bounds = bounds;
+
+    /// <summary>
+    /// Keeps drawing inside the band from <paramref name="top"/> to <paramref name="bottom"/>. A
+    /// wrapped value can run taller than the panel showing it, and nothing in the project clips, so
+    /// a line that does not fit entirely between the two is dropped rather than left to bleed over
+    /// whatever borders the panel — the rule the inspector already draws its stored values by.
+    /// </summary>
+    public void Clip(int top, int bottom)
+    {
+        _clipTop = top;
+        _clipBottom = bottom;
+    }
+
+    /// <summary>
+    /// Puts the caret under (<paramref name="x"/>, <paramref name="y"/>) — how a click inside a
+    /// multiline value picks where the next character lands, including the click that opened it.
+    /// The point is clamped onto a line and then into that line, so a click past the last line or
+    /// past the end of a short one still leaves the caret somewhere the text actually has.
+    /// </summary>
+    public void PlaceCaret(int x, int y) => PlaceCaretIn(x - _bounds.X, y - _bounds.Y);
+
+    /// <summary>
+    /// The same from a point already measured from the field's top-left corner. The click that
+    /// opens an edit is one of those: the panel may scroll the value into view as it opens, which
+    /// moves where the text is on screen without moving where in it the click pointed.
+    /// </summary>
+    public void PlaceCaretIn(int offsetX, int offsetY)
+    {
+        if (!Active || _columns <= 0) return;
+
+        var spans = EditorUI.WrapSpans(_text, _columns);
+        int line = Math.Clamp(offsetY / Text.LineHeight, 0, spans.Count - 1);
+
+        // Round to the nearest gap between characters rather than truncating into one, so the half
+        // of a glyph nearer the next gap puts the caret there — a caret sits between characters.
+        int column = offsetX <= 0 ? 0 : (offsetX + Text.CharAdvance / 2) / Text.CharAdvance;
+
+        SetCaret(spans, line, column);
+        _blink = 0;   // show it where it just landed instead of mid-blink
     }
 
     public void Cancel() => Active = false;
@@ -62,6 +151,10 @@ internal sealed class TextField
 
         _blink++;
 
+        // The buffer is the only authority on where a caret can be, and it changed under it on any
+        // frame that typed or deleted, so every pass starts by putting the caret back inside it.
+        _caret = Math.Clamp(_caret, 0, _text.Length);
+
         // Ctrl is held for shortcuts, not for typing, so its key presses never reach the buffer.
         if (!KeybrdInput.IsCtrlPressed())
         {
@@ -69,11 +162,18 @@ internal sealed class TextField
             {
                 if (_text.Length >= _maxLength) break;
                 if (!IsAllowed(c)) continue;
-                _text += c;
+                _text = _text.Insert(_caret, c.ToString());
+                _caret++;
             }
 
-            if (TextEntry.Backspace && _text.Length > 0) _text = _text.Substring(0, _text.Length - 1);
+            if (TextEntry.Backspace && _caret > 0)
+            {
+                _text = _text.Remove(_caret - 1, 1);
+                _caret--;
+            }
         }
+
+        if (_columns > 0) UpdateCaretKeys();
 
         if (KeybrdInput.JustPressed(Keys.Escape))
         {
@@ -83,9 +183,15 @@ internal sealed class TextField
         }
 
         // Clicking away commits, the same way the sprite editor's reference-number field ends its
-        // edit, so an entry is never stranded by a key that did not land.
+        // edit, so an entry is never stranded by a key that did not land. A click that lands inside
+        // a multiline value is not a click away — it is the caret being aimed.
         var mouse = _api.mousexy();
-        bool clickedAway = _api.mouselp() && !_bounds.Contains(mouse.x, mouse.y);
+        bool clickedAway = false;
+        if (_api.mouselp())
+        {
+            if (_bounds.Contains(mouse.x, mouse.y)) PlaceCaret(mouse.x, mouse.y);
+            else clickedAway = true;
+        }
 
         bool tab = KeybrdInput.JustPressed(Keys.Tab);
         if (!tab && !clickedAway && !KeybrdInput.JustPressed(Keys.Enter)) return false;
@@ -100,6 +206,12 @@ internal sealed class TextField
     {
         if (!Active) return;
 
+        if (_columns > 0)
+        {
+            DrawWrapped();
+            return;
+        }
+
         _api.rectfill(_bounds.X, _bounds.Y, _bounds.Right - 1, _bounds.Bottom - 1, Constants.Colors.Indigo);
 
         // A value can be far longer than the field is wide, so the window follows the caret at the end.
@@ -113,11 +225,112 @@ internal sealed class TextField
         _api.rectfill(caret, _bounds.Y + 1, caret, _bounds.Bottom - 2, Constants.Colors.White);
     }
 
+    /// <summary>
+    /// The multiline view. Nothing is inset by the single line's pixel: an open edit has to sit
+    /// exactly where the inspector drew the stored value, or the text would step sideways the
+    /// moment it is clicked.
+    /// </summary>
+    private void DrawWrapped()
+    {
+        var spans = EditorUI.WrapSpans(_text, _columns);
+
+        for (int i = 0; i < spans.Count; i++)
+        {
+            int y = _bounds.Y + i * Text.LineHeight;
+            if (!IsVisible(y)) continue;
+
+            _api.rectfill(_bounds.X, y, _bounds.Right - 1, y + Text.LineHeight - 1, Constants.Colors.Indigo);
+
+            var (start, length) = spans[i];
+            if (length > 0) _api.print(_text.Substring(start, length), _bounds.X, y + 1, Constants.Colors.White);
+        }
+
+        if ((_blink / BlinkFrames) % 2 != 0) return;
+
+        var (line, column) = CaretLineColumn(spans);
+        int caretY = _bounds.Y + line * Text.LineHeight;
+        if (!IsVisible(caretY)) return;
+
+        int caretX = Math.Min(_bounds.X + column * Text.CharAdvance, _bounds.Right - 1);
+        _api.rectfill(caretX, caretY + 1, caretX, caretY + Text.LineHeight - 2, Constants.Colors.White);
+    }
+
+    /// <summary>
+    /// Arrow keys and forward delete, which only exist while a value is multiline. Left and right
+    /// walk the buffer; up and down keep the column and change the line, both of them clamped, so
+    /// the top line has nowhere above it and a short line takes the caret to its end.
+    /// </summary>
+    private void UpdateCaretKeys()
+    {
+        if (Repeats(Keys.Left, ref _leftFrames)) _caret--;
+        if (Repeats(Keys.Right, ref _rightFrames)) _caret++;
+        _caret = Math.Clamp(_caret, 0, _text.Length);
+
+        bool up = Repeats(Keys.Up, ref _upFrames);
+        bool down = Repeats(Keys.Down, ref _downFrames);
+        if (up || down)
+        {
+            var spans = EditorUI.WrapSpans(_text, _columns);
+            var (line, column) = CaretLineColumn(spans);
+            SetCaret(spans, line + (down ? 1 : 0) - (up ? 1 : 0), column);
+        }
+
+        if (Repeats(Keys.Delete, ref _deleteFrames) && _caret < _text.Length) _text = _text.Remove(_caret, 1);
+
+        _caret = Math.Clamp(_caret, 0, _text.Length);
+    }
+
+    /// <summary>True when all 9 pixels of a line starting at <paramref name="y"/> are inside the clip band.</summary>
+    private bool IsVisible(int y) => y >= _clipTop && y + Text.LineHeight <= _clipBottom;
+
+    /// <summary>True on the frame <paramref name="key"/> should act: once on the press, then repeating.</summary>
+    private static bool Repeats(Keys key, ref int frames)
+    {
+        if (!KeybrdInput.Pressed(key))
+        {
+            frames = 0;
+            return false;
+        }
+
+        bool fire = frames == 0
+            || (frames >= RepeatDelayFrames && (frames - RepeatDelayFrames) % RepeatRateFrames == 0);
+        frames++;
+        return fire;
+    }
+
+    /// <summary>
+    /// Where the caret sits in the wrapped text. A caret that landed among the spaces a break
+    /// swallowed belongs to the end of the line before them, since that is where it is drawn.
+    /// </summary>
+    private (int Line, int Column) CaretLineColumn(List<(int Start, int Length)> spans)
+    {
+        for (int i = spans.Count - 1; i >= 0; i--)
+        {
+            if (_caret < spans[i].Start) continue;
+            return (i, Math.Min(_caret - spans[i].Start, spans[i].Length));
+        }
+        return (0, 0);
+    }
+
+    /// <summary>The reverse: a line and a column, both clamped to what the text has, become a caret.</summary>
+    private void SetCaret(List<(int Start, int Length)> spans, int line, int column)
+    {
+        line = Math.Clamp(line, 0, spans.Count - 1);
+        column = Math.Clamp(column, 0, spans[line].Length);
+        _caret = Math.Clamp(spans[line].Start + column, 0, _text.Length);
+    }
+
     private void Open(Rectangle bounds, string initial)
     {
         _bounds = bounds;
         _text = initial ?? string.Empty;
+        _caret = _text.Length;
         _blink = 0;
+        _leftFrames = 0;
+        _rightFrames = 0;
+        _upFrames = 0;
+        _downFrames = 0;
+        _deleteFrames = 0;
         Advance = false;
         Active = true;
 

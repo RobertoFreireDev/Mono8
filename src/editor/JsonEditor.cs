@@ -191,6 +191,10 @@ internal sealed class JsonEditor : IEditor
 
     private void UpdateField()
     {
+        // The field has to be sitting on the block before it reads the mouse, or a click would be
+        // measured against where the value was a line ago.
+        PositionValueField();
+
         if (!_field.Update(out string committed, out bool cancelled)) return;
 
         var mode = _editing;
@@ -351,8 +355,20 @@ internal sealed class JsonEditor : IEditor
 
         if (!left || mouse.x < ValueColumnX(field)) return;
 
-        if (field.Type == DataValueType.Bool) ToggleBool(field, block.Item);
-        else BeginValueEdit();
+        if (field.Type == DataValueType.Bool)
+        {
+            ToggleBool(field, block.Item);
+            return;
+        }
+
+        // The click that opened a Text value also says where in it the caret goes, so the edit
+        // starts under the pointer rather than at the end of however many lines it runs to. It is
+        // taken as an offset into the block, since opening the edit can scroll the block.
+        int offsetX = mouse.x - ValueColumnX(field);
+        int offsetY = mouse.y - (ContentTop + block.Top - _inspectorScroll);
+
+        BeginValueEdit();
+        _field.PlaceCaretIn(offsetX, offsetY);
     }
 
     private void UpdateActions((int x, int y) mouse)
@@ -782,9 +798,44 @@ internal sealed class JsonEditor : IEditor
 
         int x = ValueColumnX(field);
         int y = ContentTop + _blocks[block].Top - _inspectorScroll;
-        _field.Begin(new Rectangle(x, y, InspRight - x, RowH), field.Values[_selItem],
-            field.Type, DataValue.MaxLength(field.Type));
+
+        // A Text value is the one that wraps, so it is edited over the whole block it occupies and
+        // with a caret in it. Everything else fits on its line and appends at the end.
+        if (field.Type == DataValueType.Text)
+        {
+            _field.BeginText(new Rectangle(x, y, InspRight - x, _blocks[block].Height),
+                field.Values[_selItem], Columns(field), DataValue.MaxLength(field.Type));
+            _field.Clip(ContentTop, ContentBottom);
+        }
+        else
+        {
+            _field.Begin(new Rectangle(x, y, InspRight - x, RowH), field.Values[_selItem],
+                field.Type, DataValue.MaxLength(field.Type));
+        }
+
         _editing = Editing.Value;
+    }
+
+    /// <summary>
+    /// Re-states where the open value field is. A Text value changes height as it is typed, so the
+    /// block it sits in is re-measured every frame and the field is moved onto it — and the panel
+    /// scrolls if the growth pushed its last line past the bottom.
+    /// </summary>
+    private void PositionValueField()
+    {
+        if (_editing != Editing.Value || !_field.Active) return;
+
+        var field = SelectedField();
+        if (field == null) return;
+
+        EnsureBlockVisible();
+
+        int block = SelectedBlock();
+        if (block < 0) return;
+
+        int x = ValueColumnX(field);
+        int y = ContentTop + _blocks[block].Top - _inspectorScroll;
+        _field.SetBounds(new Rectangle(x, y, InspRight - x, _blocks[block].Height));
     }
 
     // ── Model views ───────────────────────────────────────────────────────────
@@ -813,7 +864,7 @@ internal sealed class JsonEditor : IEditor
             var field = _inspected.Fields[fi];
             for (int item = 0; item < field.Values.Count; item++)
             {
-                int height = LineCount(field, item) * RowH;
+                int height = LineCount(field, fi, item) * RowH;
                 _blocks.Add(new Block
                 {
                     Field = fi,
@@ -834,10 +885,25 @@ internal sealed class JsonEditor : IEditor
 
     private static int ValueColumnX(JsonField field) => field.IsArray ? ItemValueX : ValueX;
 
-    private static int LineCount(JsonField field, int item) =>
-        field.Type == DataValueType.Text
-            ? Wrap(DataValue.Format(field.Type, field.Values[item]), Columns(field)).Count
-            : 1;
+    /// <summary>
+    /// How many lines a value takes. An open Text edit is measured on what is in the field rather
+    /// than on what is still stored, so the block grows and shrinks with the typing and the rows
+    /// under it move out of its way instead of being drawn over.
+    /// </summary>
+    private int LineCount(JsonField field, int fieldIndex, int item)
+    {
+        if (field.Type != DataValueType.Text) return 1;
+
+        string text = IsEditingValueOf(fieldIndex, item)
+            ? _field.Value
+            : DataValue.Format(field.Type, field.Values[item]);
+
+        return EditorUI.WrapSpans(text, Columns(field)).Count;
+    }
+
+    /// <summary>True while the open field is editing exactly this item's value.</summary>
+    private bool IsEditingValueOf(int fieldIndex, int item) =>
+        _field.Active && _editing == Editing.Value && fieldIndex == _selField && item == _selItem;
 
     private JsonField SelectedField() =>
         _inspected != null && _selField >= 0 && _selField < _inspected.Fields.Count
@@ -957,45 +1023,13 @@ internal sealed class JsonEditor : IEditor
         ClampScroll();
     }
 
-    /// <summary>
-    /// Word-wraps to <paramref name="columns"/> characters, breaking mid-word only for a run that
-    /// cannot fit a line on its own. Always returns at least one line.
-    /// </summary>
-    private static List<string> Wrap(string s, int columns)
-    {
-        var lines = new List<string>();
-        if (columns <= 0 || string.IsNullOrEmpty(s))
-        {
-            lines.Add(s ?? string.Empty);
-            return lines;
-        }
-
-        int i = 0;
-        while (i < s.Length)
-        {
-            if (s.Length - i <= columns)
-            {
-                lines.Add(s.Substring(i));
-                break;
-            }
-
-            int space = s.LastIndexOf(' ', i + columns, columns + 1);
-            int take = space > i ? space - i : columns;
-            lines.Add(s.Substring(i, take));
-
-            i += take;
-            while (i < s.Length && s[i] == ' ') i++;
-        }
-
-        return lines;
-    }
-
     // ── Draw ──────────────────────────────────────────────────────────────────
 
     public void Draw()
     {
         RebuildRows();
         RebuildBlocks();
+        PositionValueField();
 
         _api.rectfill(0, ContentTop, Constants.Screen.ResolutionX, Constants.Screen.ResolutionY - 1,
             Constants.Colors.Black);
@@ -1098,7 +1132,7 @@ internal sealed class JsonEditor : IEditor
         if (field.IsArray && IsLineVisible(y))
             _api.print(block.Item + ":", ValueX, y + 1, Constants.Colors.DarkGray);
 
-        if (_field.Active && _editing == Editing.Value && itemSelected) return;
+        if (IsEditingValueOf(block.Field, block.Item)) return;
 
         DrawValue(field, block, y, itemSelected);
     }
@@ -1124,7 +1158,7 @@ internal sealed class JsonEditor : IEditor
             : selected ? Constants.Colors.White
             : Constants.Colors.LightGray;
 
-        var lines = Wrap(valid ? DataValue.Format(field.Type, stored) : stored, Columns(field));
+        var lines = EditorUI.Wrap(valid ? DataValue.Format(field.Type, stored) : stored, Columns(field));
         for (int i = 0; i < lines.Count; i++)
         {
             int lineY = y + i * RowH;
