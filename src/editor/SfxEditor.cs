@@ -63,6 +63,17 @@ internal class SfxEditor : IEditor
     private readonly Rectangle pitchRegion = new(RegionX, PitchTop, RegionW, PitchHeight);
     private readonly Rectangle volRegion = new(RegionX, VolTop, RegionW, VolHeight);
 
+    // Bottom-bar hover labels: waveform index -> ChannelState's generator, effect index -> SfxEffect.
+    private static readonly string[] WaveformNames =
+    {
+        "TRIANGLE", "TILTED SAW", "SAW", "SQUARE", "PULSE", "ORGAN", "NOISE", "PHASER",
+    };
+
+    private static readonly string[] EffectNames =
+    {
+        "NONE", "SLIDE", "VIBRATO", "DROP", "FADE IN", "FADE OUT", "ARP FAST", "ARP SLOW",
+    };
+
     private readonly Button[] waveButtons;
     private int selectedWaveform = 0;
 
@@ -127,6 +138,7 @@ internal class SfxEditor : IEditor
     private void ChangeIndex(int delta)
     {
         sfxIndex = (sfxIndex + delta + SfxSheet.Count) % SfxSheet.Count;
+        eventNotifier.AddEvent($"SFX{sfxIndex:D2}");
     }
 
     private static int NoteUnderMouse(int mouseX) =>
@@ -151,7 +163,11 @@ internal class SfxEditor : IEditor
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
-        if (Mono8API.MenuBar.HoverLabel != null) eventNotifier.SetHover(Mono8API.MenuBar.HoverLabel);
+
+        // Read-only pass over every control, kept out of the click chains below because those take
+        // their own branches per region. The shared menu bar sits above everything, so it wins.
+        string controlLabel = Mono8API.MenuBar.HoverLabel ?? HoverLabelAt(_api.mousexy());
+        if (controlLabel != null) eventNotifier.SetHover(controlLabel);
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
@@ -335,6 +351,36 @@ internal class SfxEditor : IEditor
     private int NoteRowY(int row) => GridTop + row * CellH;
     private Rectangle CellRect(int cell) =>
         new(NoteColX(CellCol(cell)), NoteRowY(CellRow(cell)), NoteColW, CellH);
+
+    /// <summary>
+    /// Bottom-bar label for the control under the cursor, or null when it rests on nothing.
+    /// The header and the waveform pens are shared by both views; the palettes below them
+    /// only exist in the alternate view.
+    /// </summary>
+    private string HoverLabelAt((int x, int y) mouse)
+    {
+        if (idxPrevBox.Contains(mouse.x, mouse.y)) return "PREV SFX";
+        if (idxNextBox.Contains(mouse.x, mouse.y)) return "NEXT SFX";
+        if (spdBox.Contains(mouse.x, mouse.y)) return $"SPEED {Sheet.GetSpeed(sfxIndex):D3}";
+        if (loopStartBox.Contains(mouse.x, mouse.y)) return $"LOOP BEGIN {Sheet.GetLoopStart(sfxIndex):D2}";
+        if (loopEndBox.Contains(mouse.x, mouse.y)) return $"LOOP END {Sheet.GetLoopEnd(sfxIndex):D2}";
+
+        for (int i = 0; i < waveButtons.Length; i++)
+            if (waveButtons[i].Bounds.Contains(mouse.x, mouse.y)) return $"WAVE {i} {WaveformNames[i]}";
+
+        if (!AltView) return null;
+
+        for (int i = 0; i < octBoxes.Length; i++)
+            if (octBoxes[i].Contains(mouse.x, mouse.y)) return $"OCTAVE {i + 1}";
+
+        for (int v = 0; v < volCells.Length; v++)
+            if (volCells[v].Contains(mouse.x, mouse.y)) return $"VOLUME {v}";
+
+        for (int i = 0; i < effectButtons.Length; i++)
+            if (effectButtons[i].Bounds.Contains(mouse.x, mouse.y)) return $"FX {i} {EffectNames[i]}";
+
+        return null;
+    }
 
     private void UpdateHeader((int x, int y) mouse)
     {

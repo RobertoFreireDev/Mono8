@@ -238,7 +238,6 @@ internal class MapEditor : IEditor, IAutotileGrid
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
-        if (Mono8API.MenuBar.HoverLabel != null) eventNotifier.SetHover(Mono8API.MenuBar.HoverLabel);
 
         antsElapsed += elapsedSeconds;
         while (antsElapsed >= AntsFrameSeconds)
@@ -265,6 +264,12 @@ internal class MapEditor : IEditor, IAutotileGrid
 
         var mouse = _api.mousexy();
         var mapArea = MapArea;
+
+        // Read-only pass over every control, kept out of the click chain below because the map and
+        // the navigator take their own branches there and never reach the button row. The shared
+        // menu bar sits above everything here, so it gets asked first.
+        string controlLabel = Mono8API.MenuBar.HoverLabel ?? HoverLabelAt(mouse);
+        if (controlLabel != null) eventNotifier.SetHover(controlLabel);
 
         if (!dragging && !panning && mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
         {
@@ -326,6 +331,7 @@ internal class MapEditor : IEditor, IAutotileGrid
                 {
                     if (tool != selectedTool) ClearSelection();
                     selectedTool = tool;
+                    eventNotifier.AddEvent(ToolLabel(tool));
                     break;
                 }
             }
@@ -350,12 +356,16 @@ internal class MapEditor : IEditor, IAutotileGrid
                     enabledLayer = layer;
                     ClearSelection();
                 }
+
+                ShowAction(LayerLabel(layer));
                 return;
             }
 
             if (ViewHideButtonRect(layer).Contains(mouse.x, mouse.y))
             {
                 if (layer != enabledLayer) layerVisible[layer] = !layerVisible[layer];
+
+                ShowAction(ViewHideLabel(layer));
                 return;
             }
         }
@@ -369,6 +379,59 @@ internal class MapEditor : IEditor, IAutotileGrid
 
         Mono8API.AutotileSheet.Toggle(blockX, blockY);
         eventNotifier.AddEvent(Mono8API.AutotileSheet.IsEnabled(blockX, blockY) ? "AUTOTILE ON" : "AUTOTILE OFF");
+    }
+
+    private static string ToolLabel(Tool tool) => tool switch
+    {
+        Tool.RectFill => "SQUARE",
+        Tool.Select => "SELECTION",
+        Tool.Hand => "HAND",
+        _ => "PENCIL",
+    };
+
+    // The layer numbers are 1-based on the buttons, so the labels follow them rather than the
+    // 0-based quarter index the code works in. Both lead with the action the button performs, so
+    // they read as the opposite of the state it is currently in. The enabled layer's pair has no
+    // action to name - it can be neither unselected nor hidden - and so goes unlabelled.
+    private string LayerLabel(int layer) =>
+        layer == enabledLayer ? null : $"SELECT LAYER {layer + 1}";
+
+    private string ViewHideLabel(int layer) =>
+        layer == enabledLayer ? null : $"{(layerVisible[layer] ? "HIDE" : "VIEW")} LAYER {layer + 1}";
+
+    // A control's label, put up in place of whatever event is showing. The click that lands on one
+    // of these buttons changes the very value its label carries, so the label is replaced with the
+    // new one instead of keeping the action just carried out on screen. A null one clears the bar,
+    // for the click that leaves the button with nothing to offer.
+    private void ShowAction(string label)
+    {
+        eventNotifier.ClearEvent();
+        eventNotifier.SetHover(label);
+    }
+
+    /// <summary>
+    /// The name of the control under the cursor, carrying its current value where it holds one.
+    /// Null over anything else, and over everything while the map fills the screen and the button
+    /// row is gone. The areas are disjoint, so the first hit wins.
+    /// </summary>
+    private string HoverLabelAt((int x, int y) mouse)
+    {
+        if (FullMapView) return null;
+
+        foreach (var (button, tool) in toolButtons)
+        {
+            if (button.Bounds.Contains(mouse.x, mouse.y)) return ToolLabel(tool);
+        }
+
+        for (int layer = 0; layer < LayerCount; layer++)
+        {
+            if (LayerButtonRect(layer).Contains(mouse.x, mouse.y)) return LayerLabel(layer);
+            if (ViewHideButtonRect(layer).Contains(mouse.x, mouse.y)) return ViewHideLabel(layer);
+        }
+
+        if (autotileButton.Bounds.Contains(mouse.x, mouse.y)) return "AUTOTILE";
+
+        return null;
     }
 
     // The extra (rounded-up) map row can overlap the dark grey tool/page-button row;

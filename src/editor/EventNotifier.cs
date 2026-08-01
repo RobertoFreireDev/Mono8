@@ -36,6 +36,16 @@ internal class EventNotifier
         hoverTimeLeft = displaySeconds;
     }
 
+    /// <summary>
+    /// Drops the event label, letting the hover label through again. For a control whose own label
+    /// changes as it is clicked: the new one goes up at once instead of waiting the event out.
+    /// </summary>
+    public void ClearEvent()
+    {
+        eventLabel = null;
+        eventTimeLeft = 0f;
+    }
+
     public void Update(float elapsedSeconds)
     {
         if (eventLabel != null)
