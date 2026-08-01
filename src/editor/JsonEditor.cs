@@ -57,8 +57,10 @@ internal sealed class JsonEditor : IEditor
     private static readonly int TypeCount = Enum.GetValues<DataValueType>().Length;
 
     private static readonly string[] TreeActions = { "+GRP", "+OBJ", "REN", "DEL" };
+    private static readonly string[] EmptyTreeActions = { "+GRP" };
     private static readonly string[] ScalarActions = { "+KEY", "REN", "DEL", "ARR" };
     private static readonly string[] ArrayActions = { "+KEY", "REN", "DEL", "ARR", "+ITM", "-ITM" };
+    private static readonly string[] EmptyInspectorActions = { "+KEY" };
 
     // ── State ─────────────────────────────────────────────────────────────────
     private enum Panel { Tree, Inspector }
@@ -1200,16 +1202,20 @@ internal sealed class JsonEditor : IEditor
     }
 
     /// <summary>
-    /// The buttons the current focus offers. [+ITM] and [-ITM] only mean anything with an item of an
-    /// array under the selection, so rather than sit there and answer with a toast they are not
-    /// drawn at all — which also keeps the row from claiming width the other buttons could use.
+    /// The buttons the current focus offers. A button with nothing under it to act on is left out
+    /// rather than left sitting there to answer with a toast: [+ITM] and [-ITM] want an item of an
+    /// array, [+OBJ] [REN] [DEL] want a group to have been made first, and the inspector's
+    /// [REN] [DEL] [ARR] want a key. Leaving them out also keeps the row from claiming width the
+    /// buttons that do mean something could use.
     /// </summary>
     private string[] ActionSet()
     {
-        if (_focus == Panel.Tree) return TreeActions;
+        if (_focus == Panel.Tree) return _rows.Count == 0 ? EmptyTreeActions : TreeActions;
 
         var field = SelectedField();
-        return field != null && field.IsArray ? ArrayActions : ScalarActions;
+        if (field == null) return EmptyInspectorActions;
+
+        return field.IsArray ? ArrayActions : ScalarActions;
     }
 
     private static Rectangle ActionRect(string[] set, int index)
