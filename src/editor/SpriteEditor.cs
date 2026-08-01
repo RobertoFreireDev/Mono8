@@ -354,6 +354,11 @@ internal class SpriteEditor : IEditor
             shapePreview.Clear();
         }
 
+        // Read-only pass over every control, kept out of the click chain below because the palette
+        // takes its own branch there and never reaches UpdateSideButtons.
+        string controlLabel = HoverLabelAt(mouse);
+        if (controlLabel != null) eventNotifier.SetHover(controlLabel);
+
         hoverLabel = null;
 
         if (navigator.ViewerArea.Contains(mouse.x, mouse.y))
@@ -420,9 +425,7 @@ internal class SpriteEditor : IEditor
         {
             if (_api.mousel())
             {
-                int x = (mouse.x - palettearea.X) / Constants.GameDataSizes.TileSize;
-                int y = (mouse.y - palettearea.Y) / Constants.GameDataSizes.TileSize;
-                ColorSelected = x + y * PaletteColumns;
+                ColorSelected = ColorIndexAt(mouse);
             }
         }
         else
@@ -504,6 +507,73 @@ internal class SpriteEditor : IEditor
         Tool.PaintBucket => "PAINT BUCKET",
         _ => "PIXEL",
     };
+
+    // Spelled out for the bottom bar; the buttons themselves keep their two- and three-letter
+    // labels because that is all their boxes fit.
+    private static string LoopModeLabel(LoopMode mode) => mode switch
+    {
+        LoopMode.Forward => "FORWARD",
+        LoopMode.Reverse => "REVERSE",
+        LoopMode.PingPong => "PING PONG",
+        _ => "PAUSE",
+    };
+
+    private static string ReferenceVisualizationLabel(ReferenceVisualization visualization) => visualization switch
+    {
+        ReferenceVisualization.Red => "RED",
+        ReferenceVisualization.Green => "GREEN",
+        ReferenceVisualization.Blue => "BLUE",
+        _ => "ORIGINAL",
+    };
+
+    private int ColorIndexAt((int x, int y) mouse)
+    {
+        int x = (mouse.x - palettearea.X) / Constants.GameDataSizes.TileSize;
+        int y = (mouse.y - palettearea.Y) / Constants.GameDataSizes.TileSize;
+        return x + y * PaletteColumns;
+    }
+
+    /// <summary>
+    /// The name of the control under the cursor, carrying its current value where it holds one.
+    /// Null over anything else. The areas are disjoint, so the first hit wins.
+    /// </summary>
+    private string HoverLabelAt((int x, int y) mouse)
+    {
+        for (int i = 0; i < animFrameSlots.Length; i++)
+        {
+            if (animFrameSlots[i].Contains(mouse.x, mouse.y)) return $"ANIM {i}";
+        }
+
+        if (animZoomBtn.Contains(mouse.x, mouse.y)) return $"SCALE x{Zooms[AnimSclIdx]}";
+        if (animSpeedBtn.Contains(mouse.x, mouse.y)) return $"SPEED {AnimSpeeds[AnimSpeedIdx]:D2}";
+        if (animLoopModeBtn.Contains(mouse.x, mouse.y)) return $"MODE {LoopModeLabel(animLoopMode)}";
+
+        if (refNumberBtn.Contains(mouse.x, mouse.y))
+        {
+            int reference = editingReferenceNumber ? referenceNumberInput : Mono8API.SpriteSheet.GetReferenceSprite(sprNmbr);
+            return "ONION " + (reference < 0 ? "--" : reference.ToString("D3"));
+        }
+        if (refOrderBtn.Contains(mouse.x, mouse.y)) return referenceOrder == ReferenceOrder.Behind ? "ONION BEHIND" : "ONION FRONT";
+        if (refVisualizationBtn.Contains(mouse.x, mouse.y)) return $"ONION {ReferenceVisualizationLabel(referenceVisualization)}";
+        if (refOpacityBtn.Contains(mouse.x, mouse.y)) return $"ONION {(int)(ReferenceOpacities[referenceOpacityIdx] * 100)}";
+
+        if (palettearea.Contains(mouse.x, mouse.y)) return $"COLOR {ColorIndexAt(mouse)}";
+
+        foreach (var (button, tool) in toolButtons)
+        {
+            if (button.Bounds.Contains(mouse.x, mouse.y)) return ToolLabel(tool);
+        }
+
+        if (autotileGuideButton.Bounds.Contains(mouse.x, mouse.y)) return "AUTOTILE";
+
+        // The index the fget/fset flag overloads take.
+        for (int i = 0; i < flagButtons.Length; i++)
+        {
+            if (flagButtons[i].Contains(mouse.x, mouse.y)) return $"FLAG {i}";
+        }
+
+        return null;
+    }
 
     private (int first, int last) GetAnimFilledRange()
     {

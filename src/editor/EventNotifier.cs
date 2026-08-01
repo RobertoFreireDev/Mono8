@@ -8,6 +8,8 @@ internal class EventNotifier
     private readonly int y;
     private string eventLabel = null;
     private float eventTimeLeft = 0f;
+    private string hoverLabel = null;
+    private float hoverTimeLeft = 0f;
 
     public EventNotifier(IMono8API api, float displaySeconds, int x, int y)
     {
@@ -23,6 +25,17 @@ internal class EventNotifier
         eventTimeLeft = displaySeconds;
     }
 
+    /// <summary>
+    /// What the cursor is resting on. Refreshed every frame the cursor stays there, so it only
+    /// starts fading once the cursor leaves. An <see cref="AddEvent"/> label outranks it while
+    /// that one is still up.
+    /// </summary>
+    public void SetHover(string label)
+    {
+        hoverLabel = label;
+        hoverTimeLeft = displaySeconds;
+    }
+
     public void Update(float elapsedSeconds)
     {
         if (eventLabel != null)
@@ -33,13 +46,23 @@ internal class EventNotifier
                 eventLabel = null;
             }
         }
+
+        if (hoverLabel != null)
+        {
+            hoverTimeLeft -= elapsedSeconds;
+            if (hoverTimeLeft <= 0f)
+            {
+                hoverLabel = null;
+            }
+        }
     }
 
     public void Draw()
     {
-        if (eventLabel != null)
+        string label = eventLabel ?? hoverLabel;
+        if (label != null)
         {
-            _api.print(eventLabel, x, y, Constants.Colors.White);
+            _api.print(label, x, y, Constants.Colors.White);
         }
     }
 }
