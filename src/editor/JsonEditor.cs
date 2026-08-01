@@ -4,7 +4,7 @@ namespace mono8.editor;
 /// Editor for <c>data.json</c>: a tree of groups and objects on the left, the selected object's
 /// keys and values on the right.
 /// <para>
-/// The tree is only ever two levels deep and names are at most 8 characters, so the whole navigator
+/// The tree is only ever two levels deep and names are at most 7 characters, so the whole navigator
 /// fits in 40 px and the panels can sit side by side instead of drilling in. Groups and objects are
 /// told apart by the fold marker and the text colour rather than by indentation.
 /// </para>
@@ -32,7 +32,7 @@ internal sealed class JsonEditor : IEditor
     private const int InspRight = 248;    // exclusive
     private const int InspScrollX = 252;
 
-    private const int NameW = 32;         // 8 characters
+    private const int NameW = 28;         // 7 characters
     private const int KeyX = InspX;
     private const int BadgeX = 79;
     private const int BadgeW = 7;

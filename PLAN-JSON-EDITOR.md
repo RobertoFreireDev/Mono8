@@ -108,7 +108,7 @@ Group names, object names and field (key) names all obey the **same** rule:
 
 | Rule | Value |
 |---|---|
-| Max length | **8 chars** |
+| Max length | **7 chars** |
 | Allowed | valid font chars **minus** `"` `\` `:` `,` and space |
 | Normalisation | upper-cased, trimmed |
 | Uniqueness | unique among its siblings (groups globally; objects within a group; fields within an object) |
@@ -133,7 +133,7 @@ public static class JsonData
     public const int MaxGroups        = 16;
     public const int MaxObjectsPerGrp = 64;
     public const int MaxFieldsPerObj  = 16;
-    public const int MaxNameChars     = 8;
+    public const int MaxNameChars     = 7;
     public const int MaxStringChars   = 16;
     public const int MaxTextChars     = 256;
     public const int MaxArrayItems    = 64;   // see §9 — needs your call
@@ -313,7 +313,7 @@ the same `x`. They are told apart by the fold marker and the colour:
 
 ```
 x  0..3    fold marker: '+' / '-' on group rows, blank on object rows
-x  4..35   name, 8 chars × 4 px = 32 px
+x  4..31   name, 7 chars × 4 px = 28 px
 ```
 
 | Row | Marker | Text colour |
@@ -345,7 +345,7 @@ The selected object's fields, one field per **row block**. Single-level by const
 value is either one scalar or an array of scalars, never another object.
 
 ```
-x  46..77   key name (8 chars, 32 px)
+x  46..73   key name (7 chars, 28 px)
 x  79..83   type badge — 1 char (s t i d m p b), click to cycle via EditorUI.CycleOnClick
 x  86..247  value area — 162 px = 40 characters per line
 ```
@@ -420,7 +420,7 @@ Inline single-line editor: draws text plus a blinking caret inside a `Rectangle`
 internal sealed class TextField
 {
     public void Begin(Rectangle bounds, string initial, DataValueType type, int maxLength);
-    public void BeginName(Rectangle bounds, string initial);   // §1.3 rules, 8 chars
+    public void BeginName(Rectangle bounds, string initial);   // §1.3 rules, 7 chars
     public bool Active { get; }
     public bool Update(out string committed, out bool cancelled);
     public void Draw();
