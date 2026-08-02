@@ -36,6 +36,7 @@ internal class YourGame : IEditor
     // one. Adding rooms is a matter of calling Enter again.
     public void Init()
     {
+        Debug.Init();
         _room.Enter(StartRoom, StartRoomCellX, StartRoomCellY);
     }
 

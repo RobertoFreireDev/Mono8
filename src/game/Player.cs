@@ -110,6 +110,14 @@ internal static class Player
     public static void Draw()
     {
         YourGame.API.spr(Spr, X, Y, 1, 1, 1f, FacingLeft);
+
+        // The rect SolidAt actually tests. Skipped when HITSIZE is unauthored, since an empty rect
+        // would draw inverted.
+        if (Debug.Enabled && HitW > 0 && HitH > 0)
+        {
+            YourGame.API.rect(X + HitX, Y + HitY, X + HitX + HitW - 1, Y + HitY + HitH - 1,
+                Constants.Colors.Red);
+        }
     }
 
     // One pixel at a time so a fast mover can never step over a thin wall, and so the stop lands
