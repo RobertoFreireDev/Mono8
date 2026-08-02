@@ -14,6 +14,9 @@ namespace mono8.game;
 /// Neither clip loops — each holds the frame it ends on. One press moves the swing exactly one
 /// state: the button has to be let go and the state has to have settled before the next one counts,
 /// so the swing cannot be mashed through.
+///
+/// X (C) backs out of a swing that has not been taken yet — addressed or pulled back — putting the
+/// club away and dropping the meter. From the swing-through on there is nothing left to cancel.
 /// </summary>
 internal static class Swing
 {
@@ -28,6 +31,9 @@ internal static class Swing
 
     // B (X). Button 4 is the jump, so the swing sits on the next one.
     private const int BtnSwing = 5;
+
+    // X (C). Backs out of an addressed or pulled-back swing.
+    private const int BtnCancel = 6;
 
     // Shortest gap between two presses that both count, whatever state they land in.
     private const float PressSeconds = 0.25f;
@@ -135,6 +141,18 @@ internal static class Swing
             Current = Phase.Idle;
             Seconds = 0f;
             Failed = false;    // the shout goes away with the club
+        }
+
+        // Backing out. Only before anything is committed: once the swing-through is running the
+        // shot has been taken and it plays itself out.
+        if ((Current == Phase.Ready || Current == Phase.Pull) && api.btnp(BtnCancel))
+        {
+            Current = Phase.Idle;
+            Seconds = 0f;    // the gap still applies, so the club cannot be flicked straight back out
+            Power = 0f;
+            Failed = false;
+            Meter.Stop();
+            return;
         }
 
         // Letting go is what re-arms the button, so a press can never be spent twice.

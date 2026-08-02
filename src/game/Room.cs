@@ -66,6 +66,10 @@ internal class Room
     {
         YourGame.API.map(CellX, CellY, 0, 0, CellW, CellH);
         Flag.Draw();
+
+        // Over the flag it is measured from, so the outline is readable against the sprite.
+        Ball.DrawHoleDebug();
+
         Player.Draw();
 
         // Last, so two pixels are never lost behind the body the swing lines them up against.

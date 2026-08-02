@@ -26,15 +26,13 @@ internal static class Ball
     private const float DefaultHitY = 110f;
     private const int DefaultBlink = 8;
     private const float DefaultRest = 12f;
-    private const int DefaultHoleX = 4;
-    private const int DefaultHoleY = 8;
+    private const int DefaultHoleX = 0;
+    private const int DefaultHoleY = 0;
+    private const int DefaultHoleW = 9;
+    private const int DefaultHoleH = 17;
     private const float DefaultHoleSpeed = 16f;
     private const int DefaultSinkDepth = 4;
     private const float DefaultSinkSpeed = 12f;
-
-    // The flag is one 8x8 sprite, so its cup is under the middle of that tile. Not tuning — it is
-    // what a sprite measures.
-    private const int FlagSize = 8;
 
     public static bool Present;
     public static int X;
@@ -56,11 +54,13 @@ internal static class Ball
     // Below RestSpeed the ball is treated as stopped rather than jittering out a last few bounces.
     private static float RestSpeed;
 
-    // The hole, measured from the flag: how far the ball's centre may sit from the flag's centre
-    // column and from the foot of the flag sprite and still be over the cup, how slowly it has to
-    // be moving to drop in rather than roll past, and how far it sinks before it is gone.
-    private static int HoleReachX;
-    private static int HoleReachY;
+    // The cup's hit box, in pixels from the flag sprite's top-left: the ball's centre is over the
+    // hole while it is inside that rect. Alongside it, how slowly the ball has to be moving to drop
+    // in rather than roll past, and how far it sinks before it is gone.
+    private static int HoleX;
+    private static int HoleY;
+    private static int HoleW;
+    private static int HoleH;
     private static float HoleSpeed;
     private static int SinkDepth;
     private static float SinkSpeed;
@@ -90,8 +90,10 @@ internal static class Ball
         HitSpeedX = DefaultHitX;
         HitSpeedY = DefaultHitY;
         RestSpeed = DefaultRest;
-        HoleReachX = DefaultHoleX;
-        HoleReachY = DefaultHoleY;
+        HoleX = DefaultHoleX;
+        HoleY = DefaultHoleY;
+        HoleW = DefaultHoleW;
+        HoleH = DefaultHoleH;
         HoleSpeed = DefaultHoleSpeed;
         SinkDepth = DefaultSinkDepth;
         SinkSpeed = DefaultSinkSpeed;
@@ -109,8 +111,10 @@ internal static class Ball
             HitSpeedY = (float)stats.GetDec("HITY", 0, DefaultHitY);
             blink = stats.GetInt("BLINK", 0, DefaultBlink);
             RestSpeed = (float)stats.GetDec("REST", 0, DefaultRest);
-            HoleReachX = stats.GetInt("HOLEX", 0, DefaultHoleX);
-            HoleReachY = stats.GetInt("HOLEY", 0, DefaultHoleY);
+            // GetXY has no fallback, and a missing PosXY reads (0, 0) — which is a real offset but
+            // a hit box with no area, so both are gated on being authored at all.
+            if (stats.Has("HOLEPOS")) (HoleX, HoleY) = stats.GetXY("HOLEPOS");
+            if (stats.Has("HOLESIZE")) (HoleW, HoleH) = stats.GetXY("HOLESIZE");
             HoleSpeed = (float)stats.GetDec("HOLESPD", 0, DefaultHoleSpeed);
             SinkDepth = stats.GetInt("SINKDEP", 0, DefaultSinkDepth);
             SinkSpeed = (float)stats.GetDec("SINKSPD", 0, DefaultSinkSpeed);
@@ -231,20 +235,40 @@ internal static class Ball
     }
 
     /// <summary>
+    /// The cup's hit box over the flag it is measured from. Its own call rather than part of
+    /// <see cref="Draw"/>, because the hole outlives the ball — it still wants drawing once the ball
+    /// has sunk — and because it has to land over the flag sprite, not under it.
+    /// </summary>
+    public static void DrawHoleDebug()
+    {
+        // Skipped when HOLESIZE is unauthored, since an empty rect would draw inverted.
+        if (!Debug.Enabled || !Flag.Present || HoleW <= 0 || HoleH <= 0)
+        {
+            return;
+        }
+
+        int left = Flag.X + HoleX;
+        int top = Flag.Y + HoleY;
+
+        YourGame.API.rect(left, top, left + HoleW - 1, top + HoleH - 1, Constants.Colors.Green);
+    }
+
+    /// <summary>
     /// The cup, which the game reads off the flag rather than the map: the flag marks the hole, so
-    /// the ball is in it when it has settled under the middle of that tile.
+    /// the ball is in it once its centre has settled inside the authored hit box.
     /// </summary>
     private static bool OverHole()
     {
-        if (!Flag.Present)
+        if (!Flag.Present || HoleW <= 0 || HoleH <= 0)
         {
             return false;
         }
 
-        var api = YourGame.API;
+        int left = Flag.X + HoleX;
+        int top = Flag.Y + HoleY;
 
-        return api.abs(CenterX - (Flag.X + FlagSize / 2)) <= HoleReachX
-            && api.abs(CenterY - (Flag.Y + FlagSize)) <= HoleReachY;
+        return CenterX >= left && CenterX <= left + HoleW - 1
+            && CenterY >= top && CenterY <= top + HoleH - 1;
     }
 
     // Straight down through the green, terrain ignored — the cup is a hole in ground the map still

@@ -27,8 +27,8 @@
       "HITY:d": 125,
       "BLINK:i": 8,
       "REST:d": 12,
-      "HOLEX:i": 4,
-      "HOLEY:i": 8,
+      "HOLEPOS:p": [2, 6],
+      "HOLESIZE:p": [4, 6],
       "HOLESPD:d": 16,
       "SINKDEP:i": 4,
       "SINKSPD:d": 12
