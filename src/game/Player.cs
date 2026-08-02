@@ -40,9 +40,11 @@ internal static class Player
 
     // CLUBX is the sprite-local x of the club head at address facing right — where the ball has to
     // be for the swing to look like it connects, mirrored for facing left, and past the sprite edge
-    // is fine. REACH is how far off that point the ball can still be addressed.
+    // is fine. REACH is how far off that point the ball can still be addressed, x and y apart: x is
+    // measured from the club head, y from the whole body.
     private static int ClubX;
-    private static int Reach;
+    private static int ReachX;
+    private static int ReachY;
 
     // The miss, shouted over the head.
     private static string FailText;
@@ -69,7 +71,8 @@ internal static class Player
         JumpSpeed = 0f;
         MaxFallSpeed = 0f;
         ClubX = 0;
-        Reach = 0;
+        ReachX = 0;
+        ReachY = 0;
         FailText = string.Empty;
         FailTextY = 0;
 
@@ -86,7 +89,7 @@ internal static class Player
             JumpSpeed = (float)stats.GetDec("JUMP");
             MaxFallSpeed = (float)stats.GetDec("MAXFALL");
             ClubX = stats.GetInt("CLUBX");
-            Reach = stats.GetInt("REACH");
+            (ReachX, ReachY) = stats.GetXY("REACH");
             FailText = stats.GetStr("FAILTXT");
             FailTextY = stats.GetInt("FAILY");
         }
@@ -127,7 +130,7 @@ internal static class Player
             dy = Ball.CenterY - (Y + SprSize - 1);
         }
 
-        return YourGame.API.abs(Ball.CenterX - ClubPointX) <= Reach && dy <= Reach;
+        return YourGame.API.abs(Ball.CenterX - ClubPointX) <= ReachX && dy <= ReachY;
     }
 
     /// <summary>
@@ -221,6 +224,27 @@ internal static class Player
             YourGame.API.rect(X + HitX, Y + HitY, X + HitX + HitW - 1, Y + HitY + HitH - 1,
                 Constants.Colors.Red);
         }
+
+        DrawAddressDebug();
+    }
+
+    /// <summary>
+    /// Where the ball's centre has to be for <see cref="CanStartSwing"/> to say yes — CLUBX and
+    /// REACH drawn as the box they add up to, green once the ball is actually inside it. There is no
+    /// tuning those two blind, since the window is a relationship between the player and the ball
+    /// rather than anything visible on either sprite.
+    /// </summary>
+    private static void DrawAddressDebug()
+    {
+        if (!Debug.Enabled)
+        {
+            return;
+        }
+
+        int mid = ClubPointX;
+
+        YourGame.API.rect(mid - ReachX, Y - ReachY, mid + ReachX, Y + SprSize - 1 + ReachY,
+            CanStartSwing() ? Constants.Colors.Green : Constants.Colors.Pink);
     }
 
     // One pixel at a time so a fast mover can never step over a thin wall, and so the stop lands

@@ -6,24 +6,24 @@
   },
   "ROOMS": {
     "1": {
-      "CELLPOS:p": [ 0, 0 ],
-      "FLAGPOS:p": [ 180, 109 ],
-      "PLYRPOS:p": [ 30, 100 ],
-      "BALLPOS:p": [ 46, 100 ]
+      "CELLPOS:p": [0, 0],
+      "FLAGPOS:p": [180, 109],
+      "PLYRPOS:p": [30, 100],
+      "BALLPOS:p": [46, 100]
     }
   },
   "PLAYER": {
     "STATS": {
       "SPR:i": 8,
       "SPRSIZE:i": 8,
-      "HITPOS:p": [ 3, 2 ],
-      "HITSIZE:p": [ 2, 6 ],
+      "HITPOS:p": [3, 2],
+      "HITSIZE:p": [2, 6],
       "SPEED:d": 30,
       "GRAVITY:d": 450,
       "JUMP:d": 98,
       "MAXFALL:d": 200,
-      "REACH:i": 4,
-      "CLUBX:i": 9,
+      "REACH:p": [6, 4],
+      "CLUBX:i": 4,
       "FAILTXT:t": "FAILED!",
       "FAILY:i": 10
     }
@@ -39,8 +39,8 @@
       "HITY:d": 125,
       "BLINK:i": 8,
       "REST:d": 12,
-      "HOLEPOS:p": [ 2, 6 ],
-      "HOLESIZE:p": [ 4, 6 ],
+      "HOLEPOS:p": [2, 6],
+      "HOLESIZE:p": [4, 6],
       "HOLESPD:d": 16,
       "SINKDEP:i": 4,
       "SINKSPD:d": 12
@@ -73,17 +73,17 @@
   },
   "ANIM": {
     "FLAG": {
-      "ID:t": [ "4", "5", "6", "7" ],
+      "ID:t": ["4", "5", "6", "7"],
       "SPEED:i": 4,
       "MODE:t": "FW"
     },
     "GOLFPULL": {
-      "ID:t": [ "9", "10", "11", "12" ],
+      "ID:t": ["9", "10", "11", "12"],
       "SPEED:i": 16,
       "MODE:t": "fW"
     },
     "GOLFHIT": {
-      "ID:t": [ "9", "10", "11", "12" ],
+      "ID:t": ["9", "10", "11", "12"],
       "SPEED:i": 32,
       "MODE:t": "RV"
     }
