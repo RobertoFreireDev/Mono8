@@ -93,9 +93,17 @@ On launch a short splash screen plays, then the Sprite editor opens. The icon bu
 | `F2` | Toggles fullscreen. |
 | `Alt+F4` | Quits the application. |
 
+### When the window loses focus
+
+Click away from the window and the whole screen — editor or running game — is covered by a 30% black dim and then held there: the frame the dim lands on is the last one drawn, and every tick after it is suppressed. Input still samples underneath, so the press and release edges are current the moment focus comes back rather than a frame stale.
+
+The click that raises the window back **only raises it**. Both mouse buttons stay swallowed until they are seen released on two consecutive frames, so the click that dismissed the dim cannot also press a button, paint a pixel or place a tile under the cursor — the *next* click is the one that acts. Position and wheel are never swallowed, so hover feedback stays live while the screen is dimmed.
+
+Fullscreen is always treated as focused, so it never dims.
+
 ## Project Data
 
-Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx, music and json files at once. `data.icons` is only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
+Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx, music and json files at once, plus `config.json` — the editors' own settings. `data.icons` is only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
 
 | File | Contents |
 |---|---|
@@ -108,12 +116,31 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 | `data.json` | Authored game data — groups, objects and typed fields (see below). |
 | `data.icons` | The editors' icon sheet. |
 | `data.save` | The 64 `dget`/`dset` slots, rewritten on every `dset`. |
+| `config.json` | The editors' settings — where each editor was when you last saved (see below). Not game data. |
 
 ### Where a save lands
 
 The `data/` folder the editors write to is the one next to the running executable, which for `dotnet build` is under `src/bin/`. That copy is a build output, so committing your work from there is not an option — which is why every `Ctrl+S` also **mirrors the authored files into [src/publishdata/](src/publishdata/)**, next to the project file. That folder is the version-controlled copy of your project, and the one to read when you want to see what is currently authored.
 
-The mirror looks for `mono8.csproj` in the working directory and above it. A published build has no project file anywhere above it, so it silently skips the mirror and just writes `data/` — and a locked or read-only mirror never fails the save itself. `data.save` is left out of it, being runtime persistence rather than authored data.
+The mirror looks for `mono8.csproj` in the working directory and above it. A published build has no project file anywhere above it, so it silently skips the mirror and just writes `data/` — and a locked or read-only mirror never fails the save itself. `data.save` is left out of it, being runtime persistence rather than authored data. `config.json` is mirrored along with the rest, so the editors come back where you left them on any machine that has the project.
+
+### config.json
+
+`config.json` sits beside the data files but is not part of your project's data: it holds what the editors were showing when you last saved, so launching the app puts you back where you left off. The engine writes it on `Ctrl+S` and reads it once on launch. Nothing in it reaches your game — it is never seen by `gjson`, and no value in it changes a frame your game draws.
+
+| Section | What it remembers |
+|---|---|
+| `ANIM` | The Sprite Editor's eight animation slots, and the preview's scale, speed and loop mode. |
+| `DITHER` | The dither slots' stencil sprites, and which slot is active. |
+| `CANVAS` | The Sprite Editor's canvas zoom, selected tool, selected color and autotile-guide toggle. |
+| `ONION` | Per-sprite reference sprite, order, visualization and opacity — one entry per sprite that differs from the defaults, so a sheet with three onion skins writes three lines rather than 960. |
+| `MAP` | The Map Editor's tool, enabled layer, per-layer visibility, viewport position and zoom. |
+| `SFX` / `MUSIC` | The selected SFX index and the selected music pattern. |
+| `JSON` | The JSON Editor's selected group and object, saved **by name** — the tree is parsed afresh on every start, so a reference to the node itself would not survive. |
+
+It is deliberately not `data.json`, and carries none of that format's type suffixes or name limits. Loading is forgiving in the same spirit: a missing or unreadable file is every default, and an unknown key, a value of the wrong kind or an index that no longer fits its editor's table drops that one setting rather than the launch. A JSON Editor selection whose group or object has since been renamed or deleted simply comes back with nothing selected.
+
+Each editor restores its settings **once, at startup** — not on `Ctrl+R` or the pause menu's **Restart**, either of which would throw away whatever you had changed since.
 
 ### data.json
 
@@ -153,7 +180,7 @@ Every value is written the plainest way its type can be written, because the fil
 
 Any field can hold an array of its own type in place of a single value — `"DROPS:i": [1, 4, 7]`. Arrays are homogeneous.
 
-Names of groups, objects and fields all obey one rule: at most 8 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing matters because [`print`](#graphics) draws everything upper-case, so `hp` and `HP` would be two different keys that look identical on screen. Text *values* keep the case you type.
+Names of groups, objects and fields all obey one rule: at most 8 characters, unique among their siblings, no `:` `,` `"` `\` or spaces, and upper-cased when read. The upper-casing is what makes the names case-insensitive to look up, so `gjson("enemy", "slime")` finds `ENEMY`/`SLIME` and `hp` and `HP` can never be two different keys. Text *values* keep the case you type, and the [JSON Editor](#json-editor) draws them that way — they are the one thing on screen whose case you chose and the file keeps.
 
 | Limit | Value |
 |---|---|
@@ -224,7 +251,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws the `sw`×`sh` pixel region of the sprite sheet at `sx, sy` into the `dw`×`dh` rectangle at `dx, dy` on screen, stretching it to fit. `dw`/`dh` default to `-1`, meaning "use `sw`/`sh`" — i.e. draw at 1:1 with no scaling. Unlike `spr`, the destination size is arbitrary and is not clamped, so `sspr` can stretch non-uniformly (a different factor horizontally and vertically). |
 | `sprr` | same as `spr` | Fast `spr`. Draws in a single pass, so it ignores `pal` and `palt` (see below). |
 | `ssprr` | same as `sspr` | Fast `sspr`. Draws in a single pass, so it ignores `pal` and `palt` (see below). |
-| `print` | `text, x, y, color = 7, colorOpaqueness = 1f` | Prints text at the given position with the given color. `colorOpaqueness` (`0f`-`1f`) fades the text, useful for blend-in/out effects. |
+| `print` | `text, x, y, color = 7, colorOpaqueness = 1f` | Prints text at the given position with the given color, in the case you pass it. `colorOpaqueness` (`0f`-`1f`) fades the text, useful for blend-in/out effects. |
 | `icon` | `n, x, y` | Draws icon `n` at the given position. |
 | `camera` | `x = 0, y = 0` | Sets the camera offset applied to subsequent draw calls. |
 | `pal` | — | Resets the palette to its default state. |
@@ -232,6 +259,8 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `palt` | — | Resets transparency settings to default. |
 | `palt` | `colorIndex` | Toggles transparency for a color index. |
 | `palt` | `colorIndex, transparent` | Sets whether a color index is treated as transparent. |
+
+`print` draws the string as you wrote it — the font carries both cases, plus digits and `, . : ; [ ] { } | # $ % ( ) ! ? " ' _ + - = * / \ < > ~`. A character the font has no glyph for prints as `?`.
 
 Both `spr` and `sspr` draw one pass per palette color, so they respect the current `pal` color remapping and `palt` transparency (by default color `0` is transparent). Sprite pixels whose color is transparent are skipped entirely, letting whatever was drawn earlier show through.
 
@@ -347,6 +376,7 @@ The left analog stick also drives indices `0`-`3`, with a `0.5` deadzone.
 | Function | Parameters | Description |
 |---|---|---|
 | `SetPixel` | `x, y, colorIndex` | Sets a single pixel in the sprite sheet. |
+| `SetPixelDithered` | `x, y, colorIndex, ditherSpriteId` | As `SetPixel`, but stencilled through `ditherSpriteId`'s 8×8 tile: the write is dropped where that tile's pixel is black. The mask is indexed by the sheet coordinate, so the pattern is aligned regardless of where a stroke starts. A sprite id of `-1` (or one out of range) is "no mask" and lets everything through. |
 | `SetRectFill` | `x, y, w, h, colorIndex` | Fills a rectangular region in the sprite sheet. |
 | `SetRect` | `x, y, w, h, colorIndex` | Draws a rectangle outline in the sprite sheet. |
 | `SetOval` | `x0, y0, x1, y1, colorIndex` | Draws an oval outline in the sprite sheet. |
@@ -489,10 +519,38 @@ Selected via the tool row below the palette:
 | Oval | Drag across the canvas to draw an oval outline. |
 | OvalFill | Drag across the canvas to draw a filled oval. |
 | PaintBucket | Left-click to flood-fill the sprite region with the selected color. |
+| Select | Drag across the canvas to mark an area, which the clipboard and `Delete` then act on instead of the whole canvas (see below). |
+
+### Selection
+
+With the **Select** tool, drag from one canvas pixel to another to commit an area, held with the same animated marching-ants border the Map Editor uses. Right-clicking the canvas cancels it, and so does switching to another tool.
+
+A selection is clamped to the part of the canvas that holds real sheet pixels, so it can never cover the empty workspace a zoomed-out canvas shows past the sheet's edge. It describes **one canvas**, so selecting another sprite or changing the zoom drops it — as does leaving the editor.
+
+While a selection is up, `Ctrl+C`, `Ctrl+X`, `Ctrl+V` and `Delete` act on it rather than on the whole canvas; with no selection they act on the canvas exactly as before. Paste is anchored to the region's top-left **and bounded by it**, so a clipboard larger than the target is trimmed instead of bleeding into the sprites around it. The shape-preserving transforms — the arrow-key shift, `F`, `V` and `R` — always act on the whole current sprite, selection or not.
+
+### Dither Slots
+
+A second button row sits under the tools, live only while the **Pixel** (pencil) tool is selected. It turns the pencil into a stencil: the mask is another sprite's 8×8 tile, and only the pixels where that tile is **not** black are painted.
+
+The mask is indexed by the sheet coordinate rather than by where the stroke began, so one stroke lays down a single aligned pattern no matter where you start it. Slots are exclusive — exactly one is always active.
+
+| Slot | Description |
+|---|---|
+| `0` | The plain pencil, always present and never emptied — a right-click says `PENCIL IS FIXED`. |
+| `1`-`7` | Each holds the sprite whose non-black pixels stencil the pencil, empty until you give it one. |
+
+Each slot takes a different click depending on its state:
+
+- **Empty** — left-click gives it the sprite currently selected in the navigator and turns it on. Sprite `0` is refused (`SPR 000 IS EMPTY`), its tile being permanently blank.
+- **Set but off** — left-click turns it on (`DITHERING`); right-click empties it (`EMPTY`).
+- **On** — neither button touches it (`ALREADY ON` / `CANT REMOVE ENABLED`), so the mask can never be pulled out from under the pencil.
+
+Each slot previews its own pattern: white where the pattern paints and dark grey where it does not, with the whole row drawn dark grey while any other tool is selected. The slots and which one is active are written to [`config.json`](#configjson) on `Ctrl+S`; if the active slot comes back without a sprite, the row falls to the plain pencil rather than painting nothing.
 
 ### Autotile Guide
 
-The button at the end of the tool row is **not a tool** — it toggles on its own, so the guide can be shown while any paint tool is selected. It overlays, on the canvas, the terrain each cell of a 4×4 [autotile](#autotile) block is expected to hold: a half-transparent quarter-tile of color per quadrant the piece covers, and nothing for the quadrants it leaves empty. The fill is **green** once the block is marked as an autotile and **blue** while it is not.
+The button between the paint tools and **Select** on the tool row is **not a tool** — it toggles on its own, so the guide can be shown while any paint tool is selected. It overlays, on the canvas, the terrain each cell of a 4×4 [autotile](#autotile) block is expected to hold: a half-transparent quarter-tile of color per quadrant the piece covers, and nothing for the quadrants it leaves empty. The fill is **green** once the block is marked as an autotile and **blue** while it is not.
 
 The guide is laid out from the canvas's top-left tile, which holds the selected sprite's own cell, and the rest of the block runs right and down from there — so it is cut off both where the block ends and where the canvas zoom stops bringing tiles into view. Select a block's **first cell** (its empty tile) at zoom `x4` or `x8` to see all sixteen cells laid out while you draw it; at `x1` the canvas holds a single tile and the guide covers just that one. Sprites in the sheet's leftover last two rows belong to no block and draw no guide.
 
@@ -517,7 +575,7 @@ An 8-slot animation frame strip (top-left) with playback controls and a live pre
 
 ### Reference Sprite (Onion Skinning)
 
-A column of four buttons to the right of the sprite canvas lets you ghost-draw another sprite behind or in front of the one you're editing, useful for tracing over an adjacent animation frame. All four settings — reference number, order, visualization and opacity — are per-sprite (each sprite remembers its own onion skin setup) and are not saved to disk.
+A column of four buttons to the right of the sprite canvas lets you ghost-draw another sprite behind or in front of the one you're editing, useful for tracing over an adjacent animation frame. All four settings — reference number, order, visualization and opacity — are per-sprite (each sprite remembers its own onion skin setup) and are written to [`config.json`](#configjson) on `Ctrl+S`.
 
 | Button | Description |
 |---|---|
@@ -535,11 +593,11 @@ Instead of typing a number, you can **right-click any sprite in the bottom navig
 | `Ctrl+S` | Saves the project. |
 | `Ctrl+Z` | Undo (available when there is a change to undo). |
 | `Ctrl+Shift+Z` | Redo (available when there is a change to redo). |
-| `Ctrl+C` | Copies the current sprite region. |
-| `Ctrl+X` | Cuts the current sprite region — copies it, then clears it, as a single undo step. |
-| `Ctrl+V` | Pastes the copied region at the current sprite's position. |
+| `Ctrl+C` | Copies the [active region](#selection) — the selection when there is one, the whole sprite region otherwise. |
+| `Ctrl+X` | Cuts the active region — copies it, then clears it, as a single undo step. |
+| `Ctrl+V` | Pastes the copied pixels at the active region's top-left, clipped to that region. |
 | `Arrow Left/Right/Up/Down` | Shifts the pixels of the current sprite by one pixel in that direction. |
-| `Delete` | Clears the current sprite region (or, while editing the reference-sprite number, clears the reference instead). |
+| `Delete` | Clears the active region (or, while editing the reference-sprite number, clears the reference instead). |
 | `F` | Flips the current sprite horizontally. |
 | `V` | Flips the current sprite vertically. |
 | `R` | Rotates the current sprite 90° clockwise. |
@@ -647,7 +705,7 @@ The alternate view lays the 32 notes out as an 8-row × 4-column grid, with pale
    - Click an **FX** icon (0–7) to set the effect.
 3. **Position the cursor** on a cell, and on one of that cell's five parts (note, octave, waveform, volume, effect) — click the part directly, or move with the arrow keys (`Up`/`Down` move within a column, `Left`/`Right` step through the parts and cross into the neighbouring column at either end).
 4. **Type a note** with the piano keys while the **note** part is selected. This writes the note (pitch + selected waveform, volume and effect) into the cursor cell, previews it, then advances the cursor down one cell. With any other part selected, a digit key sets that part's value instead.
-5. **Clear a note** by right-clicking its cell, or by pressing `Delete`/`Backspace` on the cursor cell (which also advances the cursor).
+5. **Clear a note** by right-clicking its cell, or by pressing `Delete` or `Backspace` on the cursor cell. Both clear it; `Delete` then steps the cursor forward and `Backspace` steps it back, so a run of notes can be undone the way it was typed.
 
 ### SFX Editor Hotkeys
 
@@ -657,7 +715,8 @@ The alternate view lays the 32 notes out as an 8-row × 4-column grid, with pale
 | `Space` | Plays the current SFX, or stops it if it is already playing. |
 | `Left`/`Right` | Primary view: selects the previous/next SFX index. |
 | `Arrow keys` | Alternate view: moves the note cursor (`Up`/`Down` within a column, `Left`/`Right` between the cell's five parts, crossing into the neighbouring column at either end). |
-| `Delete`/`Backspace` | Alternate view: clears the note at the cursor and advances it. |
+| `Delete` | Alternate view: clears the note at the cursor and steps forward. |
+| `Backspace` | Alternate view: clears the note at the cursor and steps back. |
 | `Z S X D C V G B H N J M , L .` | Alternate view: piano keys for the base octave (`Z` = root), when the note part is selected. |
 | `Q 2 W 3 E R 5 T 6 Y 7 U I` | Alternate view: piano keys one octave above the base. |
 | `0`-`9` | Alternate view: when an octave/waveform/volume/effect part is selected, sets that part's value. |
@@ -681,7 +740,8 @@ A pattern bank where each pattern plays up to four SFX at once, one per channel.
 | `Space` | Plays/stops the selected pattern. |
 | `Up`/`Down` | Moves the note cursor within the selected channel's column. |
 | `Left`/`Right` | Moves between note parts (note, octave, waveform, volume, effect). |
-| `Delete`/`Backspace` | Clears the note at the cursor and advances it. |
+| `Delete` | Clears the note at the cursor and steps forward. |
+| `Backspace` | Clears the note at the cursor and steps back. |
 | `Z S X D C V G B H N J M , L .` | Piano keys for the base octave (`Z` = root) — writes a note when the note part is selected. |
 | `Q 2 W 3 E R 5 T 6 Y 7 U I` | Piano keys one octave above the base. |
 | `0`-`9` | When an octave/waveform/volume/effect part is selected, sets that part's value. |
@@ -705,6 +765,7 @@ Groups and objects are **not indented** — they are told apart by the fold mark
 One row block per field: the key name, a one-character type badge, and the value. Everything fits on the key's line except a `Text` value, which wraps at 39 characters into as many extra lines as it needs and pushes the fields below it down.
 
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
+- **Case** is kept for a `Text` value and nowhere else: it is drawn as it is stored, both while you type it and after it commits, so the edit never appears to change it. `Shift` and `Caps Lock` both work, and together they give lower case, as everywhere else on the machine. Names, numbers, positions and bools have no case to keep — a name is folded to upper case as you type it, for the reason in [data.json](#datajson).
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
 - **Hover the badge** to read the type out in full on the bottom bar — `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. `Text` also carries its cap (`TEXT MAX 256`), and a `PosXY` badge shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
 - **Change a type** by left-clicking the badge to cycle forward, or right-clicking to cycle back. Values are **kept, never converted or erased** — one that no longer reads as the new type is drawn on a **red row** and holds back `Ctrl+S` until you fix it, since writing it out would produce a file that will not load. The bottom bar names the first offender as `ERROR ON GROUP/OBJECT/KEY` and the editor jumps straight to it.

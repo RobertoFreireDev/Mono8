@@ -55,7 +55,8 @@ and drifts with the OS clock.
 |---|---|
 | — | |
 
-Constraints: not a monotonic game clock; not paused when the game pauses.
+Constraints: not a monotonic game clock; not paused when the game pauses, nor while the window is
+unfocused and your `Update` is not running.
 
 ### `int stat(int id)`
 
@@ -232,7 +233,7 @@ Draws text with the built-in 5 × 7 font.
 
 | Parameter | Meaning | Constraints |
 |---|---|---|
-| `text` | string to draw | **upper-cased before drawing** — lower-case input prints as capitals |
+| `text` | string to draw | drawn **in the case you pass it** — the font has both |
 | `x`, `y` | top-left of the first character | drawn 1 px above `y`; camera applies |
 | `color` | palette index | `0`–`31`, default `7` (White) |
 | `colorOpaqueness` | alpha | `0f`–`1f` |
@@ -242,8 +243,10 @@ Metrics and behaviour:
 - Each character advances **4 px**; a string is `text.Length * 4` px wide.
 - `\n` starts a new line, **9 px** below the previous one.
 - `\t` advances 4 character widths; `\r` is skipped.
-- Characters the font has no glyph for print as `?`. Available: `0-9 A-Z , . : ; [ ] { } | # $ % ( ) ! ? " ' _ + - = * / \ < > space ~`.
+- Characters the font has no glyph for print as `?`. Available: `0-9 A-Z a-z , . : ; [ ] { } | # $ % ( ) ! ? " ' _ + - = * / \ < > space ~`.
 - No word wrap.
+- Case is preserved. The engine's own text — the pause menu's `menuitem` labels, every editor label —
+  is still folded to upper case; `print` is the one path that is not.
 
 Building the string is your cost, not the engine's: `print($"SCORE {score}")` once per frame is
 fine, a hundred interpolations in a loop is not.
@@ -563,6 +566,20 @@ var (mx, my) = API.mousexy();
 int worldX = mx + camX;
 ```
 
+### While the window is unfocused
+
+Clicking away from the window dims the screen 30%, holds the last frame and stops calling your
+`Update` entirely. Input still samples underneath, so the press and release edges are current the
+moment focus returns rather than a frame stale.
+
+The click that raises the window back is **swallowed**: both mouse buttons stay suppressed until they
+are seen released on two consecutive frames, so `mousel`, `mouselp` and `mouselr` (and their right
+counterparts) all read `false` for it — the player's *next* click is the first one your game sees.
+Position and wheel are never suppressed. Fullscreen counts as focused and never dims.
+
+Because `Update` does not run across that gap while `time()` keeps advancing, never derive elapsed
+game time by differencing `time()` — accumulate `elapsedSeconds` instead.
+
 ---
 
 ## Audio
@@ -808,9 +825,9 @@ restart. It is for live tweaks; use `dset` for anything that must survive.
 
 ## Not available to game code
 
-`IEditorAPI` — `SetPixel`, `SetRectFill`, `SetRect`, `SetOval`, `SetOvalFill`, `SetPaintBucket` —
-mutates the sprite sheet and exists only for the built-in editors. Game code receives `IMono8API`
-and cannot paint over the sheet it is drawing from.
+`IEditorAPI` — `SetPixel`, `SetPixelDithered`, `SetRectFill`, `SetRect`, `SetOval`, `SetOvalFill`,
+`SetPaintBucket` — mutates the sprite sheet and exists only for the built-in editors. Game code
+receives `IMono8API` and cannot paint over the sheet it is drawing from.
 
 Also off-limits from `src/game/`: MonoGame types, engine internals (`SpriteSheet`, `MapSheet`,
 `SfxEngine`, `Screen`, `ColorPalette`, …), `System.IO`, `Console`, threads, timers, `DateTime`,

@@ -103,7 +103,7 @@ internal class YourGame : IEditor
 ```
 
 - `Init()` runs on **every** Ctrl+R and on pause-menu **Restart** — so it must fully reset state, not just set it up the first time.
-- `Update` runs only while the game is playing and the pause menu is closed.
+- `Update` runs only while the game is playing and the pause menu is closed — and only while the window is focused. Clicking away dims the screen and freezes the frame; `Update` resumes on the click that raises the window, but that click's press and release are swallowed, so `mouselp()`/`mouselr()` never see it. Never drive state off `time()` across that gap: the wall clock keeps running while `Update` does not.
 - Never change the class name, the constructor signature, the `IEditor` implementation or the three method signatures. `Exit()` may be added (it has a default implementation).
 - An exception from any of the three does not crash the process — the engine draws the message and freezes. So a crash is silent-ish; prefer defensive reads (`gjson` returns `null`, getters return fallbacks).
 
@@ -156,7 +156,7 @@ pal()  pal(c0, c1)  palt()  palt(c)  palt(c, transparent)
 - `spr` `width`/`height` are in **8×8 tiles** — `spr(64, x, y, 2, 2)` draws a 16×16 block whose top-left tile is sprite 64. The block reads across the sheet's 32-tile rows, so a 2×2 block at 64 uses sprites 64, 65, 96, 97.
 - `scale` on `spr` is clamped to `0.125`-`8`. `sspr`'s destination size is arbitrary and can stretch non-uniformly.
 - `pal(c0, c1)` remaps any draw that names a color index — `cls`, the shapes, `print`, `icon`, `spr`, `sspr`. `palt` is narrower: it only affects the per-color pass, so `spr`, `sspr` and `icon` honor it while shapes and `print` do not. **`sprr`, `ssprr` and `map` ignore both** (single pre-baked pass) — color `0` is still transparent there, and `opacity` still works. `pal()` with no arguments resets the remap *and* transparency. Use `sprr`/`ssprr` for many sprites needing no palette tricks; use `spr`/`sspr` when you need recoloring or custom transparency.
-- `print` draws **upper-case only**.
+- `print` draws the string **in the case you pass it**. The font carries both cases, digits and common punctuation; a character it has no glyph for prints as `?`. (`menuitem` labels are the exception — the pause menu still folds those to upper case.)
 - `camera(x, y)` offsets every later draw call. Reset it with `camera()` before drawing the HUD.
 
 ### Map
