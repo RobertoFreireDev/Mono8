@@ -73,7 +73,7 @@ The same goes the other way round: `Ctrl+S` in an editor writes to the `data/` f
 
 ### Ctrl + R to go to YourGame and Esc to go back to Editors
 
-![alt text](images/tutorial.png)
+![alt text](images/yourgame.png)
 
 ## Specs
 
