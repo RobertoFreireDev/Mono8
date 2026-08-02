@@ -69,6 +69,9 @@ internal class Room
 
         // Last, so two pixels are never lost behind the body the swing lines them up against.
         Ball.Draw();
+
+        // HUD, over the room.
+        Meter.Draw();
     }
 
     private void Load(string name, int cellX, int cellY)

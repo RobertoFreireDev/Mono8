@@ -19,6 +19,12 @@ internal static class Player
     // The player is one 8x8 sprite, which is what the facing flip mirrors about.
     private const int SprSize = 8;
 
+    // The miss, shouted over the head. The font advances 4 px a character, so half the string is
+    // what centres it on the sprite.
+    private const string FailText = "FAILED!";
+    private const int FontAdvance = 4;
+    private const int FailTextY = 10;
+
     // Fallbacks for CLUBX and REACH under PLAYER / STATS, used only until those fields are
     // authored. CLUBX is the sprite-local x of the club head at address facing right — where the
     // ball has to be for the swing to look like it connects, mirrored for facing left, and past
@@ -195,6 +201,12 @@ internal static class Player
         if (Swing.Active)
         {
             YourGame.API.spr(Swing.Sprite, X, Y, 1, 1, 1f, FacingLeft);
+        }
+
+        if (Swing.Failed)
+        {
+            YourGame.API.print(FailText, X + SprSize / 2 - FailText.Length * FontAdvance / 2,
+                Y - FailTextY, Constants.Colors.Red);
         }
 
         // The rect SolidAt actually tests. Skipped when HITSIZE is unauthored, since an empty rect

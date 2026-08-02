@@ -25,6 +25,7 @@ internal static class Debug
         {
             YourGame.API.print($"FPS {YourGame.API.stat(7)}", 1, 1, Constants.Colors.White);
             YourGame.API.print(Swing.State, 1, 9, Constants.Colors.White);
+            YourGame.API.print($"PWR {(int)(Swing.Power * 100)}", 1, 17, Constants.Colors.White);
         }
     }
 

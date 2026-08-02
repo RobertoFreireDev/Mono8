@@ -91,17 +91,20 @@ internal static class Ball
 
     /// <summary>
     /// Sends the ball off the club. <paramref name="toLeft"/> is the player's facing, so the ball
-    /// always leaves in front of them.
+    /// always leaves in front of them; <paramref name="power"/> is the strength meter reading, 0 to
+    /// 1, scaling HITX / HITY — a full bar is the authored speed, and a dead one barely nudges it.
     /// </summary>
-    public static void Hit(bool toLeft)
+    public static void Hit(bool toLeft, float power)
     {
         if (!Present)
         {
             return;
         }
 
-        VelX = toLeft ? -HitSpeedX : HitSpeedX;
-        VelY = -HitSpeedY;
+        power = (float)YourGame.API.mid(0f, power, 1f);
+
+        VelX = (toLeft ? -HitSpeedX : HitSpeedX) * power;
+        VelY = -HitSpeedY * power;
         OnGround = false;
     }
 

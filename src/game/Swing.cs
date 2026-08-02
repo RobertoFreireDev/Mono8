@@ -6,6 +6,10 @@ namespace mono8.game;
 /// it through (ANIM / GOLFHIT). Two seconds after the hit the club is put away, and the press after
 /// that starts the whole thing over.
 ///
+/// The pull is where the shot is decided: the <see cref="Meter"/> sweeps for as long as the club is
+/// back, and the press that swings through reads it once — that <see cref="Power"/> is what the
+/// ball leaves with.
+///
 /// Neither clip loops — each holds the frame it ends on. One press moves the swing exactly one
 /// state: the button has to be let go and the state has to have settled before the next one counts,
 /// so the swing cannot be mashed through.
@@ -27,6 +31,13 @@ internal static class Swing
     // How long the finished hit stays on screen before the club is put away.
     private const float HitSeconds = 2f;
 
+    // A whiff is over quickly — there is nothing to watch and the player wants another go.
+    private const float FailSeconds = 0.5f;
+
+    // Under this the ball would not travel a pixel, so the swing counts as a miss rather than a
+    // very soft hit.
+    private const float FailPower = 0.01f;
+
     private enum Phase { Idle, Ready, Pull, Hit }
 
     private static readonly Anim Clip = new Anim();
@@ -38,6 +49,15 @@ internal static class Swing
 
     /// <summary>While true the club is on screen and <see cref="Sprite"/> is the frame to draw.</summary>
     public static bool Active => Current != Phase.Idle;
+
+    /// <summary>The meter reading the swing-through was started on, 0 to 1.</summary>
+    public static float Power { get; private set; }
+
+    /// <summary>
+    /// The swing was started on an empty meter: the ball stays put, the club is put away after
+    /// <see cref="FailSeconds"/>, and the <see cref="Player"/> draws the miss over the head.
+    /// </summary>
+    public static bool Failed { get; private set; }
 
     public static int Sprite => Current == Phase.Ready ? SprReady : Clip.Sprite;
 
@@ -56,6 +76,10 @@ internal static class Swing
         Seconds = 0f;
         Armed = true;
         Launched = true;
+        Power = 0f;
+        Failed = false;
+
+        Meter.Init();
     }
 
     public static void Update(float elapsedSeconds)
@@ -69,18 +93,24 @@ internal static class Swing
             Clip.Update(elapsedSeconds);
         }
 
+        Meter.Update(elapsedSeconds);
+
         // Contact is the end of the swing-through, not its start, so the ball leaves when the club
         // has actually come round. Once per hit.
         if (Current == Phase.Hit && !Launched && Clip.Done)
         {
             Launched = true;
-            Ball.Hit(Player.FacingLeft);
+            if (!Failed)
+            {
+                Ball.Hit(Player.FacingLeft, Power);
+            }
         }
 
-        if (Current == Phase.Hit && Seconds >= HitSeconds)
+        if (Current == Phase.Hit && Seconds >= (Failed ? FailSeconds : HitSeconds))
         {
             Current = Phase.Idle;
             Seconds = 0f;
+            Failed = false;    // the shout goes away with the club
         }
 
         // Letting go is what re-arms the button, so a press can never be spent twice.
@@ -101,13 +131,20 @@ internal static class Swing
         {
             case Phase.Idle:
                 Current = Phase.Ready;
+                Failed = false;
                 Player.AlignToBall();
                 break;
             case Phase.Ready:
                 Current = Phase.Pull;
                 Clip.Load(AnimPull, false);
+                Meter.Start();
                 break;
             default:
+                // The press that swings through is also what stops the meter, so the reading is
+                // taken before anything else this frame can move it.
+                Power = Meter.Value;
+                Failed = Power < FailPower;
+                Meter.Stop();
                 Current = Phase.Hit;
                 Launched = false;
                 Clip.Load(AnimHit, false);
