@@ -16,6 +16,18 @@ internal static class Debug
         Register();
     }
 
+    /// <summary>
+    /// The overlay that belongs to no one in particular. Drawn last, so it sits over the room.
+    /// </summary>
+    public static void Draw()
+    {
+        if (Enabled)
+        {
+            YourGame.API.print($"FPS {YourGame.API.stat(7)}", 1, 1, Constants.Colors.White);
+            YourGame.API.print(Swing.State, 1, 9, Constants.Colors.White);
+        }
+    }
+
     private static void Toggle()
     {
         Enabled = !Enabled;

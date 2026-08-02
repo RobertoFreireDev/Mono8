@@ -26,9 +26,11 @@ internal class EventNotifier
     }
 
     /// <summary>
-    /// What the cursor is resting on. Refreshed every frame the cursor stays there, so it only
-    /// starts fading once the cursor leaves. An <see cref="AddEvent"/> label outranks it while
-    /// that one is still up.
+    /// What the cursor is resting on. It has no time of its own: the next <see cref="Update"/>
+    /// drops it, so it stays up only while the caller re-sets it every frame the cursor is there
+    /// and goes the moment the cursor leaves - a position or value read off the cursor is wrong
+    /// the instant the cursor is elsewhere. An <see cref="AddEvent"/> label outranks it while that
+    /// one is still up.
     /// </summary>
     public void SetHover(string label)
     {

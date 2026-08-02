@@ -49,5 +49,6 @@ internal class YourGame : IEditor
     {
         API.cls(Constants.Colors.Blue);
         _room.Draw();
+        Debug.Draw();
     }
 }

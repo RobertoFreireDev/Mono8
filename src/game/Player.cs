@@ -69,6 +69,8 @@ internal static class Player
         RemY = 0f;
         OnGround = false;
         FacingLeft = false;
+
+        Swing.Init();
     }
 
     public static void Update(float elapsedSeconds)
@@ -105,11 +107,19 @@ internal static class Player
         MoveY(VelY * elapsedSeconds);
 
         OnGround = SolidAt(X, Y + 1);
+
+        Swing.Update(elapsedSeconds);
     }
 
     public static void Draw()
     {
         YourGame.API.spr(Spr, X, Y, 1, 1, 1f, FacingLeft);
+
+        // The club is its own sprite over the player, so it swings without the body animating.
+        if (Swing.Active)
+        {
+            YourGame.API.spr(Swing.Sprite, X, Y, 1, 1, 1f, FacingLeft);
+        }
 
         // The rect SolidAt actually tests. Skipped when HITSIZE is unauthored, since an empty rect
         // would draw inverted.
