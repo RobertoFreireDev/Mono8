@@ -36,6 +36,7 @@ internal sealed class TextField
     private string _text = string.Empty;
     private DataValueType _type;
     private bool _isName;
+    private bool _preserveCase;
     private int _maxLength;
     private int _blink;
 
@@ -69,6 +70,7 @@ internal sealed class TextField
         Open(bounds, initial);
         _type = type;
         _isName = false;
+        _preserveCase = type == DataValueType.Text;
         _maxLength = maxLength;
         _columns = 0;
     }
@@ -82,6 +84,7 @@ internal sealed class TextField
         Open(bounds, initial);
         _type = DataValueType.Text;
         _isName = false;
+        _preserveCase = true;
         _maxLength = maxLength;
         _columns = Math.Max(1, columns);
     }
@@ -92,6 +95,10 @@ internal sealed class TextField
         Open(bounds, initial);
         _type = DataValueType.Text;
         _isName = true;
+
+        // A name is folded to upper case on commit, so it is drawn folded while it is typed too —
+        // seeing it in one case and stored in another would read as the edit having changed it.
+        _preserveCase = false;
         _maxLength = JsonNames.MaxChars;
         _columns = 0;
     }
@@ -176,9 +183,11 @@ internal sealed class TextField
         // Ctrl is held for shortcuts, not for typing, so its key presses never reach the buffer.
         if (!KeybrdInput.IsCtrlPressed())
         {
-            foreach (char c in TextEntry.Typed)
+            foreach (char raw in TextEntry.Typed)
             {
                 if (_text.Length >= _maxLength) break;
+
+                char c = ApplyCapsLock(raw);
                 if (!IsAllowed(c)) continue;
                 _text = _text.Insert(_caret, c.ToString());
                 _caret++;
@@ -235,13 +244,24 @@ internal sealed class TextField
         ScrollToCaret();
 
         int columns = SingleLineColumns();
-        _api.print(_text.Substring(_window, Math.Min(columns, _text.Length - _window)),
-            _bounds.X + 1, _bounds.Y + 1, Constants.Colors.White);
+        Print(_text.Substring(_window, Math.Min(columns, _text.Length - _window)),
+            _bounds.X + 1, _bounds.Y + 1);
 
         if ((_blink / BlinkFrames) % 2 != 0) return;
 
         int caret = Math.Min(_bounds.X + 1 + (_caret - _window) * Text.CharAdvance, _bounds.Right - 1);
         _api.rectfill(caret, _bounds.Y + 1, caret, _bounds.Bottom - 2, CaretColor);
+    }
+
+    /// <summary>
+    /// The buffer as both views draw it: in the case it was typed for a Text value, folded for
+    /// everything else. Drawing it any other way than the panel behind it would step the text as
+    /// the edit opens and closes.
+    /// </summary>
+    private void Print(string text, int x, int y)
+    {
+        if (_preserveCase) EditorUI.PrintCased(text, x, y, Constants.Colors.White);
+        else _api.print(text, x, y, Constants.Colors.White);
     }
 
     /// <summary>Characters of the buffer the single-line view has room for.</summary>
@@ -282,7 +302,7 @@ internal sealed class TextField
             _api.rectfill(_bounds.X, y, _bounds.Right - 1, y + Text.LineHeight - 1, Constants.Colors.Indigo);
 
             var (start, length) = spans[i];
-            if (length > 0) _api.print(_text.Substring(start, length), _bounds.X, y + 1, Constants.Colors.White);
+            if (length > 0) Print(_text.Substring(start, length), _bounds.X, y + 1);
         }
 
         if ((_blink / BlinkFrames) % 2 != 0) return;
@@ -383,6 +403,21 @@ internal sealed class TextField
 
         // Whatever opened the field was typed this frame; it must not also land inside it.
         TextEntry.Clear();
+    }
+
+    /// <summary>
+    /// Caps Lock, applied to the letter the OS handed over. The character comes from a platform text
+    /// event that does not reliably fold the lock into it, so the case is decided here instead, off
+    /// the modifiers: locked or shifted is upper case, both together is lower, which is what every
+    /// other text field on the machine does. Nothing but a-z is touched, and because the answer comes
+    /// from the modifiers and not from the character, a platform that did fold it in already lands on
+    /// the same letter rather than having it flipped a second time.
+    /// </summary>
+    private static char ApplyCapsLock(char c)
+    {
+        if (!char.IsAsciiLetter(c) || !KeybrdInput.IsCapsLockOn()) return c;
+
+        return KeybrdInput.IsShiftPressed() ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c);
     }
 
     private bool IsAllowed(char c) =>

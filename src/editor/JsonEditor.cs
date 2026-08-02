@@ -1278,6 +1278,10 @@ internal sealed class JsonEditor : IEditor
         bool filled = selected || !valid;
         int background = valid ? Constants.Colors.DarkBlue : Constants.Colors.Red;
 
+        // A Text value is the only one whose case the developer chose and the file keeps, so it is
+        // the only one drawn as it is stored. A number, a position and a bool have no case to lose.
+        bool cased = field.Type == DataValueType.Text;
+
         var lines = EditorUI.Wrap(valid ? DataValue.Format(field.Type, stored) : stored, Columns(field));
         for (int i = 0; i < lines.Count; i++)
         {
@@ -1285,7 +1289,9 @@ internal sealed class JsonEditor : IEditor
             if (!IsLineVisible(lineY)) continue;
 
             if (filled) _api.rectfill(x, lineY, InspRight - 1, lineY + RowH - 1, background);
-            _api.print(lines[i], x, lineY + 1, color);
+
+            if (cased) EditorUI.PrintCased(lines[i], x, lineY + 1, color);
+            else _api.print(lines[i], x, lineY + 1, color);
         }
     }
 

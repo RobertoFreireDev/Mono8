@@ -32,6 +32,16 @@ public static class KeybrdInput
         return Pressed(Keys.LeftAlt) || Pressed(Keys.RightAlt);
     }
 
+    /// <summary>
+    /// True while Caps Lock is on. It is a lock state and not a held key, so it comes off the
+    /// snapshot's modifiers rather than off <see cref="Keys.CapsLock"/> — that key only reports the
+    /// frame the lock is toggled, which is never the frame a letter is typed under it.
+    /// </summary>
+    public static bool IsCapsLockOn()
+    {
+        return InputStateManager.CurrentKeyboardState().CapsLock;
+    }
+
     /// <summary>True when no Ctrl/Shift/Alt modifier is held, so a bare key press is unambiguous.</summary>
     public static bool NoModifiersPressed()
     {

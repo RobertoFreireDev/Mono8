@@ -80,9 +80,16 @@ public static class Text
         }
     }
 
-    public static void DrawText(string text, Vector2 position, int colorIndex, bool wraptext = false, int wrapLimit = 0, float colorOpaqueness = 1f)
+    /// <summary>
+    /// Draws <paramref name="text"/>, folded to upper case unless <paramref name="preserveCase"/>
+    /// says otherwise. The atlas carries a full lower-case alphabet, but the fold is what every
+    /// caller has always got and what <c>print</c> is documented to give a game, so it stays the
+    /// default and only the JSON editor's Text values opt out — those are the one thing on screen
+    /// whose case the developer typed and the file keeps.
+    /// </summary>
+    public static void DrawText(string text, Vector2 position, int colorIndex, bool wraptext = false, int wrapLimit = 0, float colorOpaqueness = 1f, bool preserveCase = false)
     {
-        string[] lines = text.ToUpper().Split('\n');
+        string[] lines = (preserveCase ? text : text.ToUpper()).Split('\n');
         var copyPos = new Vector2(position.X, position.Y);
         int additionalLines = 0;
 

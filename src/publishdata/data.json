@@ -24,7 +24,7 @@
       "MAXFALL:d": 200,
       "REACH:p": [6, 4],
       "CLUBX:i": 4,
-      "FAILTXT:t": "FAILED!",
+      "FAILTXT:t": "Failed!",
       "FAILY:i": 10
     }
   },

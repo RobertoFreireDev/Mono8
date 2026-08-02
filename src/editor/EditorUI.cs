@@ -17,6 +17,18 @@ internal static class EditorUI
         api.print(text, b.X + 1, b.Y + 1, fg);
     }
 
+    /// <summary>
+    /// Prints in the case the string is stored in, which <c>api.print</c> cannot do — it folds to
+    /// upper case, the one form a game is documented to get. The 1 px lift matches the one
+    /// <c>print</c> applies, so a cased line sits exactly where a folded one would have.
+    /// <para>
+    /// This is for a value the developer typed and the file keeps. Labels, names and numbers stay
+    /// on the folded path: they read as the console's own text rather than as authored content.
+    /// </para>
+    /// </summary>
+    public static void PrintCased(string text, int x, int y, int color, float opacity = 1f) =>
+        Text.DrawText(text, new Vector2(x, y - 1), color, colorOpaqueness: opacity, preserveCase: true);
+
     /// <summary>A <see cref="Box"/> in the default light-grey-on-indigo button colours.</summary>
     public static void TextButton(IMono8API api, Rectangle b, string text) =>
         Box(api, b, text, Constants.Colors.LightGray, Constants.Colors.Indigo);
