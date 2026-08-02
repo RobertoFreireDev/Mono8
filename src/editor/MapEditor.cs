@@ -96,12 +96,7 @@ internal class MapEditor : IEditor, IAutotileGrid
     private bool hasSelection;
     private Rectangle selection;
 
-    // Marching-ants border animation.
-    private const float AntsFrameSeconds = 0.12f;
-    private static readonly int[] AntsPalette =
-        { Constants.Colors.White, Constants.Colors.LightGray, Constants.Colors.DarkGray };
-    private float antsElapsed;
-    private int antsPhase;
+    private readonly MarchingAnts ants = new();
 
     // --- Hand (pan) drag ---
     private bool panning;
@@ -239,12 +234,7 @@ internal class MapEditor : IEditor, IAutotileGrid
     {
         eventNotifier.Update(elapsedSeconds);
 
-        antsElapsed += elapsedSeconds;
-        while (antsElapsed >= AntsFrameSeconds)
-        {
-            antsElapsed -= AntsFrameSeconds;
-            antsPhase = (antsPhase + 1) % AntsPalette.Length;
-        }
+        ants.Update(elapsedSeconds);
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
@@ -758,27 +748,14 @@ internal class MapEditor : IEditor, IAutotileGrid
     }
 
     // Converts a cell-space rectangle to screen space at the current camera/zoom and outlines
-    // it with an animated white / light-grey / dark-grey border, clipped to the map viewport.
+    // it with the animated selection border, clipped to the map viewport.
     private void DrawMarchingAntsCells(Rectangle mapArea, int cellX, int cellY, int cellW, int cellH)
     {
         int size = CellPx;
         int x0 = mapArea.X + (cellX - camX) * size;
         int y0 = mapArea.Y + (cellY - camY) * size;
-        int x1 = x0 + cellW * size - 1;
-        int y1 = y0 + cellH * size - 1;
 
-        void Ant(int x, int y, int t)
-        {
-            if (x < mapArea.X || x >= mapArea.X + mapArea.Width ||
-                y < mapArea.Y || y >= mapArea.Y + mapArea.Height) return;
-            _api.pixel(x, y, AntsPalette[(t + antsPhase) % AntsPalette.Length]);
-        }
-
-        int step = 0;
-        for (int x = x0; x <= x1; x++) Ant(x, y0, step++);       // top, L->R
-        for (int y = y0 + 1; y <= y1; y++) Ant(x1, y, step++);   // right, T->B
-        for (int x = x1 - 1; x >= x0; x--) Ant(x, y1, step++);   // bottom, R->L
-        for (int y = y1 - 1; y > y0; y--) Ant(x0, y, step++);    // left, B->T
+        ants.Draw(_api, x0, y0, x0 + cellW * size - 1, y0 + cellH * size - 1, mapArea);
     }
 
     private void DrawSpriteNavigator()

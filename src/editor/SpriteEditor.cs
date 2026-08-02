@@ -10,6 +10,7 @@ internal class SpriteEditor : IEditor
         Oval,
         OvalFill,
         PaintBucket,
+        Select,
     }
 
     private readonly IEditorAPI _api;
@@ -80,12 +81,27 @@ internal class SpriteEditor : IEditor
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
 
+    // The tool row runs the width of the palette, eight buttons across. The guide sits between the
+    // paint tools and the selection tool, so both keep a fixed slot rather than one following the
+    // other's count.
+    private const int AutotileGuideSlot = 6;
+    private const int SelectSlot = 7;
+    private const int SelectIcon = 24;
+
     // --- Autotile guide ---
     // Overlays the terrain a 4x4 autotile block is expected to hold on the canvas. Its button sits
     // on the tool row but is not one of the tools: it toggles on its own, so the guide can be shown
     // while any paint tool is selected.
     private readonly Button autotileGuideButton;
     private bool showAutotileGuide;
+
+    // --- Selection (Select tool): a committed area of the canvas, kept in sheet-pixel space. It
+    // only describes the canvas it was drawn on, so changing sprite or zoom drops it. ---
+    private bool hasSelection;
+    private Rectangle selection;
+    private int selectionSprite;
+    private int selectionZoomIdx;
+    private readonly MarchingAnts ants = new();
 
     private const int FlagCount = 8;
     private const int FlagIconIndex = 43;
@@ -137,9 +153,10 @@ internal class SpriteEditor : IEditor
             (new Button(palettearea.X + 3 * size, toolButtonY, size, 27), Tool.Oval),
             (new Button(palettearea.X + 4 * size, toolButtonY, size, 28), Tool.OvalFill),
             (new Button(palettearea.X + 5 * size, toolButtonY, size, 29), Tool.PaintBucket),
+            (new Button(palettearea.X + SelectSlot * size, toolButtonY, size, SelectIcon), Tool.Select),
         };
 
-        autotileGuideButton = new Button(palettearea.X + toolButtons.Length * size, toolButtonY, size, AutotileOverlay.Icon);
+        autotileGuideButton = new Button(palettearea.X + AutotileGuideSlot * size, toolButtonY, size, AutotileOverlay.Icon);
 
         int flagButtonY = toolButtonY + size + 2;
         flagButtons = new Rectangle[FlagCount];
@@ -161,6 +178,18 @@ internal class SpriteEditor : IEditor
 
     public void Init()
     {
+        ClearSelection();
+    }
+
+    public void Exit()
+    {
+        ClearSelection();
+    }
+
+    private void ClearSelection()
+    {
+        hasSelection = false;
+        dragging = false;
     }
 
     /// <summary>The sheet-space square covered by <paramref name="spriteIndex"/> at a zoom of <paramref name="zoom"/> tiles.</summary>
@@ -173,6 +202,25 @@ internal class SpriteEditor : IEditor
     }
 
     private (int x, int y, int w, int h) CurrentCanvasRegion() => CanvasRegion(sprNmbr, Zooms[SprSclIdx]);
+
+    /// <summary>
+    /// What the clipboard and delete act on: the selection when there is one, the whole canvas
+    /// otherwise. The shape-preserving transforms stay on the canvas either way.
+    /// </summary>
+    private (int x, int y, int w, int h) ActiveRegion() =>
+        hasSelection
+            ? (selection.X, selection.Y, selection.Width, selection.Height)
+            : CurrentCanvasRegion();
+
+    /// <summary>The sheet pixel the cursor sits on, valid only while it is over the canvas.</summary>
+    private (int x, int y) SheetPixelUnderMouse((int x, int y) mouse)
+    {
+        int x = (mouse.x - sprcnvsarea.X) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize
+            + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+        int y = (mouse.y - sprcnvsarea.Y) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize
+            + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+        return (x, y);
+    }
 
     /// <summary>How much of a region actually falls inside the sheet; the rest is empty workspace.</summary>
     private static (int w, int h) VisibleSize(int regionX, int regionY, int regionW, int regionH) =>
@@ -230,6 +278,7 @@ internal class SpriteEditor : IEditor
     public void Update(float elapsedSeconds)
     {
         eventNotifier.Update(elapsedSeconds);
+        ants.Update(elapsedSeconds);
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {
@@ -276,20 +325,20 @@ internal class SpriteEditor : IEditor
 
         if (KeybrdInput.JustPressed(Keys.Delete) && !editingReferenceNumber)
         {
-            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            var (regionX, regionY, regionW, regionH) = ActiveRegion();
             Mono8API.SpriteSheet.ClearGrid(regionX, regionY, regionW, regionH);
         }
 
         if (KeybrdInput.IsCopyShortcutPressed())
         {
-            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            var (regionX, regionY, regionW, regionH) = ActiveRegion();
             Mono8API.SpriteSheet.CopyRegion(regionX, regionY, regionW, regionH);
             eventNotifier.AddEvent("COPY");
         }
 
         if (KeybrdInput.IsCutShortcutPressed())
         {
-            var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+            var (regionX, regionY, regionW, regionH) = ActiveRegion();
             Mono8API.SpriteSheet.CopyRegion(regionX, regionY, regionW, regionH);
             Mono8API.SpriteSheet.ClearGrid(regionX, regionY, regionW, regionH);
             eventNotifier.AddEvent("CUT");
@@ -297,8 +346,10 @@ internal class SpriteEditor : IEditor
 
         if (KeybrdInput.IsPasteShortcutPressed())
         {
-            var (regionX, regionY, _, _) = CurrentCanvasRegion();
-            Mono8API.SpriteSheet.PasteRegion(regionX, regionY);
+            // Anchored to the region and bounded by it, so a larger clipboard is trimmed instead of
+            // bleeding into the sprites around it.
+            var (regionX, regionY, regionW, regionH) = ActiveRegion();
+            Mono8API.SpriteSheet.PasteRegion(regionX, regionY, regionX, regionY, regionW, regionH);
             eventNotifier.AddEvent("PASTE");
         }
 
@@ -415,8 +466,7 @@ internal class SpriteEditor : IEditor
         }
         else if (sprcnvsarea.Contains(mouse.x, mouse.y))
         {
-            int x = ((mouse.x - sprcnvsarea.X)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr % Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
-            int y = ((mouse.y - sprcnvsarea.Y)) * Zooms[SprSclIdx] / Constants.GameDataSizes.TileSize + (sprNmbr / Constants.GameDataSizes.SpriteSheetColumns) * Constants.GameDataSizes.TileSize;
+            var (x, y) = SheetPixelUnderMouse(mouse);
 
             // Zooming out brings in tiles past the sheet's edge; that empty workspace has no
             // sheet pixel to report.
@@ -425,7 +475,26 @@ internal class SpriteEditor : IEditor
                 hoverLabel = $"X:{x:D3} Y:{y:D3}";
             }
 
-            if (selectedTool == Tool.Pixel)
+            if (selectedTool == Tool.Select)
+            {
+                if (_api.mouserp() && (hasSelection || dragging))
+                {
+                    ClearSelection();
+                    eventNotifier.AddEvent("CANCEL");
+                }
+                else if (_api.mouselp())
+                {
+                    dragStartX = x;
+                    dragStartY = y;
+                    dragging = true;
+                }
+                else if (dragging && _api.mouselr())
+                {
+                    CommitSelection(dragStartX, dragStartY, x, y);
+                    dragging = false;
+                }
+            }
+            else if (selectedTool == Tool.Pixel)
             {
                 if (_api.mousel()) _api.SetPixel(x, y, ColorSelected);
             }
@@ -467,6 +536,32 @@ internal class SpriteEditor : IEditor
         {
             UpdateSideButtons(mouse);
         }
+
+        // A selection describes one canvas, so anything that swaps the canvas out from under it -
+        // picking another sprite, zooming - drops it. Checked last so the frame that made the
+        // change already draws without it.
+        if (hasSelection && (sprNmbr != selectionSprite || SprSclIdx != selectionZoomIdx))
+        {
+            ClearSelection();
+        }
+    }
+
+    // Selections are clamped to the part of the canvas that holds real sheet pixels, so one can
+    // never cover the hatched workspace a zoomed-out canvas shows past the edge of the sheet.
+    private void CommitSelection(int x0, int y0, int x1, int y1)
+    {
+        var (regionX, regionY, regionW, regionH) = CurrentCanvasRegion();
+        var (validW, validH) = VisibleSize(regionX, regionY, regionW, regionH);
+
+        int minX = Math.Clamp(Math.Min(x0, x1), regionX, regionX + validW - 1);
+        int minY = Math.Clamp(Math.Min(y0, y1), regionY, regionY + validH - 1);
+        int maxX = Math.Clamp(Math.Max(x0, x1), regionX, regionX + validW - 1);
+        int maxY = Math.Clamp(Math.Max(y0, y1), regionY, regionY + validH - 1);
+
+        selection = new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        hasSelection = true;
+        selectionSprite = sprNmbr;
+        selectionZoomIdx = SprSclIdx;
     }
 
     private void UpdateSideButtons((int x, int y) mouse)
@@ -483,6 +578,7 @@ internal class SpriteEditor : IEditor
         {
             if (button.IsClicked(_api, mouse))
             {
+                if (tool != selectedTool) ClearSelection();
                 selectedTool = tool;
                 eventNotifier.AddEvent(ToolLabel(tool));
                 break;
@@ -540,6 +636,7 @@ internal class SpriteEditor : IEditor
         Tool.Oval => "OVAL",
         Tool.OvalFill => "OVAL FILL",
         Tool.PaintBucket => "PAINT BUCKET",
+        Tool.Select => "SELECTION",
         _ => "PIXEL",
     };
 
@@ -780,6 +877,8 @@ internal class SpriteEditor : IEditor
             shapePreview.Draw(_api, regionX, regionY, sprcnvsarea.X, sprcnvsarea.Y, scale);
         }
 
+        DrawSelection(regionX, regionY, scale);
+
         if (sprNmbr == 0)
         {
             DrawEmptySpriteCross(sprcnvsarea.X, sprcnvsarea.Y, Constants.GameDataSizes.TileSize * scale);
@@ -812,6 +911,34 @@ internal class SpriteEditor : IEditor
         DrawAnimationPanel();
 
         eventNotifier.Draw();
+    }
+
+    // The committed selection, plus the rectangle being dragged out. The drag is drawn unclamped so
+    // the border tracks the cursor; CommitSelection is what pulls it back onto the sheet.
+    private void DrawSelection(int regionX, int regionY, int scale)
+    {
+        if (hasSelection)
+        {
+            DrawSelectionAnts(regionX, regionY, scale, selection.X, selection.Y, selection.Width, selection.Height);
+        }
+
+        if (!dragging || selectedTool != Tool.Select) return;
+
+        var mouse = _api.mousexy();
+        if (!sprcnvsarea.Contains(mouse.x, mouse.y)) return;
+
+        var (x, y) = SheetPixelUnderMouse(mouse);
+        DrawSelectionAnts(regionX, regionY, scale,
+            Math.Min(dragStartX, x), Math.Min(dragStartY, y),
+            Math.Abs(x - dragStartX) + 1, Math.Abs(y - dragStartY) + 1);
+    }
+
+    private void DrawSelectionAnts(int regionX, int regionY, int scale, int x, int y, int w, int h)
+    {
+        int x0 = sprcnvsarea.X + (x - regionX) * scale;
+        int y0 = sprcnvsarea.Y + (y - regionY) * scale;
+
+        ants.Draw(_api, x0, y0, x0 + w * scale - 1, y0 + h * scale - 1, sprcnvsarea);
     }
 
     // Right-aligned on the bottom bar, so the event label on the left never collides with it.
