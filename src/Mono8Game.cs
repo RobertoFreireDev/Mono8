@@ -76,6 +76,17 @@ public class Mono8Game : Game
 
     protected override void Update(GameTime gameTime)
     {
+        // First thing in the frame: the intro path and the early return below both depend on it being current.
+        Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);
+
+        if (!Screen.IsFocused)
+        {
+            // Input still samples, so the press/release edges are not a frame stale when focus comes back.
+            InputStateManager.Update();
+            base.Update(gameTime);
+            return;
+        }
+
         if (KeybrdInput.IsAltF4Pressed())
             Exit();
 
@@ -94,8 +105,8 @@ public class Mono8Game : Game
         if (GameAPI.IsPlayingGame)
         {
             Menu.Update();
+
         }
-        Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);
         InputStateManager.Update();
         GameAPI.Update(gameTime);
         base.Update(gameTime);
@@ -103,6 +114,13 @@ public class Mono8Game : Game
 
     protected override void Draw(GameTime gameTime)
     {
+        // Nothing advanced this frame, so skip the render and leave the last presented frame on screen.
+        if (!Screen.IsFocused)
+        {
+            base.Draw(gameTime);
+            return;
+        }
+
         GraphicsDevice.SetRenderTarget(sceneTarget);
         GraphicsDevice.Clear(Color.Black);
         Camera2D.Camera(0, 0);
