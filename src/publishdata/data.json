@@ -23,8 +23,8 @@
       "MAXFALL:d": 200,
       "BOUNCE:d": 0.5,
       "FRICTION:d": 120,
-      "HITX:d": 90,
-      "HITY:d": 110,
+      "HITX:d": 100,
+      "HITY:d": 125,
       "BLINK:i": 8,
       "REST:d": 12,
       "HOLEX:i": 4,
@@ -32,6 +32,13 @@
       "HOLESPD:d": 16,
       "SINKDEP:i": 4,
       "SINKSPD:d": 12
+    }
+  },
+  "SWING": {
+    "POWER": {
+      "SWEEP:d": 1.2,
+      "MISS:d": 0.1,
+      "MINHIT:d": 0.35
     }
   },
   "ANIM": {
