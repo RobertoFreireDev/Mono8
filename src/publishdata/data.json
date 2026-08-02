@@ -28,6 +28,29 @@
       "FAILY:i": 10
     }
   },
+  "CLUBS": {
+    "ORDER": {
+      "LIST:t": ["DRIVER", "WEDGE", "PUTTER"]
+    },
+    "DRIVER": {
+      "NAME:t": "Driver",
+      "ANGLE:d": 0,
+      "DIST:d": 1,
+      "GNDPWR:d": 0
+    },
+    "WEDGE": {
+      "NAME:t": "Wedge",
+      "ANGLE:d": 30,
+      "DIST:d": 0.7,
+      "GNDPWR:d": 0
+    },
+    "PUTTER": {
+      "NAME:t": "Putter",
+      "ANGLE:d": 0,
+      "DIST:d": 0.5,
+      "GNDPWR:d": 0.5
+    }
+  },
   "BALL": {
     "STATS": {
       "SIZE:i": 2,
@@ -69,6 +92,9 @@
     "HITS": {
       "LABEL:t": "HIT",
       "MARGIN:i": 6
+    },
+    "CLUB": {
+      "GAP:i": 2
     }
   },
   "ANIM": {

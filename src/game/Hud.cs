@@ -46,11 +46,24 @@ internal static class Hud
 
     public static void Draw()
     {
+        PrintOutlined(HitCaption,
+            Constants.Screen.ResolutionX - Margin - HitCaption.Length * FontAdvance, Margin,
+            Constants.Colors.White);
+    }
+
+    /// <summary>
+    /// Screen text with a one-pixel black outline, which is what keeps the HUD readable over a room
+    /// the game has no say in. Five passes: the four neighbours, then the text itself over them.
+    /// </summary>
+    public static void PrintOutlined(string text, int x, int y, int color)
+    {
         var api = YourGame.API;
 
-        api.print(HitCaption,
-            Constants.Screen.ResolutionX - Margin - HitCaption.Length * FontAdvance, Margin,
-            Constants.Colors.Yellow);
+        api.print(text, x - 1, y, Constants.Colors.Black);
+        api.print(text, x + 1, y, Constants.Colors.Black);
+        api.print(text, x, y - 1, Constants.Colors.Black);
+        api.print(text, x, y + 1, Constants.Colors.Black);
+        api.print(text, x, y, color);
     }
 
     // Rebuilt only when the count moves, so drawing the caption allocates nothing.

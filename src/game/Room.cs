@@ -47,6 +47,9 @@ internal class Room
     {
         Load(name);
 
+        // The bag first: the ball leaves the club face, so a hit on the first frame already has one.
+        Club.Init();
+
         // The ball before the player: the swing reads it the frame it starts.
         Ball.Init(this);
         Player.Init(this);
@@ -59,6 +62,9 @@ internal class Room
         Player.Update(elapsedSeconds);
         Ball.Update(elapsedSeconds);
         Flag.Update(elapsedSeconds);
+
+        // After the player, so the swing state the toggle checks is this frame's.
+        Club.Update();
     }
 
     public void Draw()
@@ -76,6 +82,7 @@ internal class Room
 
         // HUD, over the room.
         Meter.Draw();
+        Club.Draw();
         Hud.Draw();
     }
 

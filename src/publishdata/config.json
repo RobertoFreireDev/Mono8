@@ -1,12 +1,13 @@
 {
   "ANIM": { "FRAMES": [4, 5, 6, 7, -1, -1, -1, -1], "SCALE": 0, "SPEED": 3, "LOOP": 0 },
-  "DITHER": { "SLOTS": [-1, 15, 47, 16, 48, -1, -1, -1], "ACTIVE": 4 },
-  "CANVAS": { "ZOOM": 2, "TOOL": 0, "COLOR": 4, "GUIDE": false },
-  "MAP": { "TOOL": 3, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 0, "CAMY": 0, "ZOOM": 0 },
+  "DITHER": { "SLOTS": [-1, 15, 47, -1, 48, -1, -1, -1], "ACTIVE": 1 },
+  "CANVAS": { "ZOOM": 0, "TOOL": 0, "COLOR": 3, "GUIDE": false },
+  "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 6, "CAMY": 10, "ZOOM": 2 },
   "SFX": { "INDEX": 0 },
   "MUSIC": { "PATTERN": 0 },
-  "JSON": { "GROUP": "GAME", "OBJECT": "" },
+  "JSON": { "GROUP": "HUD", "OBJECT": "CLUB" },
   "ONION": [
+    { "SPR": 0, "REF": 47, "ORDER": 0, "TINT": 0, "OPACITY": 4 },
     { "SPR": 9, "REF": 8, "ORDER": 0, "TINT": 1, "OPACITY": 1 },
     { "SPR": 10, "REF": 8, "ORDER": 1, "TINT": 2, "OPACITY": 1 },
     { "SPR": 79, "REF": 47, "ORDER": 0, "TINT": 0, "OPACITY": 4 }

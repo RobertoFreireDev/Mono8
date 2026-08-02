@@ -128,6 +128,10 @@ internal static class Ball
     /// always leaves in front of them; <paramref name="power"/> is the strength meter reading, 0 to
     /// 1, scaling HITX / HITY — a full bar is the authored speed, and a dead one barely nudges it.
     /// Returns whether there was a ball there to send, which is what the HUD counts.
+    ///
+    /// HITX and HITY are read as a speed and a launch angle rather than two velocities, so the
+    /// selected <see cref="Club"/> can loft the shot or shorten it without either number being
+    /// re-authored per club.
     /// </summary>
     public static bool Hit(bool toLeft, float power)
     {
@@ -136,10 +140,17 @@ internal static class Ball
             return false;
         }
 
-        power = (float)YourGame.API.mid(0f, power, 1f);
+        var api = YourGame.API;
 
-        VelX = (toLeft ? -HitSpeedX : HitSpeedX) * power;
-        VelY = -HitSpeedY * power;
+        power = (float)api.mid(0f, power, 1f);
+
+        float speed = (float)api.sqrt(HitSpeedX * HitSpeedX + HitSpeedY * HitSpeedY)
+            * power * Club.Distance;
+        float angle = Club.AngleFrom(api.atan2(HitSpeedY, HitSpeedX), power);
+
+        // sin is negated to match the downward y-axis, so a positive angle already lifts the ball.
+        VelX = (toLeft ? -speed : speed) * (float)api.cos(angle);
+        VelY = speed * (float)api.sin(angle);
         OnGround = false;
         return true;
     }

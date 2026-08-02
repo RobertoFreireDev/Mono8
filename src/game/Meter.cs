@@ -49,6 +49,12 @@ internal static class Meter
     /// <summary>How hard the ball would be hit right now, 0 to 1.</summary>
     public static float Value => Level;
 
+    /// <summary>Top-left of the bar's background in screen pixels, border included — what the
+    /// <see cref="Club"/> label lines itself up on.</summary>
+    public static int LeftX => Margin;
+
+    public static int TopY => Constants.Screen.ResolutionY - Margin - BarH - Border * 2;
+
     public static bool Active => Running;
 
     public static void Init()
@@ -140,8 +146,8 @@ internal static class Meter
 
         var api = YourGame.API;
 
-        int x0 = Margin;
-        int y0 = Constants.Screen.ResolutionY - Margin - BarH - Border * 2;
+        int x0 = LeftX;
+        int y0 = TopY;
         int x1 = x0 + BarW + Border * 2 - 1;
         int y1 = y0 + BarH + Border * 2 - 1;
 
