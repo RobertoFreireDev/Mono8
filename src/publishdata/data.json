@@ -1,24 +1,36 @@
 {
+  "GAME": {
+    "START": {
+      "ROOM:t": "1"
+    }
+  },
   "ROOMS": {
     "1": {
-      "FLAGPOS:p": [180, 109],
-      "PLYRPOS:p": [30, 100]
+      "CELLPOS:p": [ 0, 0 ],
+      "FLAGPOS:p": [ 180, 109 ],
+      "PLYRPOS:p": [ 30, 100 ],
+      "BALLPOS:p": [ 46, 100 ]
     }
   },
   "PLAYER": {
     "STATS": {
       "SPR:i": 8,
-      "HITPOS:p": [3, 2],
-      "HITSIZE:p": [2, 6],
+      "SPRSIZE:i": 8,
+      "HITPOS:p": [ 3, 2 ],
+      "HITSIZE:p": [ 2, 6 ],
       "SPEED:d": 30,
       "GRAVITY:d": 450,
       "JUMP:d": 98,
       "MAXFALL:d": 200,
-      "REACH:i": 4
+      "REACH:i": 4,
+      "CLUBX:i": 9,
+      "FAILTXT:t": "FAILED!",
+      "FAILY:i": 10
     }
   },
   "BALL": {
     "STATS": {
+      "SIZE:i": 2,
       "GRAVITY:d": 450,
       "MAXFALL:d": 200,
       "BOUNCE:d": 0.5,
@@ -27,8 +39,8 @@
       "HITY:d": 125,
       "BLINK:i": 8,
       "REST:d": 12,
-      "HOLEPOS:p": [2, 6],
-      "HOLESIZE:p": [4, 6],
+      "HOLEPOS:p": [ 2, 6 ],
+      "HOLESIZE:p": [ 4, 6 ],
       "HOLESPD:d": 16,
       "SINKDEP:i": 4,
       "SINKSPD:d": 12
@@ -39,21 +51,39 @@
       "SWEEP:d": 1.2,
       "MISS:d": 0.1,
       "MINHIT:d": 0.35
+    },
+    "CLUB": {
+      "SPR:i": 9,
+      "PRESS:d": 0.25,
+      "HITSEC:d": 2,
+      "FAILSEC:d": 0.5
+    }
+  },
+  "HUD": {
+    "METER": {
+      "MARGIN:i": 6,
+      "BARW:i": 64,
+      "BARH:i": 2,
+      "BORDER:i": 1
+    },
+    "HITS": {
+      "LABEL:t": "HIT",
+      "MARGIN:i": 6
     }
   },
   "ANIM": {
     "FLAG": {
-      "ID:t": ["4", "5", "6", "7"],
+      "ID:t": [ "4", "5", "6", "7" ],
       "SPEED:i": 4,
       "MODE:t": "FW"
     },
     "GOLFPULL": {
-      "ID:t": ["9", "10", "11", "12"],
+      "ID:t": [ "9", "10", "11", "12" ],
       "SPEED:i": 16,
       "MODE:t": "fW"
     },
     "GOLFHIT": {
-      "ID:t": ["9", "10", "11", "12"],
+      "ID:t": [ "9", "10", "11", "12" ],
       "SPEED:i": 32,
       "MODE:t": "RV"
     }

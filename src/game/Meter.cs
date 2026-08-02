@@ -10,17 +10,11 @@ namespace mono8.game;
 /// </summary>
 internal static class Meter
 {
-    private const string StatsGroup = "SWING";
-    private const string StatsObject = "POWER";
+    private const string SweepGroup = "SWING";
+    private const string SweepObject = "POWER";
 
-    // Seconds for one full sweep out and back. Fallback until SWING / POWER is authored.
-    private const float DefaultSweepSeconds = 1.2f;
-
-    // Bar geometry, in screen pixels. The background is the fill area plus a one-pixel border.
-    private const int Margin = 6;
-    private const int BarW = 64;
-    private const int BarH = 2;
-    private const int Border = 1;
+    private const string BarGroup = "HUD";
+    private const string BarObject = "METER";
 
     // Fill color per tenth of the bar, weakest shot first. Indexed by (int)(Level * 10).
     private static readonly int[] FillColors =
@@ -42,6 +36,12 @@ internal static class Meter
     private static int Direction;
     private static bool Running;
 
+    // Bar geometry, in screen pixels. The background is the fill area plus the border.
+    private static int Margin;
+    private static int BarW;
+    private static int BarH;
+    private static int Border;
+
     /// <summary>How hard the ball would be hit right now, 0 to 1.</summary>
     public static float Value => Level;
 
@@ -49,13 +49,28 @@ internal static class Meter
 
     public static void Init()
     {
-        float sweep = DefaultSweepSeconds;
+        var api = YourGame.API;
+
+        float sweep = 0f;
+        Margin = 0;
+        BarW = 0;
+        BarH = 0;
+        Border = 0;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
-        var stats = YourGame.API.gjson(StatsGroup, StatsObject);
+        var stats = api.gjson(SweepGroup, SweepObject);
         if (stats != null)
         {
-            sweep = (float)stats.GetDec("SWEEP", 0, DefaultSweepSeconds);
+            sweep = (float)stats.GetDec("SWEEP");
+        }
+
+        var bar = api.gjson(BarGroup, BarObject);
+        if (bar != null)
+        {
+            Margin = bar.GetInt("MARGIN");
+            BarW = bar.GetInt("BARW");
+            BarH = bar.GetInt("BARH");
+            Border = bar.GetInt("BORDER");
         }
 
         // Out and back is two traversals of the bar, hence the 2.
@@ -102,7 +117,8 @@ internal static class Meter
 
     public static void Draw()
     {
-        if (!Running)
+        // Skipped when the bar is unauthored, since an empty rect would draw inverted.
+        if (!Running || BarW <= 0 || BarH <= 0)
         {
             return;
         }

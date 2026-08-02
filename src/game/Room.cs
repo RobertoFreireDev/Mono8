@@ -4,26 +4,25 @@ namespace mono8.game;
 /// One room, loaded from its object under the ROOMS group in data.json, and everything that
 /// lives in it — the room runs its occupants, so entering one is what starts them.
 ///
-/// A room is exactly one screen — 256x144 px = 32x18 cells — cut out of the map sheet at
-/// <see cref="CellX"/>, <see cref="CellY"/>. Where each room sits on the sheet is the game's
-/// call, not the data's, so the origin is passed to <see cref="Enter"/>.
+/// A room is exactly one screen cut out of the map sheet at <see cref="CellX"/>,
+/// <see cref="CellY"/>, which the room authors itself as CELLPOS.
 ///
-/// The authored positions (PLYRPOS, FLAGPOS) are in pixels *within* the room; this class turns
-/// them into map-sheet pixels once, on entry, so everything downstream works in one space.
+/// The authored positions (PLYRPOS, FLAGPOS, BALLPOS) are in pixels *within* the room; this class
+/// turns them into map-sheet pixels once, on entry, so everything downstream works in one space.
 /// </summary>
 internal class Room
 {
-    public const int CellW = 32;
-    public const int CellH = 18;
+    // A room is one screenful of the console's 8x8 cells.
+    private const int TileSize = 8;
+
+    public const int CellW = Constants.Screen.ResolutionX / TileSize;
+    public const int CellH = Constants.Screen.ResolutionY / TileSize;
 
     private const string JsonGroup = "ROOMS";
+    private const string FieldCell = "CELLPOS";
     private const string FieldPlayer = "PLYRPOS";
     private const string FieldFlag = "FLAGPOS";
     private const string FieldBall = "BALLPOS";
-
-    // Where the ball sits when the room has no BALLPOS: a short walk in front of the tee, so an
-    // unauthored room is still playable. TODO: developer to author BALLPOS per room.
-    private const int DefaultBallOffsetX = 16;
 
     public string Name { get; private set; }
     public int CellX { get; private set; }
@@ -41,12 +40,12 @@ internal class Room
 
     /// <summary>
     /// <paramref name="name"/> is the object name under ROOMS. An unknown room, or one missing a
-    /// field, loads as an empty room at the given origin rather than failing — a half-authored
-    /// room still runs.
+    /// field, loads as an empty room at the top-left of the map sheet rather than failing — a
+    /// half-authored room still runs.
     /// </summary>
-    public void Enter(string name, int cellX, int cellY)
+    public void Enter(string name)
     {
-        Load(name, cellX, cellY);
+        Load(name);
 
         // The ball before the player: the swing reads it the frame it starts.
         Ball.Init(this);
@@ -80,23 +79,33 @@ internal class Room
         Hud.Draw();
     }
 
-    private void Load(string name, int cellX, int cellY)
+    private void Load(string name)
     {
         Name = name;
-        CellX = cellX;
-        CellY = cellY;
+        CellX = 0;
+        CellY = 0;
 
-        int originX = cellX * 8;
-        int originY = cellY * 8;
+        // Re-read every load: Ctrl+S in the JSON editor rebuilds the data without a restart.
+        var data = string.IsNullOrEmpty(name) ? null : YourGame.API.gjson(JsonGroup, name);
+
+        // The origin has to be settled before anything measured from it, so CELLPOS is read first.
+        // (0, 0) is a legitimate origin — the top-left room — so an unauthored one costs nothing.
+        if (data != null && data.Has(FieldCell))
+        {
+            (CellX, CellY) = data.GetXY(FieldCell);
+        }
+
+        int originX = CellX * TileSize;
+        int originY = CellY * TileSize;
 
         PlayerX = originX;
         PlayerY = originY;
         HasFlag = false;
         FlagX = originX;
         FlagY = originY;
+        BallX = originX;
+        BallY = originY;
 
-        // Re-read every load: Ctrl+S in the JSON editor rebuilds the data without a restart.
-        var data = YourGame.API.gjson(JsonGroup, name);
         if (data != null)
         {
             if (data.Has(FieldPlayer))
@@ -113,17 +122,13 @@ internal class Room
                 FlagY = originY + fy;
                 HasFlag = true;
             }
-        }
 
-        // Falls in relative to the tee, so the ball lands somewhere sane in an unauthored room.
-        BallX = PlayerX + DefaultBallOffsetX;
-        BallY = PlayerY;
-
-        if (data != null && data.Has(FieldBall))
-        {
-            var (bx, by) = data.GetXY(FieldBall);
-            BallX = originX + bx;
-            BallY = originY + by;
+            if (data.Has(FieldBall))
+            {
+                var (bx, by) = data.GetXY(FieldBall);
+                BallX = originX + bx;
+                BallY = originY + by;
+            }
         }
     }
 }

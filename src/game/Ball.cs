@@ -1,38 +1,23 @@
 namespace mono8.game;
 
 /// <summary>
-/// The golf ball: a 2x2 rect rather than a sprite, blinking between white and light gray so it
+/// The golf ball: a small rect rather than a sprite, blinking between white and light gray so it
 /// stays readable against any terrain. It falls, bounces off autotile terrain and rolls to a stop,
 /// and the <see cref="Swing"/> is the only thing that ever puts it back in the air.
 ///
 /// Physics is the same axis-separated pixel step the <see cref="Player"/> uses: at this size a
 /// single frame of travel can be many pixels, and stepping is what keeps it from tunnelling
 /// through a thin wall.
+///
+/// Everything about it is authored under BALL / STATS in data.json. Nothing is tuned in code.
 /// </summary>
 internal static class Ball
 {
-    /// <summary>Side of the ball in pixels. The rect runs X..X+Size-1.</summary>
-    public const int Size = 2;
-
     private const string StatsGroup = "BALL";
     private const string StatsObject = "STATS";
 
-    // Fallbacks, so an unauthored BALL / STATS still plays. Speeds are px/s, gravity px/s².
-    private const float DefaultGravity = 450f;
-    private const float DefaultMaxFall = 200f;
-    private const float DefaultBounce = 0.5f;
-    private const float DefaultFriction = 120f;
-    private const float DefaultHitX = 90f;
-    private const float DefaultHitY = 110f;
-    private const int DefaultBlink = 8;
-    private const float DefaultRest = 12f;
-    private const int DefaultHoleX = 0;
-    private const int DefaultHoleY = 0;
-    private const int DefaultHoleW = 9;
-    private const int DefaultHoleH = 17;
-    private const float DefaultHoleSpeed = 16f;
-    private const int DefaultSinkDepth = 4;
-    private const float DefaultSinkSpeed = 12f;
+    /// <summary>Side of the ball in pixels. The rect runs X..X+Size-1.</summary>
+    public static int Size;
 
     public static bool Present;
     public static int X;
@@ -83,41 +68,41 @@ internal static class Ball
 
     public static void Init(Room room)
     {
-        Gravity = DefaultGravity;
-        MaxFallSpeed = DefaultMaxFall;
-        Bounce = DefaultBounce;
-        Friction = DefaultFriction;
-        HitSpeedX = DefaultHitX;
-        HitSpeedY = DefaultHitY;
-        RestSpeed = DefaultRest;
-        HoleX = DefaultHoleX;
-        HoleY = DefaultHoleY;
-        HoleW = DefaultHoleW;
-        HoleH = DefaultHoleH;
-        HoleSpeed = DefaultHoleSpeed;
-        SinkDepth = DefaultSinkDepth;
-        SinkSpeed = DefaultSinkSpeed;
-        int blink = DefaultBlink;
+        Size = 0;
+        Gravity = 0f;
+        MaxFallSpeed = 0f;
+        Bounce = 0f;
+        Friction = 0f;
+        HitSpeedX = 0f;
+        HitSpeedY = 0f;
+        RestSpeed = 0f;
+        HoleX = 0;
+        HoleY = 0;
+        HoleW = 0;
+        HoleH = 0;
+        HoleSpeed = 0f;
+        SinkDepth = 0;
+        SinkSpeed = 0f;
+        int blink = 0;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var stats = YourGame.API.gjson(StatsGroup, StatsObject);
         if (stats != null)
         {
-            Gravity = (float)stats.GetDec("GRAVITY", 0, DefaultGravity);
-            MaxFallSpeed = (float)stats.GetDec("MAXFALL", 0, DefaultMaxFall);
-            Bounce = (float)stats.GetDec("BOUNCE", 0, DefaultBounce);
-            Friction = (float)stats.GetDec("FRICTION", 0, DefaultFriction);
-            HitSpeedX = (float)stats.GetDec("HITX", 0, DefaultHitX);
-            HitSpeedY = (float)stats.GetDec("HITY", 0, DefaultHitY);
-            blink = stats.GetInt("BLINK", 0, DefaultBlink);
-            RestSpeed = (float)stats.GetDec("REST", 0, DefaultRest);
-            // GetXY has no fallback, and a missing PosXY reads (0, 0) — which is a real offset but
-            // a hit box with no area, so both are gated on being authored at all.
-            if (stats.Has("HOLEPOS")) (HoleX, HoleY) = stats.GetXY("HOLEPOS");
-            if (stats.Has("HOLESIZE")) (HoleW, HoleH) = stats.GetXY("HOLESIZE");
-            HoleSpeed = (float)stats.GetDec("HOLESPD", 0, DefaultHoleSpeed);
-            SinkDepth = stats.GetInt("SINKDEP", 0, DefaultSinkDepth);
-            SinkSpeed = (float)stats.GetDec("SINKSPD", 0, DefaultSinkSpeed);
+            Size = stats.GetInt("SIZE");
+            Gravity = (float)stats.GetDec("GRAVITY");
+            MaxFallSpeed = (float)stats.GetDec("MAXFALL");
+            Bounce = (float)stats.GetDec("BOUNCE");
+            Friction = (float)stats.GetDec("FRICTION");
+            HitSpeedX = (float)stats.GetDec("HITX");
+            HitSpeedY = (float)stats.GetDec("HITY");
+            blink = stats.GetInt("BLINK");
+            RestSpeed = (float)stats.GetDec("REST");
+            (HoleX, HoleY) = stats.GetXY("HOLEPOS");
+            (HoleW, HoleH) = stats.GetXY("HOLESIZE");
+            HoleSpeed = (float)stats.GetDec("HOLESPD");
+            SinkDepth = stats.GetInt("SINKDEP");
+            SinkSpeed = (float)stats.GetDec("SINKSPD");
         }
 
         BlinkSeconds = blink > 0 ? 1f / blink : 0f;
@@ -225,7 +210,8 @@ internal static class Ball
 
     public static void Draw()
     {
-        if (!Present)
+        // Skipped when SIZE is unauthored, since an empty rect would draw inverted.
+        if (!Present || Size <= 0)
         {
             return;
         }

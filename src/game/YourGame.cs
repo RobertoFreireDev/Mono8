@@ -17,11 +17,11 @@ namespace mono8.game;
 /// </summary>
 internal class YourGame : IEditor
 {
-    // The room the game opens on: the object name under ROOMS in data.json, and where that room
-    // sits on the map sheet — the first one at the top-left of map layer 1.
-    private const string StartRoom = "1";
-    private const int StartRoomCellX = 0;
-    private const int StartRoomCellY = 0;
+    // Which room the game opens on, authored under GAME / START as the object name to look up in
+    // ROOMS. Where that room sits on the map sheet is the room's own CELLPOS.
+    private const string StartGroup = "GAME";
+    private const string StartObject = "START";
+    private const string FieldRoom = "ROOM";
 
     private readonly Room _room = new Room();
 
@@ -37,7 +37,10 @@ internal class YourGame : IEditor
     public void Init()
     {
         Debug.Init();
-        _room.Enter(StartRoom, StartRoomCellX, StartRoomCellY);
+
+        // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
+        var start = API.gjson(StartGroup, StartObject);
+        _room.Enter(start != null ? start.GetStr(FieldRoom) : string.Empty);
     }
 
     public void Update(float elapsedSeconds)

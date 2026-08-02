@@ -23,33 +23,15 @@ internal static class Swing
     private const string AnimPull = "GOLFPULL";
     private const string AnimHit = "GOLFHIT";
 
-    private const string StatsGroup = "SWING";
-    private const string StatsObject = "POWER";
-
-    // The club at rest, before the pull.
-    private const int SprReady = 9;
+    private const string PowerGroup = "SWING";
+    private const string PowerObject = "POWER";
+    private const string ClubObject = "CLUB";
 
     // B (X). Button 4 is the jump, so the swing sits on the next one.
     private const int BtnSwing = 5;
 
     // X (C). Backs out of an addressed or pulled-back swing.
     private const int BtnCancel = 6;
-
-    // Shortest gap between two presses that both count, whatever state they land in.
-    private const float PressSeconds = 0.25f;
-
-    // How long the finished hit stays on screen before the club is put away.
-    private const float HitSeconds = 2f;
-
-    // A whiff is over quickly — there is nothing to watch and the player wants another go.
-    private const float FailSeconds = 0.5f;
-
-    // Fallbacks for SWING / POWER, used until MISS and MINHIT are authored. Under MISS of the bar
-    // the club goes through the ball and the swing counts as a miss rather than a very soft hit;
-    // MINHIT is what the weakest reading that does count is worth, since at the authored hit speeds
-    // anything under about a third of the bar barely leaves the tile the ball is on.
-    private const float DefaultMiss = 0.1f;
-    private const float DefaultMinHit = 0.35f;
 
     // A miss threshold of a whole bar would leave no shot to scale, so the read is kept under one.
     private const float MaxMiss = 0.99f;
@@ -62,8 +44,22 @@ internal static class Swing
     private static float Seconds;
     private static bool Armed;
     private static bool Launched;
+
+    // Under MISS of the bar the club goes through the ball and the swing counts as a miss rather
+    // than a very soft hit; MINHIT is what the weakest reading that does count is worth.
     private static float Miss;
     private static float MinHit;
+
+    // The club at rest, before the pull.
+    private static int SprReady;
+
+    // Shortest gap between two presses that both count, whatever state they land in.
+    private static float PressSeconds;
+
+    // How long the finished hit stays on screen before the club is put away, and how long a whiff
+    // does — there is nothing to watch in a whiff and the player wants another go.
+    private static float HitSeconds;
+    private static float FailSeconds;
 
     /// <summary>While true the club is on screen and <see cref="Sprite"/> is the frame to draw.</summary>
     public static bool Active => Current != Phase.Idle;
@@ -97,16 +93,30 @@ internal static class Swing
         Launched = true;
         Power = 0f;
         Failed = false;
-        Miss = DefaultMiss;
-        MinHit = DefaultMinHit;
+        Miss = 0f;
+        MinHit = 0f;
+        SprReady = 0;
+        PressSeconds = 0f;
+        HitSeconds = 0f;
+        FailSeconds = 0f;
+
+        var api = YourGame.API;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
-        var stats = YourGame.API.gjson(StatsGroup, StatsObject);
-        if (stats != null)
+        var power = api.gjson(PowerGroup, PowerObject);
+        if (power != null)
         {
-            var api = YourGame.API;
-            Miss = (float)api.mid(0f, stats.GetDec("MISS", 0, DefaultMiss), MaxMiss);
-            MinHit = (float)api.mid(0f, stats.GetDec("MINHIT", 0, DefaultMinHit), 1f);
+            Miss = (float)api.mid(0f, power.GetDec("MISS"), MaxMiss);
+            MinHit = (float)api.mid(0f, power.GetDec("MINHIT"), 1f);
+        }
+
+        var club = api.gjson(PowerGroup, ClubObject);
+        if (club != null)
+        {
+            SprReady = club.GetInt("SPR");
+            PressSeconds = (float)club.GetDec("PRESS");
+            HitSeconds = (float)club.GetDec("HITSEC");
+            FailSeconds = (float)club.GetDec("FAILSEC");
         }
 
         Meter.Init();

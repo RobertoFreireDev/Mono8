@@ -16,21 +16,8 @@ internal static class Player
     private const int BtnRight = 1;
     private const int BtnJump = 4;
 
-    // The player is one 8x8 sprite, which is what the facing flip mirrors about.
-    private const int SprSize = 8;
-
-    // The miss, shouted over the head. The font advances 4 px a character, so half the string is
-    // what centres it on the sprite.
-    private const string FailText = "FAILED!";
+    // The engine's font advances 4 px a character, which is how the miss is centred on the sprite.
     private const int FontAdvance = 4;
-    private const int FailTextY = 10;
-
-    // Fallbacks for CLUBX and REACH under PLAYER / STATS, used only until those fields are
-    // authored. CLUBX is the sprite-local x of the club head at address facing right — where the
-    // ball has to be for the swing to look like it connects, mirrored for facing left, and past
-    // the sprite edge is fine. REACH is how far off that point the ball can still be addressed.
-    private const int DefaultClubX = 9;
-    private const int DefaultReach = 4;
 
     public static int X;
     public static int Y;
@@ -38,6 +25,10 @@ internal static class Player
     public static bool FacingLeft;
 
     private static int Spr;
+
+    // Side of the player sprite in pixels, which is what the facing flip mirrors about.
+    private static int SprSize;
+
     private static int HitX;
     private static int HitY;
     private static int HitW;
@@ -46,8 +37,16 @@ internal static class Player
     private static float Gravity;
     private static float JumpSpeed;
     private static float MaxFallSpeed;
+
+    // CLUBX is the sprite-local x of the club head at address facing right — where the ball has to
+    // be for the swing to look like it connects, mirrored for facing left, and past the sprite edge
+    // is fine. REACH is how far off that point the ball can still be addressed.
     private static int ClubX;
     private static int Reach;
+
+    // The miss, shouted over the head.
+    private static string FailText;
+    private static int FailTextY;
 
     private static float VelX;
     private static float VelY;
@@ -60,6 +59,7 @@ internal static class Player
     public static void Init(Room room)
     {
         Spr = 0;
+        SprSize = 0;
         HitX = 0;
         HitY = 0;
         HitW = 0;
@@ -68,22 +68,27 @@ internal static class Player
         Gravity = 0f;
         JumpSpeed = 0f;
         MaxFallSpeed = 0f;
-        ClubX = DefaultClubX;
-        Reach = DefaultReach;
+        ClubX = 0;
+        Reach = 0;
+        FailText = string.Empty;
+        FailTextY = 0;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var stats = YourGame.API.gjson(StatsGroup, StatsObject);
         if (stats != null)
         {
             Spr = stats.GetInt("SPR");
+            SprSize = stats.GetInt("SPRSIZE");
             (HitX, HitY) = stats.GetXY("HITPOS");
             (HitW, HitH) = stats.GetXY("HITSIZE");
             MoveSpeed = (float)stats.GetDec("SPEED");
             Gravity = (float)stats.GetDec("GRAVITY");
             JumpSpeed = (float)stats.GetDec("JUMP");
             MaxFallSpeed = (float)stats.GetDec("MAXFALL");
-            ClubX = stats.GetInt("CLUBX", 0, DefaultClubX);
-            Reach = stats.GetInt("REACH", 0, DefaultReach);
+            ClubX = stats.GetInt("CLUBX");
+            Reach = stats.GetInt("REACH");
+            FailText = stats.GetStr("FAILTXT");
+            FailTextY = stats.GetInt("FAILY");
         }
 
         X = room.PlayerX;
@@ -203,7 +208,7 @@ internal static class Player
             YourGame.API.spr(Swing.Sprite, X, Y, 1, 1, 1f, FacingLeft);
         }
 
-        if (Swing.Failed)
+        if (Swing.Failed && FailText.Length > 0)
         {
             YourGame.API.print(FailText, X + SprSize / 2 - FailText.Length * FontAdvance / 2,
                 Y - FailTextY, Constants.Colors.Red);
