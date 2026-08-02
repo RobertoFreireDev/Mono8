@@ -57,6 +57,9 @@ internal sealed class JsonEditor : IEditor
     private static readonly int TypeCount = Enum.GetValues<DataValueType>().Length;
 
     private static readonly string[] TreeActions = { "+GRP", "+OBJ", "REN", "DEL" };
+    private static readonly string[] TreeCopyActions = { "+GRP", "+OBJ", "REN", "DEL", "COPY" };
+    private static readonly string[] TreePasteActions = { "+GRP", "+OBJ", "REN", "DEL", "DPCK", "DPCA" };
+    private static readonly string[] TreeCopyPasteActions = { "+GRP", "+OBJ", "REN", "DEL", "COPY", "DPCK", "DPCA" };
     private static readonly string[] EmptyTreeActions = { "+GRP" };
     private static readonly string[] ScalarActions = { "+KEY", "REN", "DEL", "ARR" };
     private static readonly string[] ArrayActions = { "+KEY", "REN", "DEL", "ARR", "+ITM", "-ITM" };
@@ -92,6 +95,7 @@ internal sealed class JsonEditor : IEditor
 
     private object _selected;          // the tree selection: a JsonGroup or a JsonObject
     private JsonObject _inspected;     // what the inspector shows; only an object row changes it
+    private JsonObject _copied;        // [COPY]'s object: the template [DPCK] and [DPCA] lay down
     private int _selField;
     private int _selItem;
 
@@ -468,6 +472,9 @@ internal sealed class JsonEditor : IEditor
         {
             case "+GRP": AddGroup(); break;
             case "+OBJ": AddObject(); break;
+            case "COPY": CopyObject(); break;
+            case "DPCK": Duplicate(false); break;
+            case "DPCA": Duplicate(true); break;
             case "+KEY": BeginNewKey(); break;
             case "REN": if (_focus == Panel.Tree) BeginNodeRename(); else BeginKeyRename(); break;
             case "DEL": if (_focus == Panel.Tree) DeleteNode(); else DeleteField(); break;
@@ -482,12 +489,35 @@ internal sealed class JsonEditor : IEditor
         "+GRP" => "NEW GROUP",
         "+OBJ" => "NEW OBJECT",
         "+KEY" => "NEW KEY",
+
+        // These three name the object they act on. A duplicate's is the one [COPY] took, which is
+        // not the selected one and may not even be on screen, so the name is the only thing saying
+        // what is about to be laid down.
+        "COPY" => "COPY " + NamePath(_selected as JsonObject),
+        "DPCK" => "DUPLICATE ONLY KEYS FOR " + NamePath(_copied) + DestinationHint(),
+        "DPCA" => "DUPLICATE KEYS/VALUES FOR " + NamePath(_copied) + DestinationHint(),
+
         "REN" => "RENAME [R]",
         "DEL" => DeleteTakesItem() ? "DELETE ITEM" : "DELETE",
         "ARR" => "SCALAR / ARRAY",
         "+ITM" => "ADD ITEM",
         _ => "REMOVE ITEM"
     };
+
+    /// <summary>
+    /// Where a duplicate would land, as the tail of the two hints. It is worth saying because the
+    /// group is only the selected one when a group is what is selected: with an object selected the
+    /// duplicate goes to the group holding it, which is a row the cursor is nowhere near.
+    /// </summary>
+    private string DestinationHint()
+    {
+        var group = DestinationGroup();
+        return group == null ? string.Empty : " ON " + group.Name;
+    }
+
+    /// <summary>The group a new object goes into: the selected one, or the one holding the selection.</summary>
+    private JsonGroup DestinationGroup() =>
+        _selected as JsonGroup ?? Sheet.OwnerOf(_selected as JsonObject);
 
     /// <summary>
     /// What the one-character type badge stands for. PosXY says more than its name because its
@@ -540,7 +570,7 @@ internal sealed class JsonEditor : IEditor
 
     private void AddObject()
     {
-        var group = _selected as JsonGroup ?? Sheet.OwnerOf(_selected as JsonObject);
+        var group = DestinationGroup();
         if (group == null)
         {
             _events.AddEvent("NO GROUP");
@@ -551,6 +581,53 @@ internal sealed class JsonEditor : IEditor
             n => JsonSheet.FindObject(group, n) != null);
 
         if (!Sheet.TryAddObject(group, name, out JsonObject obj))
+        {
+            _events.AddEvent("MAX OBJ");
+            return;
+        }
+
+        group.Collapsed = false;
+        _selected = obj;
+        Inspect(obj);
+        _focus = Panel.Tree;
+        RebuildRows();
+        EnsureRowVisible();
+    }
+
+    /// <summary>
+    /// Remembers the selected object as the template the two duplicate buttons work from. It is the
+    /// object itself and not a snapshot of it, so a duplicate taken later is of what that object is
+    /// then — there is nothing here that would say the copy had gone stale.
+    /// </summary>
+    private void CopyObject()
+    {
+        if (_selected is not JsonObject obj) return;
+
+        _copied = obj;
+        _events.AddEvent("COPIED " + NamePath(obj));
+    }
+
+    /// <summary>
+    /// Lays the copied object down as a new one: every key with its type, its array flag and its
+    /// item count, and with <paramref name="withValues"/> the values too. It lands in the selected
+    /// group — or in the one holding the selected object, so a duplicate can be taken from the
+    /// object it sits next to without selecting the group first — and the selection follows it.
+    /// </summary>
+    private void Duplicate(bool withValues)
+    {
+        if (_copied == null) return;
+
+        var group = DestinationGroup();
+        if (group == null)
+        {
+            _events.AddEvent("NO GROUP");
+            return;
+        }
+
+        string name = FreeName("O", Constants.JsonData.MaxObjectsPerGrp,
+            n => JsonSheet.FindObject(group, n) != null);
+
+        if (!Sheet.TryCopyObject(group, name, _copied, withValues, out JsonObject obj))
         {
             _events.AddEvent("MAX OBJ");
             return;
@@ -1013,6 +1090,9 @@ internal sealed class JsonEditor : IEditor
         if (_inspected != null && Sheet.OwnerOf(_inspected) == null) Inspect(null);
         if (_selected != null && SelectedRow() < 0) _selected = null;
 
+        // A deleted object is no longer a template for anything, so the copy goes with it.
+        if (_copied != null && Sheet.OwnerOf(_copied) == null) _copied = null;
+
         // Nothing to inspect is nothing to focus. The panel's keys and its [+KEY] both want an
         // object, so a Tab into it — or a focus left behind by the object being deleted — hands
         // straight back to the tree instead of sitting on an empty panel offering a button that
@@ -1232,11 +1312,21 @@ internal sealed class JsonEditor : IEditor
     {
         if (_inspected == null) return string.Empty;
 
-        var group = Sheet.OwnerOf(_inspected);
-        string path = (group == null ? string.Empty : group.Name + "/") + _inspected.Name;
-
+        string path = NamePath(_inspected);
         var field = SelectedField();
         return field == null ? path : path + "/" + field.Name;
+    }
+
+    /// <summary>
+    /// An object written <c>GROUP/OBJECT</c>. Object names are only unique within their group, so
+    /// this is what it takes to name one that is not the row under the cursor.
+    /// </summary>
+    private string NamePath(JsonObject obj)
+    {
+        if (obj == null) return string.Empty;
+
+        var group = Sheet.OwnerOf(obj);
+        return (group == null ? string.Empty : group.Name + "/") + obj.Name;
     }
 
     /// <summary>
@@ -1248,12 +1338,34 @@ internal sealed class JsonEditor : IEditor
     /// </summary>
     private string[] ActionSet()
     {
-        if (_focus == Panel.Tree) return _rows.Count == 0 ? EmptyTreeActions : TreeActions;
+        if (_focus == Panel.Tree) return TreeActionSet();
 
         var field = SelectedField();
         if (field == null) return EmptyInspectorActions;
 
         return field.IsArray ? ArrayActions : ScalarActions;
+    }
+
+    /// <summary>
+    /// What the tree offers on top of its four: [COPY] takes the selected object as a template, and
+    /// [DPCK] [DPCA] put one down once there is a template to put — under the selected group, or
+    /// beside the selected object. Only an object is worth copying, so a group offers the paste
+    /// pair and not [COPY].
+    /// <para>
+    /// A name being typed offers none of them. The row is about the name that is selected, and a
+    /// name half-way through being edited is not yet the one it is going to be.
+    /// </para>
+    /// </summary>
+    private string[] TreeActionSet()
+    {
+        if (_rows.Count == 0) return EmptyTreeActions;
+        if (_selected == null || _field.Active) return TreeActions;
+
+        bool copy = _selected is JsonObject;
+        bool paste = _copied != null;
+
+        if (copy) return paste ? TreeCopyPasteActions : TreeCopyActions;
+        return paste ? TreePasteActions : TreeActions;
     }
 
     private static Rectangle ActionRect(string[] set, int index)

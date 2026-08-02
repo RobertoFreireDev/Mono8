@@ -200,6 +200,40 @@ internal sealed class JsonSheet
         return true;
     }
 
+    /// <summary>
+    /// Adds a copy of <paramref name="source"/> to <paramref name="group"/> under
+    /// <paramref name="name"/>: every key with its type, its array flag and its item count, and —
+    /// when <paramref name="withValues"/> — the values themselves rather than the defaults of their
+    /// types.
+    /// <para>
+    /// A value is copied exactly as it is stored, an invalid one included. One that no longer reads
+    /// as its type is the user's data in the original — <see cref="SetType"/> keeps it there — so
+    /// the copy is the same object the original is, red rows and all, rather than one that quietly
+    /// disagrees with it.
+    /// </para>
+    /// </summary>
+    public bool TryCopyObject(JsonGroup group, string name, JsonObject source, bool withValues, out JsonObject obj)
+    {
+        obj = null;
+        if (source == null) return false;
+        if (!TryAddObject(group, name, out obj)) return false;
+
+        // The source is already a sheet object, so its keys are named, typed and within every limit
+        // a new one would be held to: they go straight across without being re-checked.
+        foreach (var field in source.Fields)
+        {
+            var copy = new JsonField(field.Name, field.Type, field.IsArray);
+            foreach (string value in field.Values)
+            {
+                copy.Values.Add(withValues ? value : DataValue.Default(field.Type));
+            }
+            obj.Fields.Add(copy);
+        }
+
+        IsDirty = true;
+        return true;
+    }
+
     /// <summary>Renames a group, object or field, rejecting a name that clashes with a sibling.</summary>
     public bool TryRename(object node, string name)
     {
