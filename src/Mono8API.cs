@@ -200,6 +200,9 @@ internal class Mono8API : IEditorAPI
 
     public void SetPixel(int x, int y, int colorIndex) => SpriteSheet.SetPixel(x, y, colorIndex);
 
+    public void SetPixelDithered(int x, int y, int colorIndex, int ditherSpriteId)
+        => SpriteSheet.SetPixelDithered(x, y, colorIndex, ditherSpriteId);
+
     public void SetRectFill(int x, int y, int w, int h, int colorIndex) => SpriteSheet.SetRectFill(x, y, w, h, colorIndex);
 
     public void SetRect(int x, int y, int w, int h, int colorIndex) => SpriteSheet.SetRect(x, y, w, h, colorIndex);

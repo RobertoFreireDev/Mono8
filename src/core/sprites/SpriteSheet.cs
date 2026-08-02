@@ -294,6 +294,30 @@ internal class SpriteSheet
         UpdateTextureRegion(x, y, 1, 1);
     }
 
+    /// <summary>
+    /// Whether a dither mask lets a sheet pixel through. The mask is another sprite's 8x8 tile, indexed
+    /// by the sheet coordinate rather than by the stroke's origin, so one stroke lays down a single
+    /// aligned pattern wherever it starts. A black (index 0) mask pixel blocks the write; a sprite id
+    /// of -1 is "no mask" and lets everything through.
+    /// </summary>
+    public bool IsDitherMaskSet(int ditherSpriteId, int x, int y)
+    {
+        if (ditherSpriteId < 0 || ditherSpriteId >= TotalSprites) return true;
+
+        int tile = Constants.GameDataSizes.TileSize;
+        int mx = (ditherSpriteId % Constants.GameDataSizes.SpriteSheetColumns) * tile + x % tile;
+        int my = (ditherSpriteId / Constants.GameDataSizes.SpriteSheetColumns) * tile + y % tile;
+
+        return IsValidPos(mx, my) && Data[my, mx] != 0;
+    }
+
+    public void SetPixelDithered(int x, int y, int colorIndex, int ditherSpriteId)
+    {
+        if (!IsDitherMaskSet(ditherSpriteId, x, y)) return;
+
+        SetPixel(x, y, colorIndex);
+    }
+
     public void SetRectFill(int x, int y, int w, int h, int colorIndex)
     {
         if (!IsValidColor(colorIndex)) return;

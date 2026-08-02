@@ -338,6 +338,9 @@ internal interface IEditorAPI : IMono8API
 {
     void SetPixel(int x, int y, int colorIndex);
 
+    /// <summary>As <see cref="SetPixel"/>, but stencilled through another sprite's 8x8 tile.</summary>
+    void SetPixelDithered(int x, int y, int colorIndex, int ditherSpriteId);
+
     void SetRectFill(int x, int y, int w, int h, int colorIndex);
 
     void SetRect(int x, int y, int w, int h, int colorIndex);

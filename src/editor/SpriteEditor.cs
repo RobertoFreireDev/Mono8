@@ -95,6 +95,19 @@ internal class SpriteEditor : IEditor
     private readonly Button autotileGuideButton;
     private bool showAutotileGuide;
 
+    // --- Dither row ---
+    // A second row under the tools, live only while the pencil is selected. Slot 0 is the plain pencil
+    // (a solid mask); slots 1-7 each hold the sprite whose non-black pixels stencil it, -1 until one is
+    // given. The slots are exclusive, so the row always has exactly one of them active.
+    private const int DitherSlotCount = 8;
+    private const int DitherSolidSlot = 0;
+    private readonly int[] ditherSprites = new int[DitherSlotCount];
+    private readonly Rectangle[] ditherButtons = new Rectangle[DitherSlotCount];
+    private int selectedDitherSlot = DitherSolidSlot;
+
+    private int ActiveDitherSprite =>
+        selectedDitherSlot == DitherSolidSlot ? -1 : ditherSprites[selectedDitherSlot];
+
     // --- Selection (Select tool): a committed area of the canvas, kept in sheet-pixel space. It
     // only describes the canvas it was drawn on, so changing sprite or zoom drops it. ---
     private bool hasSelection;
@@ -158,7 +171,15 @@ internal class SpriteEditor : IEditor
 
         autotileGuideButton = new Button(palettearea.X + AutotileGuideSlot * size, toolButtonY, size, AutotileOverlay.Icon);
 
-        int flagButtonY = toolButtonY + size + 2;
+        Array.Fill(ditherSprites, -1);
+
+        int ditherButtonY = toolButtonY + size + 1;
+        for (int i = 0; i < DitherSlotCount; i++)
+        {
+            ditherButtons[i] = new Rectangle(palettearea.X + i * size, ditherButtonY, size, size);
+        }
+
+        int flagButtonY = toolButtonY + size + 10;
         flagButtons = new Rectangle[FlagCount];
         for (int i = 0; i < FlagCount; i++)
         {
@@ -496,7 +517,7 @@ internal class SpriteEditor : IEditor
             }
             else if (selectedTool == Tool.Pixel)
             {
-                if (_api.mousel()) _api.SetPixel(x, y, ColorSelected);
+                if (_api.mousel()) _api.SetPixelDithered(x, y, ColorSelected, ActiveDitherSprite);
             }
             else if (selectedTool == Tool.PaintBucket)
             {
@@ -574,6 +595,9 @@ internal class SpriteEditor : IEditor
             return;
         }
 
+        // Inert under any other tool: the row still draws, but only the pencil paints through a mask.
+        if (selectedTool == Tool.Pixel && UpdateDitherButtons(mouse)) return;
+
         foreach (var (button, tool) in toolButtons)
         {
             if (button.IsClicked(_api, mouse))
@@ -627,6 +651,70 @@ internal class SpriteEditor : IEditor
         {
             referenceOrders[sprNmbr] = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
         }
+    }
+
+    private bool DitherSlotIsEmpty(int slot) => slot != DitherSolidSlot && ditherSprites[slot] < 0;
+
+    // A slot is in one of three states and each takes a different click. Empty: left-click gives it the
+    // selected sprite and turns it on. Set but off: left-click turns it on, right-click empties it
+    // again. On: it is the mask the pencil is painting through, so neither button touches it - which
+    // also keeps the active slot from ever being emptied out from under the pencil.
+    private bool UpdateDitherButtons((int x, int y) mouse)
+    {
+        bool leftClick = _api.mouselp();
+        bool rightClick = _api.mouserp();
+        if (!leftClick && !rightClick) return false;
+
+        for (int i = 0; i < ditherButtons.Length; i++)
+        {
+            if (!ditherButtons[i].Contains(mouse.x, mouse.y)) continue;
+
+            // Every dead end below says why, so a click that changes nothing never looks like one the
+            // editor missed.
+            if (i == selectedDitherSlot)
+            {
+                eventNotifier.AddEvent(rightClick ? "CANT REMOVE ENABLED" : "ALREADY ON");
+                return true;
+            }
+
+            if (rightClick)
+            {
+                if (i == DitherSolidSlot)
+                {
+                    eventNotifier.AddEvent("PENCIL IS FIXED");
+                    return true;
+                }
+
+                if (DitherSlotIsEmpty(i))
+                {
+                    eventNotifier.AddEvent("ALREADY EMPTY");
+                    return true;
+                }
+
+                ditherSprites[i] = -1;
+                eventNotifier.AddEvent("EMPTY");
+                return true;
+            }
+
+            if (DitherSlotIsEmpty(i))
+            {
+                // Sprite 0 is the empty sentinel and the sheet holds its tile permanently blank, so it
+                // can never carry a pattern.
+                if (sprNmbr == 0)
+                {
+                    eventNotifier.AddEvent("SPR 000 IS EMPTY");
+                    return true;
+                }
+
+                ditherSprites[i] = sprNmbr;
+            }
+
+            selectedDitherSlot = i;
+            eventNotifier.AddEvent(i == DitherSolidSlot ? "PENCIL" : "DITHERING");
+            return true;
+        }
+
+        return false;
     }
 
     private static string ToolLabel(Tool tool) => tool switch
@@ -690,6 +778,12 @@ internal class SpriteEditor : IEditor
         if (refOpacityBtn.Contains(mouse.x, mouse.y)) return $"ONION {(int)(referenceOpacity * 100)}";
 
         if (palettearea.Contains(mouse.x, mouse.y)) return $"COLOR {ColorIndexAt(mouse)}";
+
+        for (int i = 0; i < ditherButtons.Length; i++)
+        {
+            if (ditherButtons[i].Contains(mouse.x, mouse.y))
+                return i == DitherSolidSlot ? "PENCIL" : "DITHERING";
+        }
 
         foreach (var (button, tool) in toolButtons)
         {
@@ -902,6 +996,8 @@ internal class SpriteEditor : IEditor
 
         autotileGuideButton.Draw(_api, showAutotileGuide);
 
+        DrawDitherButtons();
+
         DrawReferenceButtons();
         DrawFlagButtons();
 
@@ -974,6 +1070,44 @@ internal class SpriteEditor : IEditor
         int selY = palettearea.Y + (ColorSelected / PaletteColumns) * size;
         _api.rect(selX, selY, selX + size - 1, selY + size - 1, Constants.Colors.Black);
         _api.rect(selX - 1, selY - 1, selX + size, selY + size, Constants.Colors.White);
+    }
+
+    // Each slot previews its own mask in two colors: white where the pattern paints, dark grey where it
+    // does not - and dark grey throughout for every slot that is not the active one. Under any tool but
+    // the pencil nothing is active, so the whole row reads as off. Icons can't show this, so the button
+    // widget isn't reused here.
+    private void DrawDitherButtons()
+    {
+        bool rowActive = selectedTool == Tool.Pixel;
+
+        for (int i = 0; i < ditherButtons.Length; i++)
+        {
+            var bounds = ditherButtons[i];
+            int on = rowActive && i == selectedDitherSlot ? Constants.Colors.White : Constants.Colors.DarkGray;
+
+            _api.rectfill(bounds.X, bounds.Y,
+                bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, Constants.Colors.Black);
+
+            if (i == DitherSolidSlot)
+            {
+                _api.rectfill(bounds.X, bounds.Y,
+                    bounds.X + bounds.Width - 1, bounds.Y + bounds.Height - 1, on);
+                continue;
+            }
+
+            // A slot that was never given a sprite stays a black square.
+            int sprite = ditherSprites[i];
+            if (sprite < 0) continue;
+
+            for (int py = 0; py < bounds.Height; py++)
+            {
+                for (int px = 0; px < bounds.Width; px++)
+                {
+                    if (Mono8API.SpriteSheet.IsDitherMaskSet(sprite, px, py))
+                        _api.pixel(bounds.X + px, bounds.Y + py, on);
+                }
+            }
+        }
     }
 
     private void DrawFlagButtons()
