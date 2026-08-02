@@ -125,6 +125,16 @@ Match the surrounding code: file-scoped namespaces, 4-space indent, `private` fi
 
 Full prose reference is in [README.md](README.md#api-reference); the signatures are in [src/IMono8API.cs](src/IMono8API.cs). Condensed:
 
+The full per-function reference — every member of `IMono8API` with what it is, when to use it, its
+parameters and its constraints — is [src/game/API_REFERENCE.md](src/game/API_REFERENCE.md). Read it
+when you need the exact behaviour of a call: argument ranges, what happens out of range, and the
+handful of places the engine surprises you (`cls` is drawn through the camera transform; `circfill`
+with a negative radius throws; `music`'s `fadeLength` and `channelMask` are accepted but ignored;
+`mset`/`fset` changes survive `Init()`; `pal` also remaps shapes, `print` and `icon`, while `palt`
+only affects `spr`/`sspr`/`icon`). It is documentation, not game code — do not delete or restructure
+it, and if you notice it disagreeing with `src/IMono8API.cs`, say so rather than rewriting it
+wholesale. The condensed version below is enough for routine work.
+
 ### Graphics
 
 ```csharp
@@ -145,7 +155,7 @@ pal()  pal(c0, c1)  palt()  palt(c)  palt(c, transparent)
 
 - `spr` `width`/`height` are in **8×8 tiles** — `spr(64, x, y, 2, 2)` draws a 16×16 block whose top-left tile is sprite 64. The block reads across the sheet's 32-tile rows, so a 2×2 block at 64 uses sprites 64, 65, 96, 97.
 - `scale` on `spr` is clamped to `0.125`-`8`. `sspr`'s destination size is arbitrary and can stretch non-uniformly.
-- `pal`/`palt` apply to `spr`/`sspr` only. **`sprr`, `ssprr` and `map` ignore them** (single pre-baked pass) — color `0` is still transparent there, and `opacity` still works. Use `sprr`/`ssprr` for many sprites needing no palette tricks; use `spr`/`sspr` when you need recoloring or custom transparency.
+- `pal(c0, c1)` remaps any draw that names a color index — `cls`, the shapes, `print`, `icon`, `spr`, `sspr`. `palt` is narrower: it only affects the per-color pass, so `spr`, `sspr` and `icon` honor it while shapes and `print` do not. **`sprr`, `ssprr` and `map` ignore both** (single pre-baked pass) — color `0` is still transparent there, and `opacity` still works. `pal()` with no arguments resets the remap *and* transparency. Use `sprr`/`ssprr` for many sprites needing no palette tricks; use `spr`/`sspr` when you need recoloring or custom transparency.
 - `print` draws **upper-case only**.
 - `camera(x, y)` offsets every later draw call. Reset it with `camera()` before drawing the HUD.
 
