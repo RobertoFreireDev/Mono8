@@ -1,6 +1,6 @@
 namespace mono8.editor;
 
-internal class SpriteEditor : IEditor
+internal class SpriteEditor : IEditor, IEditorConfig
 {
     private enum Tool
     {
@@ -29,6 +29,7 @@ internal class SpriteEditor : IEditor
     private enum ReferenceOrder { Behind, Front }
     private enum ReferenceVisualization { Original, Red, Green, Blue }
     private const int ReferenceVisualizationCount = 4;
+    private const int ReferenceOrderCount = 2;
 
     private static readonly float[] ReferenceOpacities = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
     private const int SpriteCount = Constants.GameDataSizes.MaxSpriteIndex + 1;
@@ -80,6 +81,7 @@ internal class SpriteEditor : IEditor
 
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
+    private const int ToolCount = (int)Tool.Select + 1;
 
     // The tool row runs the width of the palette, eight buttons across. The guide sits between the
     // paint tools and the selection tool, so both keep a fixed slot rather than one following the
@@ -195,6 +197,96 @@ internal class SpriteEditor : IEditor
         animSpeedBtn = new Rectangle(14, 25, 11, size);
         animLoopModeBtn = new Rectangle(14, 35, 11, size);
         animPreviewArea = new Rectangle(32, 15, 8 * 8, 8 * 8);
+
+        // Last, so the saved settings land on top of the defaults set above rather than under them.
+        ApplyConfig(Mono8API.ConfigSheet);
+    }
+
+    /// <summary>
+    /// Reads <c>config.json</c> back into the editor. Every index is clamped against this editor's
+    /// own tables rather than in the sheet, so growing one of those tables needs no matching change
+    /// in core. Done here and not in <see cref="Init"/>, which fires on every Ctrl+R and on Restart
+    /// and would throw away whatever the developer changed since startup.
+    /// </summary>
+    private void ApplyConfig(ConfigSheet config)
+    {
+        for (int i = 0; i < Math.Min(AnimFrames.Length, config.AnimFrames.Length); i++)
+        {
+            AnimFrames[i] = config.AnimFrames[i];
+        }
+        AnimSclIdx = EditorUI.ClampIndex(config.AnimScaleIdx, Zooms.Length);
+        AnimSpeedIdx = EditorUI.ClampIndex(config.AnimSpeedIdx, AnimSpeeds.Length);
+        animLoopModeIdx = EditorUI.ClampIndex(config.AnimLoopIdx, LoopModeCount);
+
+        for (int i = 0; i < Math.Min(ditherSprites.Length, config.DitherSprites.Length); i++)
+        {
+            ditherSprites[i] = config.DitherSprites[i];
+        }
+        selectedDitherSlot = EditorUI.ClampIndex(config.ActiveDitherSlot, DitherSlotCount);
+        // An active slot whose sprite did not come back would paint nothing at all.
+        if (DitherSlotIsEmpty(selectedDitherSlot)) selectedDitherSlot = DitherSolidSlot;
+
+        SprSclIdx = EditorUI.ClampIndex(config.CanvasZoomIdx, Zooms.Length);
+        selectedTool = (Tool)EditorUI.ClampIndex(config.ToolIdx, ToolCount);
+        ColorSelected = EditorUI.ClampIndex(config.ColorIdx, Constants.GameDataSizes.ColorPalette);
+        showAutotileGuide = config.ShowAutotileGuide;
+
+        foreach (var entry in config.Onion)
+        {
+            if (entry.Sprite < 0 || entry.Sprite >= SpriteCount) continue;
+
+            Mono8API.SpriteSheet.SetReferenceSprite(entry.Sprite, entry.Reference);
+            referenceOrders[entry.Sprite] = (ReferenceOrder)EditorUI.ClampIndex(entry.Order, ReferenceOrderCount);
+            referenceVisualizationIdxs[entry.Sprite] = EditorUI.ClampIndex(entry.Tint, ReferenceVisualizationCount);
+            referenceOpacityIdxs[entry.Sprite] = EditorUI.ClampIndex(entry.Opacity, ReferenceOpacities.Length);
+        }
+    }
+
+    /// <summary>
+    /// Writes the editor's settings back into the sheet for <c>Mono8API.Save</c>. The onion pass is
+    /// sparse: a sprite still on every default is not worth a line in the file. Runs once per
+    /// Ctrl+S, so walking all 960 sprites here costs nothing that matters.
+    /// </summary>
+    void IEditorConfig.CaptureConfig(ConfigSheet config)
+    {
+        for (int i = 0; i < Math.Min(AnimFrames.Length, config.AnimFrames.Length); i++)
+        {
+            config.AnimFrames[i] = AnimFrames[i];
+        }
+        config.AnimScaleIdx = AnimSclIdx;
+        config.AnimSpeedIdx = AnimSpeedIdx;
+        config.AnimLoopIdx = animLoopModeIdx;
+
+        for (int i = 0; i < Math.Min(ditherSprites.Length, config.DitherSprites.Length); i++)
+        {
+            config.DitherSprites[i] = ditherSprites[i];
+        }
+        config.ActiveDitherSlot = selectedDitherSlot;
+
+        config.CanvasZoomIdx = SprSclIdx;
+        config.ToolIdx = (int)selectedTool;
+        config.ColorIdx = ColorSelected;
+        config.ShowAutotileGuide = showAutotileGuide;
+
+        int defaultOpacity = ReferenceOpacities.Length - 1;
+        config.Onion.Clear();
+        for (int sprite = 0; sprite < SpriteCount; sprite++)
+        {
+            int reference = Mono8API.SpriteSheet.GetReferenceSprite(sprite);
+            int order = (int)referenceOrders[sprite];
+            int tint = referenceVisualizationIdxs[sprite];
+            int opacity = referenceOpacityIdxs[sprite];
+            if (reference < 0 && order == 0 && tint == 0 && opacity == defaultOpacity) continue;
+
+            config.Onion.Add(new OnionEntry
+            {
+                Sprite = sprite,
+                Reference = reference,
+                Order = order,
+                Tint = tint,
+                Opacity = opacity,
+            });
+        }
     }
 
     public void Init()

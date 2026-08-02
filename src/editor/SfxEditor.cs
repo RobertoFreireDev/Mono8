@@ -4,7 +4,7 @@ namespace mono8.editor;
 /// PICO-8 style SFX editor: per-SFX speed &amp; loop points, an index selector,
 /// waveform (instrument) pens, a 32-column pitch region and a 32-column volume region.
 /// </summary>
-internal class SfxEditor : IEditor
+internal class SfxEditor : IEditor, IEditorConfig
 {
     private readonly IMono8API _api;
     private readonly EventNotifier eventNotifier;
@@ -118,7 +118,11 @@ internal class SfxEditor : IEditor
         for (int i = 0; i < EffectCount; i++)
             effectButtons[i] = new Button(FxButtonsX + i * 9, PaletteRowY,
                 Constants.GameDataSizes.TileSize, EffectIconStart + i);
+
+        sfxIndex = EditorUI.ClampIndex(Mono8API.ConfigSheet.SfxIndex, SfxSheet.Count);
     }
+
+    void IEditorConfig.CaptureConfig(ConfigSheet config) => config.SfxIndex = sfxIndex;
 
     public void Init()
     {

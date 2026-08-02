@@ -10,6 +10,8 @@ internal class Mono8API : IEditorAPI
     public static MusicSheet MusicSheet = new MusicSheet();
     public static MapSheet MapSheet = new MapSheet();
     public static JsonSheet JsonSheet = new JsonSheet();
+    // Editor settings rather than authored data, so its own file: config.json.
+    public static ConfigSheet ConfigSheet = new ConfigSheet();
     // The sheet is the editor's shape; this is the game's. Rebuilt from it on load and on save.
     private static readonly JsonRuntime _jsonData = new JsonRuntime();
     private static string _folder = Constants.File.Folder;
@@ -24,6 +26,7 @@ internal class Mono8API : IEditorAPI
 
     public Mono8API()
     {
+        // Before the editors, so each constructor sees the settings it is about to apply.
         Load();
         Editors.Register(new SpriteEditor(this), 15, "Sprite");
         Editors.Register(new MapEditor(this), 16, "Map");
@@ -48,6 +51,7 @@ internal class Mono8API : IEditorAPI
         // The only sheet that reads its own file: data.json is one document, not a line per record.
         JsonSheet.Load(path);
         _jsonData.Build(JsonSheet);
+        ConfigSheet.Load(path);
         SaveData.Load(path);
 
         // The sheets are the only parsers; the engine plays the snapshots they hand it.
@@ -72,6 +76,13 @@ internal class Mono8API : IEditorAPI
         JsonSheet.Save(path);
         // Ctrl+S is the moment an edit becomes the game's data, so gjson sees it without a restart.
         _jsonData.Build(JsonSheet);
+        // Each editor is the live copy of its own settings; the sheet only catches up here.
+        var editors = Editors.Entries;
+        for (int i = 0; i < editors.Count; i++)
+        {
+            if (editors[i].Editor is IEditorConfig configured) configured.CaptureConfig(ConfigSheet);
+        }
+        ConfigSheet.Save(path);
         // The saved files live in the build output; keep the project-side backup in step with them.
         FileIO.MirrorDataFiles(path);
     }

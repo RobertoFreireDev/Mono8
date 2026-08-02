@@ -72,6 +72,9 @@ public static class Constants
 
         public const string Name = "data";
 
+        /// <summary>Editor settings, kept apart from the authored data so a reset of one is not a reset of the other.</summary>
+        public const string ConfigName = "config";
+
         public const string Main = "main";
 
         public static class Extensions

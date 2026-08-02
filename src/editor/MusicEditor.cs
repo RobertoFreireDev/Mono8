@@ -5,7 +5,7 @@ namespace mono8.editor;
 /// a scrollable pattern-index strip, loop/stop controls, per-channel on/off toggles with SFX
 /// selectors, and a tracker-style note editor for the SFX referenced by each active channel.
 /// </summary>
-internal class MusicEditor : IEditor
+internal class MusicEditor : IEditor, IEditorConfig
 {
     private readonly IMono8API _api;
     private readonly EventNotifier eventNotifier;
@@ -76,7 +76,24 @@ internal class MusicEditor : IEditor
         loopStartBtn = new Button(startX, loopY, size, LoopStartIcon);
         loopEndBtn = new Button(startX + size + 1, loopY, size, LoopEndIcon);
         stopBtn = new Button(startX + 2 * (size + 1), loopY, size, StopIcon);
+
+        ApplyConfig(Mono8API.ConfigSheet);
     }
+
+    /// <summary>
+    /// The strip window is not saved beside the pattern: how many boxes fit is decided in this
+    /// constructor, so it is scrolled onto the restored pattern the same way <see cref="ChangePattern"/>
+    /// would have.
+    /// </summary>
+    private void ApplyConfig(ConfigSheet config)
+    {
+        patternIndex = EditorUI.ClampIndex(config.MusicPattern, MusicSheet.Count);
+
+        if (patternIndex > viewStart + VisiblePatterns - 1) viewStart = patternIndex - (VisiblePatterns - 1);
+        viewStart = Math.Clamp(viewStart, 0, MusicSheet.Count - VisiblePatterns);
+    }
+
+    void IEditorConfig.CaptureConfig(ConfigSheet config) => config.MusicPattern = patternIndex;
 
     public void Init()
     {

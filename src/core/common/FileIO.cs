@@ -56,12 +56,18 @@ public static class FileIO
             var targetPath = Path.Combine(projectPath, PublishFolder);
             Directory.CreateDirectory(targetPath);
 
-            foreach (var file in Directory.GetFiles(sourcePath, $"{Constants.File.Name}.*"))
+            void Mirror(string pattern)
             {
-                // data.save is runtime persistence (dset), not authored data.
-                if (Path.GetExtension(file) == $".{Constants.File.Extensions.Save}") continue;
-                File.Copy(file, Path.Combine(targetPath, Path.GetFileName(file)), true);
+                foreach (var file in Directory.GetFiles(sourcePath, pattern))
+                {
+                    // data.save is runtime persistence (dset), not authored data.
+                    if (Path.GetExtension(file) == $".{Constants.File.Extensions.Save}") continue;
+                    File.Copy(file, Path.Combine(targetPath, Path.GetFileName(file)), true);
+                }
             }
+
+            Mirror($"{Constants.File.Name}.*");
+            Mirror($"{Constants.File.ConfigName}.*");
         }
         catch
         {

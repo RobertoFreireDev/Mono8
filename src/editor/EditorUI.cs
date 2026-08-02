@@ -34,6 +34,13 @@ internal static class EditorUI
         Box(api, b, text, Constants.Colors.LightGray, Constants.Colors.Indigo);
 
     /// <summary>
+    /// A saved index brought back onto a table of <paramref name="length"/>: anything outside it
+    /// falls back to the first entry rather than to the nearest, since a stale index says nothing
+    /// about which end of the table the developer meant.
+    /// </summary>
+    public static int ClampIndex(int value, int length) => value < 0 || value >= length ? 0 : value;
+
+    /// <summary>
     /// Steps <paramref name="index"/> forward on left-click and backward on right-click,
     /// wrapping within <paramref name="length"/>. Returns true when the click was consumed.
     /// </summary>

@@ -1,6 +1,6 @@
 namespace mono8.editor;
 
-internal class MapEditor : IEditor, IAutotileGrid
+internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
 {
     private enum Tool
     {
@@ -85,6 +85,7 @@ internal class MapEditor : IEditor, IAutotileGrid
     // --- Tools (drawn on the sprite-number / page-button row) ---
     private readonly (Button Button, Tool Tool)[] toolButtons;
     private Tool selectedTool = Tool.Pixel;
+    private const int ToolCount = (int)Tool.Hand + 1;
 
     // --- RectFill / Select drag ---
     private bool dragging;
@@ -127,6 +128,43 @@ internal class MapEditor : IEditor, IAutotileGrid
         };
 
         autotileButton = new Button(AutotileButtonX, labelRowY - 1, size, AutotileOverlay.Icon);
+
+        ApplyConfig(Mono8API.ConfigSheet);
+    }
+
+    /// <summary>
+    /// Brings the saved tool, layer setup and viewport back. The camera is clamped after the zoom
+    /// is in, since how far it can travel is what the zoom decides.
+    /// </summary>
+    private void ApplyConfig(ConfigSheet config)
+    {
+        selectedTool = (Tool)EditorUI.ClampIndex(config.MapToolIdx, ToolCount);
+        enabledLayer = EditorUI.ClampIndex(config.MapEnabledLayer, LayerCount);
+
+        for (int i = 0; i < Math.Min(layerVisible.Length, config.MapLayerVisible.Length); i++)
+        {
+            layerVisible[i] = config.MapLayerVisible[i];
+        }
+
+        zoomIdx = EditorUI.ClampIndex(config.MapZoomIdx, Zooms.Length);
+        camX = config.MapCamX;
+        camY = config.MapCamY;
+        ClampCamera();
+    }
+
+    void IEditorConfig.CaptureConfig(ConfigSheet config)
+    {
+        config.MapToolIdx = (int)selectedTool;
+        config.MapEnabledLayer = enabledLayer;
+
+        for (int i = 0; i < Math.Min(layerVisible.Length, config.MapLayerVisible.Length); i++)
+        {
+            config.MapLayerVisible[i] = layerVisible[i];
+        }
+
+        config.MapZoomIdx = zoomIdx;
+        config.MapCamX = camX;
+        config.MapCamY = camY;
     }
 
     // The 4x4 block the selected sprite belongs to. The sheet's last two rows are too short to

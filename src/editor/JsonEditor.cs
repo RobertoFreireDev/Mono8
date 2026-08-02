@@ -13,7 +13,7 @@ namespace mono8.editor;
 /// its row block is as tall as it needs to be.
 /// </para>
 /// </summary>
-internal sealed class JsonEditor : IEditor
+internal sealed class JsonEditor : IEditor, IEditorConfig
 {
     // ── Layout ────────────────────────────────────────────────────────────────
     private const int RowH = Text.LineHeight;                            // 9
@@ -118,14 +118,54 @@ internal sealed class JsonEditor : IEditor
         _treeBar = new ScrollBar(api, new Rectangle(TreeScrollX, ContentTop, ScrollW, ContentH));
         _inspectorBar = new ScrollBar(api, new Rectangle(InspScrollX, ContentTop, ScrollW, ContentH));
         _field = new TextField(api);
+
+        ApplyConfig(Mono8API.ConfigSheet);
     }
 
     private static JsonSheet Sheet => Mono8API.JsonSheet;
+
+    /// <summary>
+    /// Re-finds the saved selection by name. A group or object that has since been renamed, deleted
+    /// or never existed leaves nothing selected, and <see cref="Init"/>'s fallback then lands on the
+    /// first group — a row that inspects nothing, so the panel reads NO OBJECT rather than opening
+    /// on some other object the developer never chose.
+    /// </summary>
+    private void ApplyConfig(ConfigSheet config)
+    {
+        var group = Sheet.FindGroup(config.JsonGroup);
+        if (group == null) return;
+
+        if (config.JsonObject.Length == 0)
+        {
+            _selected = group;
+            return;
+        }
+
+        var obj = JsonSheet.FindObject(group, config.JsonObject);
+        if (obj == null) return;
+
+        _selected = obj;
+        Inspect(obj);
+    }
+
+    /// <summary>
+    /// Saved by name rather than by reference: the tree is parsed afresh on every start, so the
+    /// nodes this points at will not be the ones that come back.
+    /// </summary>
+    void IEditorConfig.CaptureConfig(ConfigSheet config)
+    {
+        var obj = _selected as JsonObject;
+        var group = obj != null ? Sheet.OwnerOf(obj) : _selected as JsonGroup;
+
+        config.JsonGroup = group?.Name ?? string.Empty;
+        config.JsonObject = obj?.Name ?? string.Empty;
+    }
 
     public void Init()
     {
         RebuildRows();
         if (_selected == null && _rows.Count > 0) SelectRow(0);
+        else EnsureRowVisible();   // a restored selection can sit below the first screenful
 
         // data.json is parsed before any editor exists, so a load that dropped or repaired
         // something has nowhere to say so until the editor is first opened. It is worth saying
