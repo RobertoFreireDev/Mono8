@@ -93,6 +93,12 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 | `data.icons` | The editors' icon sheet. |
 | `data.save` | The 64 `dget`/`dset` slots, rewritten on every `dset`. |
 
+### Where a save lands
+
+The `data/` folder the editors write to is the one next to the running executable, which for `dotnet build` is under `src/bin/`. That copy is a build output, so committing your work from there is not an option — which is why every `Ctrl+S` also **mirrors the authored files into [src/publishdata/](src/publishdata/)**, next to the project file. That folder is the version-controlled copy of your project, and the one to read when you want to see what is currently authored.
+
+The mirror looks for `mono8.csproj` in the working directory and above it. A published build has no project file anywhere above it, so it silently skips the mirror and just writes `data/` — and a locked or read-only mirror never fails the save itself. `data.save` is left out of it, being runtime persistence rather than authored data.
+
 ### data.json
 
 `data.json` holds the data your game reads rather than draws — enemy stats, level tables, item costs. It is a fixed three-level tree of **group → object → field**, with no nesting past that: a field's value is either one scalar or an array of scalars, never another object.
@@ -421,6 +427,8 @@ The object it returns holds every value already parsed into its runtime type, so
 Every getter takes `field, i = 0, fallback` — `i` picks the item out of an array, and `fallback` is what comes back when the field is missing, `i` is past the end, or the getter does not match the field's declared type. Nothing here throws, so a typo in a field name costs you a fallback value rather than the game; use `Has` or `Count` when you need to tell "missing" from "zero".
 
 The data the game sees is compiled from `data.json` at launch and again on every `Ctrl+S`, so a value you change in the [JSON Editor](#json-editor) reaches `gjson` as soon as you save — no restart.
+
+That recompile builds **new** objects and swaps the whole index at once, so an object you held on to from before the save is not updated — it is the previous one, left intact and now orphaned. It costs nothing to keep a `Mono8JsonObject` in a field, but fetch it again in `Init()` (which `Ctrl+R` and the pause menu's **Restart** both call) so a run always reads what is on screen in the editor. Calling `gjson` in `Update` is the other way round: it allocates nothing and always returns the current object, at the price of the lookup.
 
 ## Autotile
 

@@ -286,7 +286,7 @@ Three rules that make this hold up:
 
 - **Never throw, never assume.** `gjson` returns `null` for an unknown group or object, and every getter returns its fallback for a missing field, a wrong-typed one or an index past the end. Null-check the object and pass a real fallback to each getter.
 - **`GetXY` has no fallback parameter** — a missing PosXY reads `(0, 0)`, which is a legitimate coordinate. When `(0, 0)` would be wrong (a zero-sized hit box, a spawn at the origin), gate on `Has(field)` or sanity-check the values, as above.
-- **Read in `Init()`, not in `Update`/`Draw`.** Ctrl+S rebuilds the runtime data without a restart, so an object cached from a previous run is stale; caching the object in a field is fine as long as `Init()` re-reads it.
+- **Fetch in `Init()`.** Ctrl+S rebuilds the runtime data without a restart, and the rebuild makes *new* objects — so one cached from before the save is orphaned, not updated. Holding a `Mono8JsonObject` in a field is fine as long as `Init()` fetches it again. Calling `gjson` from `Update`/`Draw` is also fine when you want the live value: the lookup is two dictionary hits and allocates nothing.
 
 Shape checks when you need them: `Has(field)`, `TypeOf(field)` (`DataValueType`), `IsArray(field)`, `Count(field)`.
 
