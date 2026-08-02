@@ -190,7 +190,7 @@ internal class Mono8API : IEditorAPI
     public void print(string text, int x, int y, int color = 7, float colorOpaqueness = 1f)
     {
         // offset 1 pixel up
-        Text.DrawText(text, new Vector2(x,y-1), color, colorOpaqueness: colorOpaqueness);
+        Text.DrawText(text, new Vector2(x,y-1), color, colorOpaqueness: colorOpaqueness, preserveCase: true);
     }
 
     public void icon(int n, int x, int y)
