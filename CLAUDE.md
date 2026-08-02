@@ -17,7 +17,7 @@ Never create, edit, delete or move:
 
 - [src/IMono8API.cs](src/IMono8API.cs), [src/Mono8API.cs](src/Mono8API.cs), [src/Mono8Game.cs](src/Mono8Game.cs), [src/Program.cs](src/Program.cs)
 - anything under [src/core/](src/core/) or [src/editor/](src/editor/)
-- anything under [src/data/](src/data/) — sprites, map, sfx, music and json are **authored by the developer in the built-in editors**, never by you
+- anything under [src/publishdata/](src/publishdata/) or [src/data/](src/data/) — sprites, map, sfx, music and json are **authored by the developer in the built-in editors**, never by you
 - [src/mono8.csproj](src/mono8.csproj), [README.md](README.md), or any config
 
 If a feature seems to need an engine change, **stop and say so**. Do not work around it by touching engine code. Propose the closest thing achievable through the existing API and let the developer decide.
@@ -47,6 +47,8 @@ Sprite ids, map regions, sprite flags, sfx indices, music patterns and `data.jso
 
 The one exception: if the developer explicitly says "pick something" or "use a placeholder", use an obvious placeholder (`spr(1, …)`, `sfx(0)`) and mark it with a `// TODO: developer to confirm` comment.
 
+`data.json` is the one asset you do not have to ask about — it is plain text you can read. Open it and use what is there; see [JSON data](#json-data-gjson--sjson).
+
 When the developer *does* give you ids, put them in named `const int` fields at the top of the class, so a re-authored sprite sheet is a one-line change:
 
 ```csharp
@@ -55,7 +57,15 @@ private const int SfxJump = 3;
 private const int FlagSolid = 0;
 ```
 
-Read the current data files when you need to confirm what exists: [src/data/data.json](src/data/data.json) (authored json), [src/data/data.gff](src/data/data.gff) (per-sprite flag bits, one line per sheet row), [src/data/data.atl](src/data/data.atl) (which 4×4 blocks are autotiles). Read only — never write them.
+Read the current data files when you need to confirm what exists — they live in [src/publishdata/](src/publishdata/), which is where the editor mirrors every save and what git tracks:
+
+| File | Holds |
+|---|---|
+| [src/publishdata/data.json](src/publishdata/data.json) | authored json — **read this before writing any `gjson` call** |
+| [src/publishdata/data.gff](src/publishdata/data.gff) | per-sprite flag bits, one line per sheet row |
+| [src/publishdata/data.atl](src/publishdata/data.atl) | which 4×4 blocks are autotiles |
+
+Read only — never write them. (`src/data/` is the runtime copy the build consumes; it is not the authored source and is not where you look.)
 
 ---
 
@@ -210,46 +220,89 @@ music(musicId, fadeLength = 0, channelMask = 0)
 
 4 channels (`0`-`3`). `channel = -1` restarts the sfx on the first free channel. `sfx(-1)` stops every channel, `sfx(-2, ch)` stops one, a negative `musicId` stops the music. `offset`/`length` select a note range within the 32-note sfx.
 
-### JSON data
+### JSON data (`gjson` / `sjson`)
 
-```csharp
-Mono8JsonObject gjson(string group, string obj)      // null when unknown; case-insensitive; allocation-free
-bool sjson(group, obj, field, value, index = 0)      // one overload per type; in-memory only
-```
+Tuning values — speeds, spawn points, hit boxes, room layouts, animation frames — belong in `data.json` and not in code, so the developer can retune them in the editor without a rebuild. This is the one asset the developer authors that you can read directly, so **never ask which group or object to use — open the file and look.**
 
-`sjson` picks its overload from the value: `20` → Int, `1.5` → Decimal, `3.50m` → Money, `true` → Bool, `"t"` → Text, `(40, 88)` → PosXY. Wrong type returns `false` and changes nothing. It never creates a field and never writes `data.json` back to disk.
+#### Step 1 — read the file
 
-`Mono8JsonObject` getters — every one takes `(field, i = 0, fallback)` and **never throws**:
-
-```csharp
-int      GetInt(field, i = 0, fallback = 0)
-double   GetDec(field, i = 0, fallback = 0)
-decimal  GetMoney(field, i = 0, fallback = 0)
-bool     GetBool(field, i = 0, fallback = false)
-string   GetStr(field, i = 0, fallback = "")
-(int,int) GetXY(field, i = 0)                    // (0,0) when missing
-ReadOnlySpan<int>    IntArray(field)             // no copy
-ReadOnlySpan<double> DecArray(field)
-ReadOnlySpan<bool>   BoolArray(field)
-bool Has(field)   DataValueType TypeOf(field)   bool IsArray(field)   int Count(field)
-```
-
-Authoring shape is a fixed three levels — **group → object → field** — with the field's type as a one-char suffix in its key: `t` Text, `i` Int, `d` Decimal, `m` Money (quoted, 2dp), `p` PosXY (`[40, 88]`), `b` Bool. Any field can hold a homogeneous array. Names are ≤ 8 chars, upper-cased, no `:` `,` `"` `\` or spaces. Limits: 16 groups, 64 objects/group, 16 fields/object, 16 array items.
+Always `Read` [src/publishdata/data.json](src/publishdata/data.json) before writing a `gjson` call. It is a fixed three levels, **group → object → field**, with the field's type as a one-char suffix on its key:
 
 ```json
-{ "ENEMY": { "SLIME": { "HP:i": 12, "SPD:d": 1.25, "SPAWN:p": [40, 88], "NAME:t": "Green slime" } } }
-```
-
-```csharp
-var slime = API.gjson("ENEMY", "SLIME");
-if (slime != null)
 {
-    int hp = slime.GetInt("HP");
-    var (sx, sy) = slime.GetXY("SPAWN");
+  "ENEMY": {
+    "SLIME": { "HP:i": 12, "SPD:d": 1.25, "SPAWN:p": [40, 88], "NAME:t": "Green slime" }
+  }
 }
 ```
 
-Cache the object in a field when you use it a lot, but re-read it in `Init()` — `Ctrl+S` in the editor rebuilds the runtime data without a restart, so a cached object from a previous run is stale.
+Here `ENEMY` is the group, `SLIME` the object, `HP` the field. **The suffix is not part of the name** — it is `GetInt("HP")`, never `GetInt("HP:i")`.
+
+#### Step 2 — suffix → getter
+
+| Suffix | Type | JSON form | Getter | C# type |
+|---|---|---|---|---|
+| `:t` | Text | `"GREEN SLIME"` | `GetStr(f, i, fallback)` | `string` |
+| `:i` | Int | `12` | `GetInt(f, i, fallback)` | `int` |
+| `:d` | Decimal | `1.25` | `GetDec(f, i, fallback)` | `double` — cast to `float` |
+| `:m` | Money | `"3.50"` (quoted, 2dp) | `GetMoney(f, i, fallback)` | `decimal` |
+| `:p` | PosXY | `[40, 88]` | `GetXY(f, i)` | `(int x, int y)` |
+| `:b` | Bool | `true` | `GetBool(f, i, fallback)` | `bool` |
+
+A getter that does not match the field's declared type returns the fallback rather than converting — `GetInt` on a `:d` field gives you the fallback, not a truncated number. Match the suffix exactly.
+
+**Any field can instead hold an array** of its type — a JSON `[…]` where a scalar would be, up to 16 items. `:p` is the one to watch: `"SPAWN:p": [40, 88]` is a *single* position, while `"SPAWN:p": [[40, 88], [72, 16]]` is two. Read arrays either by index or as a span:
+
+```csharp
+int n = data.Count("ID");                      // 1 for a scalar, 0 when the field is absent
+for (int i = 0; i < n; i++) Use(data.GetStr("ID", i));
+
+foreach (int hp in data.IntArray("HP")) { }    // no copy, no allocation; Dec/Bool too
+```
+
+#### Step 3 — the call
+
+```csharp
+Mono8JsonObject gjson(string group, string obj)   // null when unknown; case-insensitive; allocation-free
+```
+
+Names match without regard to case, so `gjson("PLAYER", "STATS")` and `gjson("player", "stats")` are the same lookup. Put the names in `const string` fields and the fallbacks in `const` next to them, then read defensively — an unauthored or half-authored object must still run:
+
+```csharp
+private const string JsonGroup = "PLAYER";
+private const string JsonObject = "STATS";
+private const float DefaultSpeed = 60f;   // px/s
+
+// Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
+var stats = API.gjson(JsonGroup, JsonObject);
+if (stats != null)
+{
+    Speed = (float)stats.GetDec("SPEED", 0, DefaultSpeed);
+    if (stats.Has("SPAWN")) (SpawnX, SpawnY) = stats.GetXY("SPAWN");
+}
+```
+
+Three rules that make this hold up:
+
+- **Never throw, never assume.** `gjson` returns `null` for an unknown group or object, and every getter returns its fallback for a missing field, a wrong-typed one or an index past the end. Null-check the object and pass a real fallback to each getter.
+- **`GetXY` has no fallback parameter** — a missing PosXY reads `(0, 0)`, which is a legitimate coordinate. When `(0, 0)` would be wrong (a zero-sized hit box, a spawn at the origin), gate on `Has(field)` or sanity-check the values, as above.
+- **Read in `Init()`, not in `Update`/`Draw`.** Ctrl+S rebuilds the runtime data without a restart, so an object cached from a previous run is stale; caching the object in a field is fine as long as `Init()` re-reads it.
+
+Shape checks when you need them: `Has(field)`, `TypeOf(field)` (`DataValueType`), `IsArray(field)`, `Count(field)`.
+
+#### Writing back
+
+```csharp
+bool sjson(group, obj, field, value, index = 0)   // one overload per type; in-memory only
+```
+
+The overload is picked from the value's C# type: `20` → Int, `1.5` → Decimal, `3.50m` → Money, `true` → Bool, `"t"` → Text, `(40, 88)` → PosXY (one tuple argument, so it cannot be read as the int overload's `value, index`). Returns `false` and changes nothing when the group, object or field is unknown, the index is past the end of an array, or the overload does not match the declared type.
+
+`sjson` **never creates a field and never writes `data.json` back to disk** — the write lands in the running snapshot and is gone on restart. It is for live tweaks, not persistence; use `dset` for anything that must survive.
+
+#### Authoring limits
+
+Names are ≤ 8 chars, upper-cased, and cannot contain `:` `,` `"` `\` or spaces. At most 16 groups, 64 objects per group, 16 fields per object, 16 items per array. If a request needs data the file does not hold, say which group/object/field you need and let the developer author it — you cannot add it yourself.
 
 ### Math, random, persistence, system
 
@@ -274,4 +327,4 @@ void menuitem(index)                           // remove
 - **No per-frame allocation**: no `new` in `Update`/`Draw` for anything that could be a field, no LINQ, no string concatenation in a loop. `print($"SCORE {score}")` once per frame is acceptable; a hundred is not.
 - **State resets in `Init()`**, since Restart calls it again.
 - **Verify with a build**, never by running: `dotnet build src/mono8.csproj`. The app is a GUI that opens the editor — don't launch it. Report the build result honestly, including warnings you introduced.
-- **Do not commit** unless asked. `src/data/*` shows as modified in git whenever the developer saves in an editor — that is theirs, never stage or revert it.
+- **Do not commit** unless asked. `src/publishdata/*` shows as modified in git whenever the developer saves in an editor — that is theirs, never stage or revert it.
