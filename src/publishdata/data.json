@@ -42,7 +42,7 @@
       "HOLEPOS:p": [1, 6],
       "HOLESIZE:p": [6, 6],
       "HOLESPD:d": 16,
-      "SINKDEP:i": 1,
+      "SINKDEP:i": 2,
       "SINKSPD:d": 12
     }
   },
