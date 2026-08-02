@@ -314,6 +314,10 @@ internal class MapEditor : IEditor, IAutotileGrid
         if (hoveringMap)
         {
             (hoverCellX, hoverCellY) = CellUnderMouse(mouse, mapArea);
+
+            string mapLabel = MapHoverLabel(mouse, mapArea);
+            if (mapLabel != null) eventNotifier.SetHover(mapLabel);
+
             UpdateMapPainting(mouse, mapArea);
         }
         else if (!FullMapView && navigator.ViewerArea.Contains(mouse.x, mouse.y))
@@ -444,6 +448,31 @@ internal class MapEditor : IEditor, IAutotileGrid
         int cellX = camX + (mouse.x - mapArea.X) / CellPx;
         int cellY = camY + (mouse.y - mapArea.Y) / CellPx;
         return (cellX, cellY);
+    }
+
+    // The map-sheet pixel under the cursor: the viewport's top-left pixel plus the offset into the
+    // view, which zoom decides - one screen pixel covers TileSize / CellPx map pixels, so the
+    // reading steps by two at x1/2 and repeats every second screen pixel at x2. Reported in
+    // map-sheet space, so the enabled layer's quarter offset is included, as with GridLabel.
+    private (int pixelX, int pixelY) PixelUnderMouse((int x, int y) mouse, Rectangle mapArea)
+    {
+        int size = Constants.GameDataSizes.TileSize;
+        int pixelX = (camX + EnabledOffX) * size + (mouse.x - mapArea.X) * size / CellPx;
+        int pixelY = (camY + EnabledOffY) * size + (mouse.y - mapArea.Y) * size / CellPx;
+        return (pixelX, pixelY);
+    }
+
+    // What the cursor rests on over the map, in place of a control's name: the map-sheet pixel it
+    // sits on and the sprite held by the cell it falls in, both taken on the enabled layer. Null
+    // past that layer's quarter, which has no pixel or tile to report.
+    private string MapHoverLabel((int x, int y) mouse, Rectangle mapArea)
+    {
+        var (cellX, cellY) = CellUnderMouse(mouse, mapArea);
+        if (!InQuarter(cellX, cellY)) return null;
+
+        var (pixelX, pixelY) = PixelUnderMouse(mouse, mapArea);
+        int sprite = _api.mget(cellX + EnabledOffX, cellY + EnabledOffY);
+        return $"X:{pixelX:D4} Y:{pixelY:D4} SPR:{sprite:D3}";
     }
 
     private void UpdateEditShortcuts()
