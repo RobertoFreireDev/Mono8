@@ -86,7 +86,7 @@ internal static class Menu
                     _continueCountdown = 5;
                     break;
                 case Builtin.Restart:
-                    Mono8API.Editors.ReinitActive();
+                    Mono8Game.GameAPI.InitGame();
                     Paused = false;
                     break;
                 case Builtin.Exit:

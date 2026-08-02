@@ -112,7 +112,7 @@ internal class Mono8API : IEditorAPI
                 }
                 else if (KeybrdInput.IsRunGameShortcutPressed())
                 {
-                    _playingGame = true;
+                    InitGame();
                     _game.Init();
                 }
                 else
@@ -123,6 +123,12 @@ internal class Mono8API : IEditorAPI
             }
         }
         catch (Exception ex) { ErrorHandler.SetError(ex); }
+    }
+
+    public void InitGame()
+    {
+        _playingGame = true;
+        _game.Init();
     }
 
     public void Draw()

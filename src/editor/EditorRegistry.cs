@@ -30,9 +30,4 @@ internal class EditorRegistry
         _entries[_activeIndex].Editor.Init();
         _initialized[_activeIndex] = true;
     }
-
-    public void ReinitActive()
-    {
-        _entries[_activeIndex].Editor.Init();
-    }
 }
