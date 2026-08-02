@@ -70,7 +70,8 @@ public static class InputStateManager
             _currentGamePadStates[index] = GamePad.GetState(index);
         }
 
-        // Last, so the backspace repeat reads this frame's keyboard snapshot and not the previous one.
+        // Last, so these read this frame's snapshot and not the previous one.
+        MouseInput.Update();
         TextEntry.Update();
     }
 }

@@ -63,7 +63,7 @@ public static class ColorPalette
     {
         if (id == BlackColorIndex)
         {
-            return Color.Black;
+            return Color.Black * colorOpaqueness;
         }
 
         if (id == WhiteColorIndex)
