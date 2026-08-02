@@ -8,11 +8,17 @@ internal static class Debug
 {
     private const int MenuIndex = 0;
 
+    // Persistence slot. A fresh save reads 0, so the stored value is offset by one and 0 means
+    // "never toggled" — which lands on off, the default.
+    private const int SaveSlot = 0;
+    private const int SavedOff = 1;
+    private const int SavedOn = 2;
+
     public static bool Enabled;
 
     public static void Init()
     {
-        Enabled = false;
+        Enabled = YourGame.API.dget(SaveSlot) == SavedOn;
         Register();
     }
 
@@ -32,6 +38,7 @@ internal static class Debug
     private static void Toggle()
     {
         Enabled = !Enabled;
+        YourGame.API.dset(SaveSlot, Enabled ? SavedOn : SavedOff);
         Register();
     }
 
