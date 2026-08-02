@@ -1,7 +1,8 @@
 {
   "ROOMS": {
     "1": {
-      "FLAGPOS:p": [128, 125]
+      "FLAGPOS:p": [128, 125],
+      "PLYRPOS:p": [80, 124]
     }
   },
   "PLAYER": {

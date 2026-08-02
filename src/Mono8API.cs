@@ -72,6 +72,8 @@ internal class Mono8API : IEditorAPI
         JsonSheet.Save(path);
         // Ctrl+S is the moment an edit becomes the game's data, so gjson sees it without a restart.
         _jsonData.Build(JsonSheet);
+        // The saved files live in the build output; keep the project-side backup in step with them.
+        FileIO.MirrorDataFiles(path);
     }
 
     /// <summary>Push the editor's current SFX edits into the live audio engine so previews reflect them.</summary>
