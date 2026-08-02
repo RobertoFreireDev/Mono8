@@ -8,7 +8,6 @@ namespace mono8.game;
 internal class Anim
 {
     private const int MaxFrames = 16;    // data.json allows 16 items in an array
-    private const int DefaultSpeed = 8;  // frames per second
 
     private const string JsonGroup = "ANIM";
     private const string FieldId = "ID";
@@ -31,7 +30,7 @@ internal class Anim
     public void Load(string name)
     {
         _count = 0;
-        _frameSeconds = 1f / DefaultSpeed;
+        _frameSeconds = 0f;
         _pingPong = false;
         _index = 0;
         _step = 1;
@@ -58,7 +57,7 @@ internal class Anim
             }
         }
 
-        int speed = data.GetInt(FieldSpeed, 0, DefaultSpeed);
+        int speed = data.GetInt(FieldSpeed);
         if (speed > 0)
         {
             _frameSeconds = 1f / speed;
@@ -75,7 +74,9 @@ internal class Anim
 
     public void Update(float elapsedSeconds)
     {
-        if (_count < 2)
+        // An unauthored SPEED leaves no frame duration to advance by, and the loop below would
+        // never end on one.
+        if (_count < 2 || _frameSeconds <= 0f)
         {
             return;
         }

@@ -17,14 +17,13 @@ namespace mono8.game;
 /// </summary>
 internal class YourGame : IEditor
 {
-    // A room is exactly one screen: 256x144 px = 32x18 cells. The first room sits at the
-    // top-left of map layer 1, so room pixels and map-sheet pixels are the same space.
-    private const int RoomCellW = 32;
-    private const int RoomCellH = 18;
+    // The room the game opens on: the object name under ROOMS in data.json, and where that room
+    // sits on the map sheet — the first one at the top-left of map layer 1.
+    private const string StartRoom = "1";
+    private const int StartRoomCellX = 0;
+    private const int StartRoomCellY = 0;
 
-    private string _roomName;   // the object name under the ROOMS group in data.json
-    private int _roomCellX;
-    private int _roomCellY;
+    private readonly Room _room = new Room();
 
     public static IMono8API API;
 
@@ -33,27 +32,21 @@ internal class YourGame : IEditor
         API = api;
     }
 
+    // Everything in play lives inside a room, so the three methods are a forward to the current
+    // one. Adding rooms is a matter of calling Enter again.
     public void Init()
     {
-        _roomName = "1";
-        _roomCellX = 0;
-        _roomCellY = 0;
-
-        Player.Init(_roomCellX, _roomCellY);
-        Flag.Init(_roomName, _roomCellX, _roomCellY);
+        _room.Enter(StartRoom, StartRoomCellX, StartRoomCellY);
     }
 
     public void Update(float elapsedSeconds)
     {
-        Player.Update(elapsedSeconds);
-        Flag.Update(elapsedSeconds);
+        _room.Update(elapsedSeconds);
     }
 
     public void Draw()
     {
         API.cls(Constants.Colors.Blue);
-        API.map(_roomCellX, _roomCellY, 0, 0, RoomCellW, RoomCellH);
-        Flag.Draw();
-        Player.Draw();
+        _room.Draw();
     }
 }

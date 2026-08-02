@@ -3,25 +3,14 @@ namespace mono8.game;
 /// <summary>
 /// Platformer player: left/right movement, gravity and a small jump, colliding
 /// with autotile terrain through an axis-separated pixel-stepped hitbox.
+///
+/// Everything about it is authored in data.json — the stats under PLAYER / STATS, the spawn on
+/// the <see cref="Room"/>. Nothing is tuned in code.
 /// </summary>
 internal static class Player
 {
-    // data.json: PLAYER / STATS. The consts below are the fallbacks, so an unauthored — or
-    // half-authored — object still runs the tuning the game shipped with.
-    private const string JsonGroup = "PLAYER";
-    private const string JsonObject = "STATS";
-
-    private const int DefaultSpr = 8;          // 1x1
-    private const int DefaultSpawnCellX = 7;   // spawn cell, relative to the room's origin
-    private const int DefaultSpawnCellY = 15;
-    private const int DefaultHitX = 0;         // hitbox, relative to the sprite's top-left
-    private const int DefaultHitY = 0;
-    private const int DefaultHitW = 8;
-    private const int DefaultHitH = 8;
-    private const float DefaultSpeed = 60f;    // px/s
-    private const float DefaultGravity = 450f; // px/s^2
-    private const float DefaultJump = 130f;    // px/s, upwards
-    private const float DefaultMaxFall = 200f;
+    private const string StatsGroup = "PLAYER";
+    private const string StatsObject = "STATS";
 
     private const int BtnLeft = 0;
     private const int BtnRight = 1;
@@ -47,52 +36,33 @@ internal static class Player
     private static float RemY;
     private static bool FacingLeft;
 
-    public static void Init(int roomCellX, int roomCellY)
+    public static void Init(Room room)
     {
-        int spawnCellX = DefaultSpawnCellX;
-        int spawnCellY = DefaultSpawnCellY;
-
-        Spr = DefaultSpr;
-        HitX = DefaultHitX;
-        HitY = DefaultHitY;
-        HitW = DefaultHitW;
-        HitH = DefaultHitH;
-        MoveSpeed = DefaultSpeed;
-        Gravity = DefaultGravity;
-        JumpSpeed = DefaultJump;
-        MaxFallSpeed = DefaultMaxFall;
+        Spr = 0;
+        HitX = 0;
+        HitY = 0;
+        HitW = 0;
+        HitH = 0;
+        MoveSpeed = 0f;
+        Gravity = 0f;
+        JumpSpeed = 0f;
+        MaxFallSpeed = 0f;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
-        var stats = YourGame.API.gjson(JsonGroup, JsonObject);
+        var stats = YourGame.API.gjson(StatsGroup, StatsObject);
         if (stats != null)
         {
-            Spr = stats.GetInt("SPR", 0, DefaultSpr);
-
-            if (stats.Has("SPAWN"))
-            {
-                (spawnCellX, spawnCellY) = stats.GetXY("SPAWN");
-            }
-            if (stats.Has("HITPOS"))
-            {
-                (HitX, HitY) = stats.GetXY("HITPOS");
-            }
-            // A zero-sized hitbox meets nothing and would drop the player through the floor, so a
-            // missing or mistyped HITSIZE keeps the default rather than what GetXY falls back to.
-            var (hitW, hitH) = stats.GetXY("HITSIZE");
-            if (hitW > 0 && hitH > 0)
-            {
-                HitW = hitW;
-                HitH = hitH;
-            }
-
-            MoveSpeed = (float)stats.GetDec("SPEED", 0, DefaultSpeed);
-            Gravity = (float)stats.GetDec("GRAVITY", 0, DefaultGravity);
-            JumpSpeed = (float)stats.GetDec("JUMP", 0, DefaultJump);
-            MaxFallSpeed = (float)stats.GetDec("MAXFALL", 0, DefaultMaxFall);
+            Spr = stats.GetInt("SPR");
+            (HitX, HitY) = stats.GetXY("HITPOS");
+            (HitW, HitH) = stats.GetXY("HITSIZE");
+            MoveSpeed = (float)stats.GetDec("SPEED");
+            Gravity = (float)stats.GetDec("GRAVITY");
+            JumpSpeed = (float)stats.GetDec("JUMP");
+            MaxFallSpeed = (float)stats.GetDec("MAXFALL");
         }
 
-        X = (roomCellX + spawnCellX) * 8;
-        Y = (roomCellY + spawnCellY) * 8;
+        X = room.PlayerX;
+        Y = room.PlayerY;
         VelX = 0f;
         VelY = 0f;
         RemX = 0f;
@@ -186,6 +156,7 @@ internal static class Player
         }
     }
 
+    // An unauthored HITSIZE is empty, and an empty rect meets nothing.
     private static bool SolidAt(int x, int y)
     {
         return YourGame.API.acol(x + HitX, y + HitY, HitW, HitH);
