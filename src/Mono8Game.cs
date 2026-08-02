@@ -9,7 +9,7 @@ public class Mono8Game : Game
     private RenderTarget2D sceneTarget;
     public static GraphicsDevice GraphicsDeviceRef;
     public static int DisplayFps = 0;
-    private const double TargetFps = 30.0;
+    private const double TargetFps = 60.0;
     private double _elapsedTime = 0;
     private int _fpsCounter = 0;
     private Intro _intro = new Intro();

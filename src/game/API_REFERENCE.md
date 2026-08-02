@@ -10,7 +10,7 @@ Reach the API from `YourGame.API`, or take an `IMono8API` in your class construc
 | | |
 |---|---|
 | Screen | 256 × 144 px, palette indices 0–31 |
-| Frame rate | fixed 30 FPS (`elapsedSeconds` ≈ 0.0333) |
+| Frame rate | fixed 60 FPS (`elapsedSeconds` ≈ 0.0167) |
 | Sprite sheet | 256 × 240 px = 32 × 30 tiles of 8 × 8 → sprite ids **0–959** |
 | Map | 512 × 576 cells |
 | Audio | 64 sfx, 64 music patterns, 4 channels |

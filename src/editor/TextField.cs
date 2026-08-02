@@ -19,7 +19,7 @@ namespace mono8.editor;
 /// </summary>
 internal sealed class TextField
 {
-    private const int BlinkFrames = 15;   // half a second at the fixed 30 fps
+    private const int BlinkFrames = 30;   // half a second at the fixed 60 fps
 
     // The caret reads as the caret and not as another character: it is the one thing in the field
     // that is not the white the text is drawn in.
@@ -27,8 +27,8 @@ internal sealed class TextField
 
     // A held arrow repeats on the cadence TextEntry gives backspace: ~0.33 s, then ~15 a second.
     // Without it a 256-character value would have to be crossed one key press at a time.
-    private const int RepeatDelayFrames = 10;
-    private const int RepeatRateFrames = 2;
+    private const int RepeatDelayFrames = 20;
+    private const int RepeatRateFrames = 4;
 
     private readonly IMono8API _api;
 

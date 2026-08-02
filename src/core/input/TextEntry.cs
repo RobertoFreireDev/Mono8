@@ -19,9 +19,9 @@ namespace mono8.core.input;
 /// </summary>
 public static class TextEntry
 {
-    // At the fixed 30 fps this is a ~0.33 s delay and then ~15 deletions a second.
-    private const int BackspaceDelayFrames = 10;
-    private const int BackspaceRepeatFrames = 2;
+    // At the fixed 60 fps this is a ~0.33 s delay and then ~15 deletions a second.
+    private const int BackspaceDelayFrames = 20;
+    private const int BackspaceRepeatFrames = 4;
 
     private static readonly System.Text.StringBuilder _pending = new System.Text.StringBuilder();
     private static GameWindow _window;

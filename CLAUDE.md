@@ -74,7 +74,7 @@ Read only — never write them. (`src/data/` is the runtime copy the build consu
 | | |
 |---|---|
 | Screen | 256×144 pixels, palette indices `0`-`31` |
-| Frame rate | Fixed 30 FPS (`elapsedSeconds` ≈ `0.0333`) |
+| Frame rate | Fixed 60 FPS (`elapsedSeconds` ≈ `0.0167`) |
 | Sprite sheet | 256×240 px = 32×30 tiles of 8×8 → sprite ids `0`-`959` |
 | Map | 512×576 cells, edited as four 256×288 layers |
 | Audio | 64 sfx, 64 music patterns, 4 channels |
@@ -332,7 +332,7 @@ void menuitem(index)                           // remove
 
 ## Working conventions
 
-- **Delta time**: multiply by `elapsedSeconds` for anything that moves. The engine is fixed at 30 FPS, but do not hardcode `1/30`.
+- **Delta time**: multiply by `elapsedSeconds` for anything that moves. The engine is fixed at 60 FPS, but do not hardcode `1/60`.
 - **Draw order**: `Draw()` paints back to front. Typical order is `cls` → `camera(worldX, worldY)` → background `map` → entities → foreground `map` → `camera()` → HUD `print`.
 - **No per-frame allocation**: no `new` in `Update`/`Draw` for anything that could be a field, no LINQ, no string concatenation in a loop. `print($"SCORE {score}")` once per frame is acceptable; a hundred is not.
 - **State resets in `Init()`**, since Restart calls it again.
