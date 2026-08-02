@@ -296,11 +296,18 @@ internal class SfxEditor : IEditor
             else if (selectedCell + GridRows < NoteCount) { selectedCell += GridRows; selectedPart = 0; }
         }
 
-        if (KeybrdInput.JustPressed(Keys.Delete) || KeybrdInput.JustPressed(Keys.Back))
+        // Both clear the cell; Delete steps forward, Back steps back.
+        if (KeybrdInput.JustPressed(Keys.Delete))
         {
             Sheet.ClearNote(sfxIndex, selectedCell);
             Sync();
             selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
+        }
+        else if (KeybrdInput.JustPressed(Keys.Back))
+        {
+            Sheet.ClearNote(sfxIndex, selectedCell);
+            Sync();
+            selectedCell = Math.Max(0, selectedCell - 1);
         }
 
         // Keyboard editing depends on which part of the cell is selected:

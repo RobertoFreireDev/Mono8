@@ -298,11 +298,20 @@ internal class MusicEditor : IEditor
         if (KeybrdInput.JustPressed(Keys.Left)) selectedPart = Math.Max(0, selectedPart - 1);
         if (KeybrdInput.JustPressed(Keys.Right)) selectedPart = Math.Min(TrackerNote.PartCount - 1, selectedPart + 1);
 
-        if (KeybrdInput.JustPressed(Keys.Delete) || KeybrdInput.JustPressed(Keys.Back))
+        // Both clear the cell; Delete steps forward, Back steps back.
+        if (KeybrdInput.JustPressed(Keys.Delete))
         {
             Sfx.ClearNote(sfx, selectedCell);
             SyncSfx(sfx);
             AdvanceCell();
+            return;
+        }
+
+        if (KeybrdInput.JustPressed(Keys.Back))
+        {
+            Sfx.ClearNote(sfx, selectedCell);
+            SyncSfx(sfx);
+            RetreatCell();
             return;
         }
 
@@ -347,6 +356,12 @@ internal class MusicEditor : IEditor
     private void AdvanceCell()
     {
         selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
+        EnsureCellVisible();
+    }
+
+    private void RetreatCell()
+    {
+        selectedCell = Math.Max(0, selectedCell - 1);
         EnsureCellVisible();
     }
 
