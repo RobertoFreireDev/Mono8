@@ -1,13 +1,14 @@
 {
-  "ANIM": { "FRAMES": [4, 5, 6, 7, -1, -1, -1, -1], "SCALE": 1, "SPEED": 3, "LOOP": 0 },
-  "DITHER": { "SLOTS": [-1, 15, 16, 17, 18, -1, -1, -1], "ACTIVE": 2 },
-  "CANVAS": { "ZOOM": 0, "TOOL": 0, "COLOR": 31, "GUIDE": false },
-  "MAP": { "TOOL": 3, "LAYER": 1, "VISIBLE": [true, true, false, false], "CAMX": 12, "CAMY": 11, "ZOOM": 0 },
-  "SFX": { "INDEX": 1 },
-  "MUSIC": { "PATTERN": 3 },
-  "JSON": { "GROUP": "PLAYER", "OBJECT": "STATS" },
+  "ANIM": { "FRAMES": [4, 5, 6, 7, -1, -1, -1, -1], "SCALE": 0, "SPEED": 3, "LOOP": 0 },
+  "DITHER": { "SLOTS": [-1, 15, 47, 16, 48, -1, -1, -1], "ACTIVE": 4 },
+  "CANVAS": { "ZOOM": 2, "TOOL": 0, "COLOR": 4, "GUIDE": false },
+  "MAP": { "TOOL": 3, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 0, "CAMY": 0, "ZOOM": 0 },
+  "SFX": { "INDEX": 0 },
+  "MUSIC": { "PATTERN": 0 },
+  "JSON": { "GROUP": "GAME", "OBJECT": "" },
   "ONION": [
     { "SPR": 9, "REF": 8, "ORDER": 0, "TINT": 1, "OPACITY": 1 },
-    { "SPR": 10, "REF": 8, "ORDER": 1, "TINT": 2, "OPACITY": 1 }
+    { "SPR": 10, "REF": 8, "ORDER": 1, "TINT": 2, "OPACITY": 1 },
+    { "SPR": 79, "REF": 47, "ORDER": 0, "TINT": 0, "OPACITY": 4 }
   ]
 }

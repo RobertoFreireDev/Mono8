@@ -189,6 +189,7 @@ internal static class Swing
                 Current = Phase.Ready;
                 Failed = false;
                 Player.AlignToBall();
+                Meter.Show();
                 break;
             case Phase.Ready:
                 Current = Phase.Pull;

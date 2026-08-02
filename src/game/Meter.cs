@@ -36,6 +36,10 @@ internal static class Meter
     private static int Direction;
     private static bool Running;
 
+    // Drawn without sweeping while the club is only addressed, so the bar is already in place when
+    // the pull starts filling it.
+    private static bool Shown;
+
     // Bar geometry, in screen pixels. The background is the fill area plus the border.
     private static int Margin;
     private static int BarW;
@@ -79,17 +83,28 @@ internal static class Meter
         Stop();
     }
 
+    /// <summary>Puts the empty bar on screen without sweeping it. Called when the club comes out.</summary>
+    public static void Show()
+    {
+        Level = 0f;
+        Direction = 1;
+        Running = false;
+        Shown = true;
+    }
+
     /// <summary>Starts the sweep from empty. Called when the club goes back.</summary>
     public static void Start()
     {
         Level = 0f;
         Direction = 1;
         Running = true;
+        Shown = true;
     }
 
     public static void Stop()
     {
         Running = false;
+        Shown = false;
     }
 
     public static void Update(float elapsedSeconds)
@@ -118,7 +133,7 @@ internal static class Meter
     public static void Draw()
     {
         // Skipped when the bar is unauthored, since an empty rect would draw inverted.
-        if (!Running || BarW <= 0 || BarH <= 0)
+        if (!Shown || BarW <= 0 || BarH <= 0)
         {
             return;
         }
