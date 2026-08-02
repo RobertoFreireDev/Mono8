@@ -12,8 +12,9 @@
       "HITSIZE:p": [2, 6],
       "SPEED:d": 30,
       "GRAVITY:d": 450,
-      "JUMP:d": 130,
-      "MAXFALL:d": 200
+      "JUMP:d": 98,
+      "MAXFALL:d": 200,
+      "REACH:i": 4
     }
   },
   "ANIM": {

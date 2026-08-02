@@ -16,9 +16,20 @@ internal static class Player
     private const int BtnRight = 1;
     private const int BtnJump = 4;
 
+    // The player is one 8x8 sprite, which is what the facing flip mirrors about.
+    private const int SprSize = 8;
+
+    // Fallbacks for CLUBX and REACH under PLAYER / STATS, used only until those fields are
+    // authored. CLUBX is the sprite-local x of the club head at address facing right — where the
+    // ball has to be for the swing to look like it connects, mirrored for facing left, and past
+    // the sprite edge is fine. REACH is how far off that point the ball can still be addressed.
+    private const int DefaultClubX = 9;
+    private const int DefaultReach = 4;
+
     public static int X;
     public static int Y;
     public static bool OnGround;
+    public static bool FacingLeft;
 
     private static int Spr;
     private static int HitX;
@@ -29,12 +40,16 @@ internal static class Player
     private static float Gravity;
     private static float JumpSpeed;
     private static float MaxFallSpeed;
+    private static int ClubX;
+    private static int Reach;
 
     private static float VelX;
     private static float VelY;
     private static float RemX;
     private static float RemY;
-    private static bool FacingLeft;
+
+    /// <summary>Where the club head sits right now, in map-sheet pixels — the ball's target.</summary>
+    public static int ClubPointX => X + (FacingLeft ? SprSize - 1 - ClubX : ClubX);
 
     public static void Init(Room room)
     {
@@ -47,6 +62,8 @@ internal static class Player
         Gravity = 0f;
         JumpSpeed = 0f;
         MaxFallSpeed = 0f;
+        ClubX = DefaultClubX;
+        Reach = DefaultReach;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var stats = YourGame.API.gjson(StatsGroup, StatsObject);
@@ -59,6 +76,8 @@ internal static class Player
             Gravity = (float)stats.GetDec("GRAVITY");
             JumpSpeed = (float)stats.GetDec("JUMP");
             MaxFallSpeed = (float)stats.GetDec("MAXFALL");
+            ClubX = stats.GetInt("CLUBX", 0, DefaultClubX);
+            Reach = stats.GetInt("REACH", 0, DefaultReach);
         }
 
         X = room.PlayerX;
@@ -73,28 +92,85 @@ internal static class Player
         Swing.Init();
     }
 
+    /// <summary>
+    /// Whether a swing may start here: both feet down and the ball within reach of the club head.
+    /// The <see cref="Swing"/> asks before leaving Idle, so a press over open ground does nothing.
+    /// </summary>
+    public static bool CanStartSwing()
+    {
+        if (!OnGround || !Ball.Present)
+        {
+            return false;
+        }
+
+        // Vertically the ball is measured against the whole body, not its centre: a ball resting by
+        // the player's feet is level with them, and at this reach a centre-to-centre test would
+        // read that as out of range.
+        int dy = 0;
+        if (Ball.CenterY < Y)
+        {
+            dy = Y - Ball.CenterY;
+        }
+        else if (Ball.CenterY > Y + SprSize - 1)
+        {
+            dy = Ball.CenterY - (Y + SprSize - 1);
+        }
+
+        return YourGame.API.abs(Ball.CenterX - ClubPointX) <= Reach && dy <= Reach;
+    }
+
+    /// <summary>
+    /// Slides the player so the club head lands on the ball, keeping the facing they addressed it
+    /// with. Walked a pixel at a time rather than assigned, so the snap can never push them into a
+    /// wall — it stops flush against one and the swing plays from wherever it got to.
+    /// </summary>
+    public static void AlignToBall()
+    {
+        if (!Ball.Present)
+        {
+            return;
+        }
+
+        int target = Ball.CenterX - (FacingLeft ? SprSize - 1 - ClubX : ClubX);
+        int step = target < X ? -1 : 1;
+
+        while (X != target && !SolidAt(X + step, Y))
+        {
+            X += step;
+        }
+
+        RemX = 0f;
+        VelX = 0f;
+    }
+
     public static void Update(float elapsedSeconds)
     {
         var api = YourGame.API;
 
-        VelX = 0f;
-        if (api.btn(BtnLeft))
-        {
-            VelX = -MoveSpeed;
-            FacingLeft = true;
-        }
-        if (api.btn(BtnRight))
-        {
-            VelX = MoveSpeed;
-            FacingLeft = false;
-        }
-
         OnGround = SolidAt(X, Y + 1);
 
-        if (OnGround && api.btnp(BtnJump))
+        VelX = 0f;
+
+        // Addressing the ball commits the player: no walking off it, no jumping out of it, until
+        // the swing has run itself back to Idle.
+        if (!Swing.Active)
         {
-            VelY = -JumpSpeed;
-            OnGround = false;
+            if (api.btn(BtnLeft))
+            {
+                VelX = -MoveSpeed;
+                FacingLeft = true;
+            }
+            if (api.btn(BtnRight))
+            {
+                VelX = MoveSpeed;
+                FacingLeft = false;
+            }
+
+            if (OnGround && api.btnp(BtnJump))
+            {
+                VelY = -JumpSpeed;
+                OnGround = false;
+            }
         }
 
         VelY += Gravity * elapsedSeconds;

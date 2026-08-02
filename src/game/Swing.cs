@@ -34,6 +34,7 @@ internal static class Swing
     private static Phase Current;
     private static float Seconds;
     private static bool Armed;
+    private static bool Launched;
 
     /// <summary>While true the club is on screen and <see cref="Sprite"/> is the frame to draw.</summary>
     public static bool Active => Current != Phase.Idle;
@@ -54,6 +55,7 @@ internal static class Swing
         Current = Phase.Idle;
         Seconds = 0f;
         Armed = true;
+        Launched = true;
     }
 
     public static void Update(float elapsedSeconds)
@@ -65,6 +67,14 @@ internal static class Swing
         if (Current == Phase.Pull || Current == Phase.Hit)
         {
             Clip.Update(elapsedSeconds);
+        }
+
+        // Contact is the end of the swing-through, not its start, so the ball leaves when the club
+        // has actually come round. Once per hit.
+        if (Current == Phase.Hit && !Launched && Clip.Done)
+        {
+            Launched = true;
+            Ball.Hit(Player.FacingLeft);
         }
 
         if (Current == Phase.Hit && Seconds >= HitSeconds)
@@ -91,6 +101,7 @@ internal static class Swing
         {
             case Phase.Idle:
                 Current = Phase.Ready;
+                Player.AlignToBall();
                 break;
             case Phase.Ready:
                 Current = Phase.Pull;
@@ -98,6 +109,7 @@ internal static class Swing
                 break;
             default:
                 Current = Phase.Hit;
+                Launched = false;
                 Clip.Load(AnimHit, false);
                 break;
         }
@@ -113,6 +125,8 @@ internal static class Swing
 
         switch (Current)
         {
+            case Phase.Idle:
+                return Player.CanStartSwing();    // nothing to address, nothing to swing at
             case Phase.Pull:
                 return Clip.Done;    // no hitting before the pull has finished
             case Phase.Hit:
