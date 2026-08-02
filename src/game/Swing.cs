@@ -36,6 +36,9 @@ internal static class Swing
     // A miss threshold of a whole bar would leave no shot to scale, so the read is kept under one.
     private const float MaxMiss = 0.99f;
 
+    // Club on ball. Only on contact that actually sends the ball off — a whiff is silent.
+    private const int SfxHit = 0;
+
     private enum Phase { Idle, Ready, Pull, Hit }
 
     private static readonly Anim Clip = new Anim();
@@ -142,6 +145,7 @@ internal static class Swing
             Launched = true;
             if (!Failed && Ball.Hit(Player.FacingLeft, Power))
             {
+                api.sfx(SfxHit);
                 Hud.CountHit();
             }
         }
