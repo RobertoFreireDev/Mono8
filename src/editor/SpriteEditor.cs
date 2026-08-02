@@ -29,13 +29,21 @@ internal class SpriteEditor : IEditor
     private enum ReferenceVisualization { Original, Red, Green, Blue }
     private const int ReferenceVisualizationCount = 4;
 
+    private static readonly float[] ReferenceOpacities = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
+    private const int SpriteCount = Constants.GameDataSizes.MaxSpriteIndex + 1;
+
     private bool editingReferenceNumber;
     private int referenceNumberInput = -1;
-    private ReferenceOrder referenceOrder = ReferenceOrder.Behind;
-    private int referenceVisualizationIdx = (int)ReferenceVisualization.Original;
-    private ReferenceVisualization referenceVisualization => (ReferenceVisualization)referenceVisualizationIdx;
-    private static readonly float[] ReferenceOpacities = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
-    private int referenceOpacityIdx = ReferenceOpacities.Length - 1;
+
+    // Order, tint and opacity are per-sprite like the reference number itself: each tile keeps the
+    // onion setup it was drawn with, so switching tiles never rewrites another tile's settings.
+    private readonly ReferenceOrder[] referenceOrders = new ReferenceOrder[SpriteCount];
+    private readonly int[] referenceVisualizationIdxs = new int[SpriteCount];
+    private readonly int[] referenceOpacityIdxs = new int[SpriteCount];
+
+    private ReferenceOrder referenceOrder => referenceOrders[sprNmbr];
+    private ReferenceVisualization referenceVisualization => (ReferenceVisualization)referenceVisualizationIdxs[sprNmbr];
+    private float referenceOpacity => ReferenceOpacities[referenceOpacityIdxs[sprNmbr]];
 
     private Rectangle refNumberBtn;
     private Rectangle refOrderBtn;
@@ -101,6 +109,9 @@ internal class SpriteEditor : IEditor
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
         navigator = new SpriteNavigator(api);
+
+        // Behind and Original are the zero values already; only opacity defaults to fully opaque.
+        Array.Fill(referenceOpacityIdxs, ReferenceOpacities.Length - 1);
 
         sprcnvsarea = new Rectangle(100, 15, 8 * 8, 8 * 8);
         const int rightMargin = 2;
@@ -508,8 +519,8 @@ internal class SpriteEditor : IEditor
         if (EditorUI.CycleOnClick(_api, animZoomBtn, mouse, ref AnimSclIdx, Zooms.Length)) return;
         if (EditorUI.CycleOnClick(_api, animSpeedBtn, mouse, ref AnimSpeedIdx, AnimSpeeds.Length)) return;
         if (EditorUI.CycleOnClick(_api, animLoopModeBtn, mouse, ref animLoopModeIdx, LoopModeCount)) return;
-        if (EditorUI.CycleOnClick(_api, refVisualizationBtn, mouse, ref referenceVisualizationIdx, ReferenceVisualizationCount)) return;
-        if (EditorUI.CycleOnClick(_api, refOpacityBtn, mouse, ref referenceOpacityIdx, ReferenceOpacities.Length)) return;
+        if (EditorUI.CycleOnClick(_api, refVisualizationBtn, mouse, ref referenceVisualizationIdxs[sprNmbr], ReferenceVisualizationCount)) return;
+        if (EditorUI.CycleOnClick(_api, refOpacityBtn, mouse, ref referenceOpacityIdxs[sprNmbr], ReferenceOpacities.Length)) return;
 
         if (refNumberBtn.Contains(mouse.x, mouse.y) && _api.mouselp())
         {
@@ -518,7 +529,7 @@ internal class SpriteEditor : IEditor
         }
         else if (refOrderBtn.Contains(mouse.x, mouse.y) && (_api.mouselp() || _api.mouserp()))
         {
-            referenceOrder = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
+            referenceOrders[sprNmbr] = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
         }
     }
 
@@ -579,7 +590,7 @@ internal class SpriteEditor : IEditor
         }
         if (refOrderBtn.Contains(mouse.x, mouse.y)) return referenceOrder == ReferenceOrder.Behind ? "ONION BEHIND" : "ONION FRONT";
         if (refVisualizationBtn.Contains(mouse.x, mouse.y)) return $"ONION {ReferenceVisualizationLabel(referenceVisualization)}";
-        if (refOpacityBtn.Contains(mouse.x, mouse.y)) return $"ONION {(int)(ReferenceOpacities[referenceOpacityIdx] * 100)}";
+        if (refOpacityBtn.Contains(mouse.x, mouse.y)) return $"ONION {(int)(referenceOpacity * 100)}";
 
         if (palettearea.Contains(mouse.x, mouse.y)) return $"COLOR {ColorIndexAt(mouse)}";
 
@@ -969,7 +980,7 @@ internal class SpriteEditor : IEditor
         _api.spr(refSprite, sprcnvsarea.X, sprcnvsarea.Y,
             validW / Constants.GameDataSizes.TileSize,
             validH / Constants.GameDataSizes.TileSize, scale, false, false,
-            ReferenceOpacities[referenceOpacityIdx]);
+            referenceOpacity);
 
         if (referenceVisualization != ReferenceVisualization.Original)
         {
@@ -994,6 +1005,6 @@ internal class SpriteEditor : IEditor
             _ => "ORG",
         });
 
-        EditorUI.TextButton(_api, refOpacityBtn, ((int)(ReferenceOpacities[referenceOpacityIdx] * 100)).ToString());
+        EditorUI.TextButton(_api, refOpacityBtn, ((int)(referenceOpacity * 100)).ToString());
     }
 }

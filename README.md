@@ -501,7 +501,7 @@ An 8-slot animation frame strip (top-left) with playback controls and a live pre
 
 ### Reference Sprite (Onion Skinning)
 
-A column of four buttons to the right of the sprite canvas lets you ghost-draw another sprite behind or in front of the one you're editing, useful for tracing over an adjacent animation frame. The reference sprite assignment is per-sprite (each sprite remembers its own reference) and is not saved to disk.
+A column of four buttons to the right of the sprite canvas lets you ghost-draw another sprite behind or in front of the one you're editing, useful for tracing over an adjacent animation frame. All four settings — reference number, order, visualization and opacity — are per-sprite (each sprite remembers its own onion skin setup) and are not saved to disk.
 
 | Button | Description |
 |---|---|
