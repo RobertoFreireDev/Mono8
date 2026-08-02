@@ -24,6 +24,11 @@ dotnet publish src/mono8.csproj -c Release -r win-x64 --self-contained true -p:P
 dotnet publish src/mono8.csproj -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true
 ```
 
+```
+dotnet publish src/mono8.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true
+```
+
+
 ### Getting your assets into a build
 
 A build does **not** pick up the authored project automatically. The engine only ever reads the `data/` folder sitting next to the executable it is running, so after building you have to **copy every file from [src/publishdata/](src/publishdata/) into that folder**, replacing what is there — otherwise the sprites, map, sfx, music and json come up empty.
