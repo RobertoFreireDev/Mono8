@@ -33,7 +33,7 @@ internal class EventNotifier
     public void SetHover(string label)
     {
         hoverLabel = label;
-        hoverTimeLeft = displaySeconds;
+        hoverTimeLeft = 0f;
     }
 
     /// <summary>
