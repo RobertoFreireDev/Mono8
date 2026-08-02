@@ -94,7 +94,10 @@
       "MARGIN:i": 6
     },
     "CLUB": {
-      "GAP:i": 2
+      "GAP:i": 2,
+      "SWAPSEC:d": 0.12,
+      "SWAPX:i": 3,
+      "SWAPY:i": 5
     }
   },
   "ANIM": {

@@ -2,7 +2,7 @@
   "ANIM": { "FRAMES": [4, 5, 6, 7, -1, -1, -1, -1], "SCALE": 0, "SPEED": 3, "LOOP": 0 },
   "DITHER": { "SLOTS": [-1, 15, 47, -1, 48, -1, -1, -1], "ACTIVE": 1 },
   "CANVAS": { "ZOOM": 0, "TOOL": 0, "COLOR": 3, "GUIDE": false },
-  "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 6, "CAMY": 10, "ZOOM": 2 },
+  "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 1, "CAMY": 0, "ZOOM": 0 },
   "SFX": { "INDEX": 0 },
   "MUSIC": { "PATTERN": 0 },
   "JSON": { "GROUP": "HUD", "OBJECT": "CLUB" },

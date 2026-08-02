@@ -45,6 +45,18 @@ internal static class Club
 
     private static int LabelGap;
 
+    // The swap: how long the two labels are on screen together, and how far apart they are at the
+    // ends of it. The club that is leaving drops away and the one arriving comes down from above,
+    // both of them set back in x at their extremes so the pair reads as one face turning rather
+    // than two labels sliding past each other.
+    private static float SwapSeconds;
+    private static int SwapX;
+    private static int SwapY;
+
+    // The club being left behind, held only for as long as it is still on screen.
+    private static string Outgoing;
+    private static float SwapLeft;
+
     /// <summary>Turns added to the launch angle BALL / HITX and HITY work out to.</summary>
     public static float Angle => Loaded > 0 ? Angles[Index] : 0f;
 
@@ -65,6 +77,11 @@ internal static class Club
         Loaded = 0;
         Index = 0;
         LabelGap = 0;
+        SwapSeconds = 0f;
+        SwapX = 0;
+        SwapY = 0;
+        Outgoing = string.Empty;
+        SwapLeft = 0f;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var order = api.gjson(ClubGroup, OrderObject);
@@ -81,14 +98,31 @@ internal static class Club
         if (label != null)
         {
             LabelGap = label.GetInt("GAP");
+            SwapSeconds = (float)label.GetDec("SWAPSEC");
+            SwapX = label.GetInt("SWAPX");
+            SwapY = label.GetInt("SWAPY");
         }
     }
 
-    public static void Update()
+    public static void Update(float elapsedSeconds)
     {
+        if (SwapLeft > 0f)
+        {
+            SwapLeft -= elapsedSeconds;
+            if (SwapLeft <= 0f)
+            {
+                SwapLeft = 0f;
+                Outgoing = string.Empty;
+            }
+        }
+
         // Not mid-swing: the club that was addressed is the club that hits.
         if (Loaded > 1 && !Swing.Active && YourGame.API.btnp(BtnClub))
         {
+            // Whatever is showing is what leaves, so a second press part way through a swap picks
+            // the turn up from where it got to rather than snapping back.
+            Outgoing = Name;
+            SwapLeft = SwapSeconds;
             Index = (Index + 1) % Loaded;
         }
     }
@@ -101,10 +135,28 @@ internal static class Club
             return;
         }
 
+        int x = Meter.LeftX;
+        int y = Meter.TopY - LabelGap - FontHeight;
+
+        // How far through the turn: 1 once it is over, which is also what an unauthored SWAPSEC
+        // leaves it at, so the label just changes.
+        float t = SwapLeft > 0f && SwapSeconds > 0f ? 1f - SwapLeft / SwapSeconds : 1f;
+
+        if (t < 1f && Outgoing.Length > 0)
+        {
+            Hud.PrintOutlined(Outgoing, x - Offset(SwapX, t), y + Offset(SwapY, t),
+                Constants.Colors.White, 1f - t);
+        }
+
         // Outlined, since the bar is only up during a swing and the label is over the room the rest
         // of the time.
-        Hud.PrintOutlined(name, Meter.LeftX, Meter.TopY - LabelGap - FontHeight,
-            Constants.Colors.White);
+        Hud.PrintOutlined(name, x - Offset(SwapX, 1f - t), y - Offset(SwapY, 1f - t),
+            Constants.Colors.White, t);
+    }
+
+    private static int Offset(int distance, float t)
+    {
+        return (int)YourGame.API.round(distance * t);
     }
 
     // A club named in ORDER but never authored is skipped rather than loaded as a zero-distance one

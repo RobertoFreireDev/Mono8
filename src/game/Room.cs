@@ -64,7 +64,7 @@ internal class Room
         Flag.Update(elapsedSeconds);
 
         // After the player, so the swing state the toggle checks is this frame's.
-        Club.Update();
+        Club.Update(elapsedSeconds);
     }
 
     public void Draw()
