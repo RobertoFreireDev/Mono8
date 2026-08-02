@@ -52,6 +52,7 @@ internal class Room
         Ball.Init(this);
         Player.Init(this);
         Flag.Init(this);
+        Hud.Init();
     }
 
     public void Update(float elapsedSeconds)
@@ -72,6 +73,7 @@ internal class Room
 
         // HUD, over the room.
         Meter.Draw();
+        Hud.Draw();
     }
 
     private void Load(string name, int cellX, int cellY)

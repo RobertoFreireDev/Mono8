@@ -25,14 +25,25 @@ internal static class Ball
     private const float DefaultHitX = 90f;
     private const float DefaultHitY = 110f;
     private const int DefaultBlink = 8;
+    private const float DefaultRest = 12f;
+    private const int DefaultHoleX = 4;
+    private const int DefaultHoleY = 8;
+    private const float DefaultHoleSpeed = 16f;
+    private const int DefaultSinkDepth = 4;
+    private const float DefaultSinkSpeed = 12f;
 
-    // Below this the ball is treated as stopped rather than jittering out a last few bounces.
-    private const float RestSpeed = 12f;
+    // The flag is one 8x8 sprite, so its cup is under the middle of that tile. Not tuning — it is
+    // what a sprite measures.
+    private const int FlagSize = 8;
 
     public static bool Present;
     public static int X;
     public static int Y;
     public static bool OnGround;
+
+    /// <summary>Set the moment the ball has sunk out of sight, and stays set until the room is
+    /// re-entered — the hole is finished, whatever the game decides to do about that.</summary>
+    public static bool Holed;
 
     private static float Gravity;
     private static float MaxFallSpeed;
@@ -42,15 +53,33 @@ internal static class Ball
     private static float HitSpeedY;
     private static float BlinkSeconds;
 
+    // Below RestSpeed the ball is treated as stopped rather than jittering out a last few bounces.
+    private static float RestSpeed;
+
+    // The hole, measured from the flag: how far the ball's centre may sit from the flag's centre
+    // column and from the foot of the flag sprite and still be over the cup, how slowly it has to
+    // be moving to drop in rather than roll past, and how far it sinks before it is gone.
+    private static int HoleReachX;
+    private static int HoleReachY;
+    private static float HoleSpeed;
+    private static int SinkDepth;
+    private static float SinkSpeed;
+
     private static float VelX;
     private static float VelY;
     private static float RemX;
     private static float RemY;
     private static float BlinkTimer;
     private static bool BlinkOn;
+    private static bool Sinking;
+    private static int Sunk;
+    private static float SinkRem;
 
     public static int CenterX => X + Size / 2;
     public static int CenterY => Y + Size / 2;
+
+    /// <summary>Whether the ball can still be addressed and struck — not once it is going down.</summary>
+    public static bool InPlay => Present && !Sinking;
 
     public static void Init(Room room)
     {
@@ -60,6 +89,12 @@ internal static class Ball
         Friction = DefaultFriction;
         HitSpeedX = DefaultHitX;
         HitSpeedY = DefaultHitY;
+        RestSpeed = DefaultRest;
+        HoleReachX = DefaultHoleX;
+        HoleReachY = DefaultHoleY;
+        HoleSpeed = DefaultHoleSpeed;
+        SinkDepth = DefaultSinkDepth;
+        SinkSpeed = DefaultSinkSpeed;
         int blink = DefaultBlink;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
@@ -73,6 +108,12 @@ internal static class Ball
             HitSpeedX = (float)stats.GetDec("HITX", 0, DefaultHitX);
             HitSpeedY = (float)stats.GetDec("HITY", 0, DefaultHitY);
             blink = stats.GetInt("BLINK", 0, DefaultBlink);
+            RestSpeed = (float)stats.GetDec("REST", 0, DefaultRest);
+            HoleReachX = stats.GetInt("HOLEX", 0, DefaultHoleX);
+            HoleReachY = stats.GetInt("HOLEY", 0, DefaultHoleY);
+            HoleSpeed = (float)stats.GetDec("HOLESPD", 0, DefaultHoleSpeed);
+            SinkDepth = stats.GetInt("SINKDEP", 0, DefaultSinkDepth);
+            SinkSpeed = (float)stats.GetDec("SINKSPD", 0, DefaultSinkSpeed);
         }
 
         BlinkSeconds = blink > 0 ? 1f / blink : 0f;
@@ -87,18 +128,23 @@ internal static class Ball
         OnGround = false;
         BlinkTimer = 0f;
         BlinkOn = true;
+        Holed = false;
+        Sinking = false;
+        Sunk = 0;
+        SinkRem = 0f;
     }
 
     /// <summary>
     /// Sends the ball off the club. <paramref name="toLeft"/> is the player's facing, so the ball
     /// always leaves in front of them; <paramref name="power"/> is the strength meter reading, 0 to
     /// 1, scaling HITX / HITY — a full bar is the authored speed, and a dead one barely nudges it.
+    /// Returns whether there was a ball there to send, which is what the HUD counts.
     /// </summary>
-    public static void Hit(bool toLeft, float power)
+    public static bool Hit(bool toLeft, float power)
     {
-        if (!Present)
+        if (!InPlay)
         {
-            return;
+            return false;
         }
 
         power = (float)YourGame.API.mid(0f, power, 1f);
@@ -106,6 +152,7 @@ internal static class Ball
         VelX = (toLeft ? -HitSpeedX : HitSpeedX) * power;
         VelY = -HitSpeedY * power;
         OnGround = false;
+        return true;
     }
 
     public static void Update(float elapsedSeconds)
@@ -125,6 +172,12 @@ internal static class Ball
                 BlinkTimer -= BlinkSeconds;
                 BlinkOn = !BlinkOn;
             }
+        }
+
+        if (Sinking)
+        {
+            Sink(elapsedSeconds);
+            return;
         }
 
         OnGround = SolidAt(X, Y + 1);
@@ -153,6 +206,17 @@ internal static class Ball
         MoveY(VelY * elapsedSeconds);
 
         OnGround = SolidAt(X, Y + 1);
+
+        // Asked after the move, so the velocities read are what the ball came to rest with rather
+        // than what it started the frame on.
+        if (OnGround && api.abs(VelX) <= HoleSpeed && api.abs(VelY) <= HoleSpeed && OverHole())
+        {
+            Sinking = true;
+            VelX = 0f;
+            VelY = 0f;
+            RemX = 0f;
+            RemY = 0f;
+        }
     }
 
     public static void Draw()
@@ -164,6 +228,45 @@ internal static class Ball
 
         YourGame.API.rectfill(X, Y, X + Size - 1, Y + Size - 1,
             BlinkOn ? Constants.Colors.White : Constants.Colors.LightGray);
+    }
+
+    /// <summary>
+    /// The cup, which the game reads off the flag rather than the map: the flag marks the hole, so
+    /// the ball is in it when it has settled under the middle of that tile.
+    /// </summary>
+    private static bool OverHole()
+    {
+        if (!Flag.Present)
+        {
+            return false;
+        }
+
+        var api = YourGame.API;
+
+        return api.abs(CenterX - (Flag.X + FlagSize / 2)) <= HoleReachX
+            && api.abs(CenterY - (Flag.Y + FlagSize)) <= HoleReachY;
+    }
+
+    // Straight down through the green, terrain ignored — the cup is a hole in ground the map still
+    // reads as solid, so collision here would only stop the ball on its lip.
+    private static void Sink(float elapsedSeconds)
+    {
+        // An unauthored or zeroed SINKSPD would leave the ball hanging over the cup forever, so it
+        // drops in the frame it starts instead.
+        SinkRem += SinkSpeed > 0f ? SinkSpeed * elapsedSeconds : SinkDepth;
+
+        while (SinkRem >= 1f && Sunk < SinkDepth)
+        {
+            SinkRem -= 1f;
+            Y++;
+            Sunk++;
+        }
+
+        if (Sunk >= SinkDepth)
+        {
+            Present = false;
+            Holed = true;
+        }
     }
 
     private static void MoveX(float amount)

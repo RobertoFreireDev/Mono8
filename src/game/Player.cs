@@ -104,7 +104,7 @@ internal static class Player
     /// </summary>
     public static bool CanStartSwing()
     {
-        if (!OnGround || !Ball.Present)
+        if (!OnGround || !Ball.InPlay)
         {
             return false;
         }

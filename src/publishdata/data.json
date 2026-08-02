@@ -17,6 +17,23 @@
       "REACH:i": 4
     }
   },
+  "BALL": {
+    "STATS": {
+      "GRAVITY:d": 450,
+      "MAXFALL:d": 200,
+      "BOUNCE:d": 0.5,
+      "FRICTION:d": 120,
+      "HITX:d": 90,
+      "HITY:d": 110,
+      "BLINK:i": 8,
+      "REST:d": 12,
+      "HOLEX:i": 4,
+      "HOLEY:i": 8,
+      "HOLESPD:d": 16,
+      "SINKDEP:i": 4,
+      "SINKSPD:d": 12
+    }
+  },
   "ANIM": {
     "FLAG": {
       "ID:t": ["4", "5", "6", "7"],

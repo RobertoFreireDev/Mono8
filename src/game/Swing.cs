@@ -100,9 +100,9 @@ internal static class Swing
         if (Current == Phase.Hit && !Launched && Clip.Done)
         {
             Launched = true;
-            if (!Failed)
+            if (!Failed && Ball.Hit(Player.FacingLeft, Power))
             {
-                Ball.Hit(Player.FacingLeft, Power);
+                Hud.CountHit();
             }
         }
 

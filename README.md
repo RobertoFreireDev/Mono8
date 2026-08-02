@@ -24,6 +24,22 @@ dotnet publish src/mono8.csproj -c Release -r win-x64 --self-contained true -p:P
 dotnet publish src/mono8.csproj -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true
 ```
 
+### Getting your assets into a build
+
+A build does **not** pick up the authored project automatically. The engine only ever reads the `data/` folder sitting next to the executable it is running, so after building you have to **copy every file from [src/publishdata/](src/publishdata/) into that folder**, replacing what is there — otherwise the sprites, map, sfx, music and json come up empty.
+
+Where that folder is depends on the configuration you built:
+
+| Build | Copy `src/publishdata/*` into |
+|---|---|
+| `dotnet build` (Debug) | `src/bin/Debug/net8.0/data/` |
+| `dotnet build -c Release` | `src/bin/Release/net8.0/data/` |
+| `dotnet publish` | `data/` next to the published executable |
+
+The same goes the other way round: `Ctrl+S` in an editor writes to the `data/` folder of the executable you are running, and mirrors it back into `src/publishdata/` — see [Where a save lands](#where-a-save-lands). So `src/publishdata/` is always the authored copy, and every build's `data/` is a disposable one you refresh from it.
+
+`data.save` is the exception — it is runtime persistence written by `dset`, not authored data, so leave each build's own copy alone.
+
 ## Images
 
 ### Sprite Editor
