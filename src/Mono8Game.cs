@@ -81,6 +81,11 @@ public class Mono8Game : Game
 
         if (!Screen.IsFocused)
         {
+            // Present() runs from Game.EndDraw, not from Draw, so an early return there still swaps
+            // the buffers every tick and flips the window between the last two frames drawn. This is
+            // what actually holds the screen on the frame it stopped at.
+            SuppressDraw();
+
             // Input still samples, so the press/release edges are not a frame stale when focus comes back.
             InputStateManager.Update();
             base.Update(gameTime);
@@ -114,7 +119,8 @@ public class Mono8Game : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        // Nothing advanced this frame, so skip the render and leave the last presented frame on screen.
+        // SuppressDraw already keeps this from being called while unfocused; the guard is for the
+        // paths that draw outside the tick loop, such as a resize while the window is in the back.
         if (!Screen.IsFocused)
         {
             base.Draw(gameTime);
