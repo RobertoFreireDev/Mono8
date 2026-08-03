@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<!-- saved from url=(0253)https://7cccdec8-1ee9-443d-95e9-a2c136a7ee62.frame.claudeusercontent.com/_f/1785724463-e0c3/?__frame_t=3zJZRnEjUinGhgw-7TaPzupI.31f17c53-e0cb-426d-85c9-aa8f2092cce2.707c5ff1-bf34-401b-9756-ce32617a9226.1785728173&__frame_v=manifest.ec369d2e020e53f6.json -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><!-- frame-runtime --><!--<base href="/_f/1785724463-e0c3/">--><base href="."><script>window.__FRAME_PREAMBLE={"capabilities":{"downloads":"downloads.BABDwU1K.js","mcp":"mcp.hoz5jxDa.js","permissions":"permissions.ByA9Fd8x.js","self":"self.D3u1zjZe.js","user":"user.Cp1-RnjB.js"},"transforms":"_transforms.DYk1Ltlh.js","comments":"_comments.DiwQajF_.js","translate":"_translate.C5leZL2A.js"}</script><script>(function(){"use strict";const Ee="modulepreload",we=function(e){return"/"+e},Se={},ee=function(t,n,l){let i=Promise.resolve();function s(f){const c=new Event("vite:preloadError",{cancelable:!0});if(c.payload=f,window.dispatchEvent(c),!c.defaultPrevented)throw f}return i.then(f=>{for(const c of f||[])c.status==="rejected"&&s(c.reason);return t().catch(s)})},te=["light","dark","system"];function ne(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_init;return t!==null&&typeof t=="object"}function W(e){return e!==null&&typeof e=="object"&&e.__frame_size_poke===!0}function re(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_theme;if(t===null||typeof t!="object")return!1;const n=t.theme;return typeof n=="string"&&te.includes(n)}function se(e){try{typeof reportError=="function"?reportError(e):setTimeout(()=>{throw e},0)}catch{}}const oe=Object.freeze(Object.assign(Object.create(null),{user:Object.freeze(Object.assign(Object.create(null),{id:null,isOwner:!1,canEdit:!1,name:null,avatarUrl:null,email:null}))}));function Y(e){if(window===top||e.type==="auxclick"&&e.button!==1)return;const t=e.composedPath?e.composedPath():[e.target];let n=null;for(let f=0;f<t.length;f++){const c=t[f];if(c&&c.matches&&c.matches("a[href],area[href]")){n=c;break}}if(!n&&e.target&&e.target.closest&&(n=e.target.closest("a[href],area[href]")),!n)return;const l=n.getAttribute("href");if(!l)return;let i,s;try{i=new URL(l,document.baseURI),s=new URL(document.baseURI).origin}catch{return}(i.protocol==="http:"||i.protocol==="https:")&&i.origin!==s&&(e.preventDefault(),parent.postMessage({__frame_nav:!0,url:i.href},"*"))}const K={};function D(e){if(window===top)return;const t=Date.now();t-(K[e]||0)<500||(K[e]=t,parent.postMessage({__frame_engaged:!0,kind:e},"*"))}const ie=2e3,x=["wheel","touchstart","touchmove","keydown","pointerdown"];let J=0;function ae(e){e.isTrusted&&(J=Date.now())}function ce(){addEventListener("click",Y,!0),addEventListener("auxclick",Y,!0)}function le(){for(let e=0;e<x.length;e++)addEventListener(x[e],ae,{capture:!0,passive:!0});addEventListener("scroll",e=>{e.isTrusted&&Date.now()-J<ie&&D("scroll")},{capture:!0,passive:!0}),addEventListener("pointermove",e=>{e.isTrusted&&D("pointer")},{capture:!0,passive:!0}),addEventListener("click",e=>{e.isTrusted&&D("click")},{capture:!0,passive:!0})}const I="__frame_scroll",ue=150,fe=310,de=160,me=3e4;function pe(){let e=0,t=!1,n=!1,l=!1,i=0;const s=a=>{try{sessionStorage.setItem(I,JSON.stringify({y:a}))}catch{}},f=()=>{if(t){t=!1;return}n=!0,clearTimeout(e),e=setTimeout(()=>s(scrollY),ue)};try{addEventListener("scroll",f,{passive:!0}),addEventListener("pagehide",()=>{clearTimeout(e),s(scrollY)})}catch{}const c=()=>{let a;try{a=sessionStorage.getItem(I)}catch{return null}if(a===null)return null;let _;try{_=JSON.parse(a)}catch{_=null}const m=_?.y;if(!(typeof m=="number"&&Number.isFinite(m)&&m>=0)){try{sessionStorage.removeItem(I)}catch{}return null}return m};let g=!1;const p=a=>{try{const _=scrollY;scrollTo({top:a,left:0,behavior:"instant"}),i=a,l=!0,s(a);const m=scrollY;m!==_&&(t=!0),m!==a&&!g&&(g=!0,addEventListener("load",()=>{try{if(scrollY===m){const y=c();p(y!==null?y:i)}}catch{}},{once:!0}))}catch{}},o=()=>{try{return!!location.hash}catch{return!0}};let u=!1;const d=()=>{try{if(u||innerWidth>fe||innerHeight>de)return;u=!0;const a=Date.now(),_=()=>{try{removeEventListener("resize",_)}catch{}if(Date.now()-a>me||n||o())return;const m=c();p(m!==null?m:i)};addEventListener("resize",_)}catch{}};let h=!1,b=!1;return{restore(){if(h||(h=!0,o()))return;const a=c();a!==null&&(p(a),d())},promoted(){if(b||(b=!0,o()))return;const a=c();a!==null?(p(a),d()):l&&p(i)}}}function he(e,t,n){const l=[...t.values()].filter(i=>i.targets.some(s=>s.startsWith(e+".")));return{wrap(i,s){const f=`${e}.${i}`,c=l.filter(g=>g.targets.includes(f));return c.length===0?(...g)=>{try{return s(...g)}catch(p){return Promise.reject(p)}}:(...g)=>{let p=g;for(const u of c){const d=u.module.parameters;if(d)try{p=d(p)}catch{return Promise.reject({code:"transform_error",id:u.id,scope:e,message:"parameters transform failed"})}}let o;try{o=s(...p)}catch(u){o=Promise.reject(u)}return o.then(u=>{for(let d=c.length-1;d>=0;d--){const h=c[d],b=h.module.returns;if(b)try{u=b(u)}catch{return n({id:h.id,scope:e,leg:"returns"}),u}}return u},u=>{for(let d=c.length-1;d>=0;d--){const h=c[d],b=h.module.throws;if(b)try{u=b(u)}catch{return n({id:h.id,scope:e,leg:"throws"}),Promise.reject(u)}}return Promise.reject(u)})}}}}function ge(e,t,n,l=()=>{}){const i=new Set(e.changes??[]),s=new Map;for(const f of i){const c=t[f];c&&s.set(f,c)}return{contract:e.contract,changes:i,flags:new Set(e.flags??[]),capabilities:e.capabilities??{},capBudgets:e.capBudgets??{},transforms:s,shellOrigin:n.shellOrigin,mount:n.mount,pipe:f=>he(f,s,l)}}(function(){const e=Object.defineProperty,t=globalThis,n=["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceCandidate","RTCSessionDescription","RTCRtpSender","RTCRtpReceiver"];let l=0;for(let i=0;i<n.length;i++){const s=n[i];try{e(t,s,{value:void 0,writable:!1,configurable:!1})}catch{try{delete t[s]}catch{}try{e(t,s,{value:void 0,writable:!1,configurable:!0})}catch{}}typeof t[s]=="function"&&l++}if(l&&window!==top)try{parent.postMessage({__frame_rtc_lockdown_failed:l},"*")}catch{}})();const _e=1e4,ye=Object.freeze([...window.__FRAME_PREAMBLE?.origins??["https://claude.ai","https://preview.claude.ai"]]);function G(e){for(const t of ye)if(t.endsWith(":*"))try{const n=new URL(e);if(`${n.protocol}//${n.hostname}:*`===t)return!0}catch{}else if(e===t)return!0;return!1}const R=Object.freeze({...window.__FRAME_PREAMBLE?.capabilities}),U=window.__FRAME_PREAMBLE?.transforms,z=window.__FRAME_PREAMBLE?.comments,$=window.__FRAME_PREAMBLE?.translate,T=/^[\w.-]+\.js$/,be=/^[a-z][a-z0-9_-]{0,63}$/;let V=null,j=null;function q(e,t,n){try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!1,enumerable:!0})}catch{try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!0,enumerable:!0})}catch{}}}let B=!1;function X(e){const t=document.documentElement;e==="light"||e==="dark"?(t.dataset.theme=e,t.style.colorScheme=e,B=!0):B&&(delete t.dataset.theme,t.style.colorScheme="",B=!1)}const A=Object.assign(Object.create(null),{mcp:Object.assign(Object.create(null),{watchTool:{handlerArg:3}})}),M=new Map;function Q(e,t){const n=M.get(e);if(!n)return;const l=Object.assign(Object.create(null),t);Object.assign(n.impl,l),n.impl.__settled=()=>Promise.reject({code:"capability_removed",message:`${e}: method not in this runtime`});const i=n.queue;n.queue=[];for(const s of i){const f=l[s.method];if(f)if(A[e]?.[s.method])try{s.resolve(f(...s.args))}catch{k(s,A[e][s.method].handlerArg,{code:"transform_error",message:`${e}.${s.method} rejected its arguments`})}else f(...s.args).then(s.resolve,s.reject);else{const c={code:"capability_removed",message:`${e}.${s.method} is not in this runtime`},g=A[e]?.[s.method];if(g){k(s,g.handlerArg,c);continue}s.reject(c)}}}function ve(e,t){const n=M.get(e);if(!n)return;n.impl.__settled=()=>Promise.reject(t);const l=n.queue;n.queue=[];for(const i of l){const s=A[e]?.[i.method];if(s){k(i,s.handlerArg,t);continue}i.reject(t)}}function N(e,t){const n=oe[e];if(!n){ve(e,t);return}Q(e,Object.fromEntries(Object.entries(n).map(([l,i])=>[l,()=>Promise.resolve(i)])))}function k(e,t,n){if(e.syncState?.dead)return;const l=e.args[t];typeof l=="function"&&queueMicrotask(()=>{if(!e.syncState?.dead)try{l({type:"error",error:n})}catch(i){se(i)}})}const F=Object.getOwnPropertyDescriptor(window,"claude");if(window!==top&&!(F&&F.writable===!1)){ce(),le();let e=null;try{e=pe()}catch{}const t=F?.value??{};q(window,"claude",t);const n=o=>{const u={impl:Object.create(null),queue:[]};M.set(o,u);const d=u.impl,h=new Proxy(d,{get:(b,a)=>{if(typeof a!="string"||a==="then"||a==="toJSON"||a==="valueOf")return;if(a==="toString")return Object.prototype.toString;const _=A[o]?.[a];return _?(...m)=>{if(typeof m[_.handlerArg]!="function")throw new TypeError(`${o}.${a} requires a handler function`);const y=d[a];if(y)return y(...m);if(d.__settled){const v={dead:!1},P={args:[...m],syncState:v};return d.__settled().catch(C=>k(P,_.handlerArg,C)),()=>{v.dead=!0}}let E=null;const S={dead:!1};return u.queue.push({method:a,args:m,resolve:v=>{E=typeof v=="function"?v:null,S.dead&&E?.()},reject:()=>{},syncState:S}),()=>{S.dead=!0,E?.()}}:(...m)=>{const y=d[a]??d.__settled;return y?y(...m):new Promise((E,S)=>{u.queue.push({method:a,args:m,resolve:E,reject:S})})}},set:()=>!1});q(t,o,h)};for(const o of Object.keys(R)){if(t[o]!==void 0){q(t,o,t[o]);continue}n(o)}let l=null,i=null,s=0;const f=o=>{o.source!==parent||!G(o.origin)||ne(o.data)&&(l=o.data.__frame_init,j=o.origin,removeEventListener("message",f),clearTimeout(s),i?.())};addEventListener("message",f),parent.postMessage({__frame_connect:!0},"*");const c=new Promise(o=>{i=o,s=setTimeout(()=>{removeEventListener("message",f),o()},_e)}),g=document.readyState==="loading"?new Promise(o=>document.addEventListener("DOMContentLoaded",()=>o(),{once:!0})):Promise.resolve();g.then(()=>{try{e?.restore()}catch{}});const p=o=>{if(!(o.source!==parent||!G(o.origin))&&W(o.data)){removeEventListener("message",p);try{e?.promoted()}catch{}}};addEventListener("message",p),c.then(async()=>{if(!l||!j){for(const r of M.keys())N(r,{code:"not_granted",message:"frame initialization did not arrive - capability unavailable"});return}X(l.theme);const o=j;let u=!1,d=!1;addEventListener("message",r=>{if(r.source!==parent||r.origin!==o)return;re(r.data)&&X(r.data.__frame_theme.theme);const w=r.data?.__fc_mode;w&&typeof w=="object"&&!u&&z&&T.test(z)&&(u=!0,h(z).then(H=>H.install?.(o,w.on===!0)).catch(()=>{}));const O=r.data?.__ft_cmd;O&&typeof O=="object"&&!d&&$&&T.test($)&&(d=!0,h($).then(H=>H.install?.(o,O)).catch(()=>{}))});const h=r=>ee(()=>import("/_runtime/"+r),void 0),b=Object.keys(l.capabilities??{});for(const r of b)Object.hasOwn(R,r)||be.test(r)&&t[r]===void 0&&(n(r),N(r,{code:"capability_disabled",message:"capability not in this runtime generation"}));const a=b.filter(r=>Object.hasOwn(R,r)).map(r=>[r,R[r]]).filter(r=>typeof r[1]=="string"&&T.test(r[1])),[_,...m]=await Promise.allSettled([U&&T.test(U)?h(U):Promise.resolve({}),...a.map(([,r])=>h(r))]),y=j;V=ge(l,_.status==="fulfilled"&&_.value?.TRANSFORMS||{},{shellOrigin:y,mount:Q},r=>parent.postMessage({__frame_cap_telemetry:r},y));const E=r=>parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:r}},y),S=V;m.forEach((r,w)=>{const O=a[w][0];if(r.status!=="fulfilled"){E(O);return}try{r.value?.install?.(S)}catch{E(O)}});for(const[r,w]of M)if(!(w.queue.length===0&&Object.keys(w.impl).length>0)){if(b.includes(r)){N(r,{code:"capability_disabled",message:"capability not available in this session"});continue}N(r,{code:"not_granted",message:"capability not available in this session"})}await g,parent.postMessage({__frame_ready:!0},j);let v=-1,P=0;const C=()=>{P=0;const r=Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0);r!==v&&(v=r,parent.postMessage({__frame_size:!0,h:r},y))},L=()=>{P||(P=setTimeout(C,200))},Z=new ResizeObserver(L);Z.observe(document.documentElement),document.body&&Z.observe(document.body),document.addEventListener("load",L,!0),document.fonts?.ready.then(L,()=>{}),addEventListener("beforeprint",()=>{v=-1,C()}),L(),addEventListener("message",r=>{if(!(r.source!==parent||r.origin!==y)&&W(r.data)){try{e?.promoted()}catch{}v=-1,L()}})})}})();</script><!-- /frame-runtime --><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>Drawing the 47-piece autotile block</title>
+
+<style>
+  :root {
+    --ground: #fff1e8;
+    --surface: #ffffff;
+    --ink: #111d35;
+    --ink-2: #5f574f;
+    --line: rgba(17, 29, 53, 0.16);
+    --line-soft: rgba(17, 29, 53, 0.08);
+    --accent: #00b543;
+    --accent-2: #065ab5;
+    --plate: #111d35;
+
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+
+    --measure: 66ch;
+    --wide: 940px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111d35;
+      --surface: #1d2b53;
+      --ink: #fff1e8;
+      --ink-2: #83769c;
+      --line: rgba(255, 241, 232, 0.18);
+      --line-soft: rgba(255, 241, 232, 0.09);
+      --accent: #00e436;
+      --accent-2: #29adff;
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground: #fff1e8;
+    --surface: #ffffff;
+    --ink: #111d35;
+    --ink-2: #5f574f;
+    --line: rgba(17, 29, 53, 0.16);
+    --line-soft: rgba(17, 29, 53, 0.08);
+    --accent: #00b543;
+    --accent-2: #065ab5;
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #111d35;
+    --surface: #1d2b53;
+    --ink: #fff1e8;
+    --ink-2: #83769c;
+    --line: rgba(255, 241, 232, 0.18);
+    --line-soft: rgba(255, 241, 232, 0.09);
+    --accent: #00e436;
+    --accent-2: #29adff;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: var(--wide);
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .col {
+    max-width: var(--measure);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  /* ── Type roles ───────────────────────────────────────── */
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(26px, 4.4vw, 40px);
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .standfirst {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 56ch;
+    margin: 0;
+  }
+
+  p { margin: 0; }
+
+  b, strong { font-weight: 700; }
+
+  code, .num {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  code {
+    background: var(--line-soft);
+    padding: 0.1em 0.36em;
+    border-radius: 2px;
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--line);
+    border: 0;
+    margin: 0;
+  }
+
+  /* ── Figures ──────────────────────────────────────────── */
+
+  figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .figcap {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-top: 2px solid var(--ink);
+    padding-top: 10px;
+  }
+
+  .figno {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .fignote {
+    font-size: 15px;
+    color: var(--ink-2);
+    max-width: 60ch;
+  }
+
+  .plate {
+    background: var(--plate);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 22px;
+    overflow-x: auto;
+  }
+
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* ── Fig 1: corner states ─────────────────────────────── */
+
+  .corners {
+    display: flex;
+    gap: 26px;
+    min-width: min-content;
+  }
+
+  .corner {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    width: 96px;
+    flex: none;
+  }
+
+  .corner canvas {
+    width: 96px;
+    height: 96px;
+  }
+
+  .corner .name {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #fff1e8;
+    text-transform: uppercase;
+  }
+
+  .corner .when {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.45;
+    color: #83769c;
+  }
+
+  /* ── Fig 2: the block ─────────────────────────────────── */
+
+  .blockhead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: color 140ms, border-color 140ms;
+  }
+
+  .toggle:hover { color: var(--ink); border-color: var(--ink-2); }
+  .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .toggle .lamp {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line);
+    box-shadow: none;
+    transition: background 140ms, box-shadow 140ms;
+  }
+
+  .toggle[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); }
+  .toggle[aria-pressed="true"] .lamp {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .block {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 12px;
+    min-width: 660px;
+  }
+
+  .cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cell canvas {
+    width: 100%;
+    aspect-ratio: 1;
+    height: auto;
+    outline: 1px solid rgba(255, 241, 232, 0.1);
+  }
+
+  .cell .id {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    color: #83769c;
+  }
+
+  .cell.is-empty .id { color: #5f574f; }
+  .cell.is-empty canvas { outline-style: dashed; outline-color: rgba(255, 241, 232, 0.22); }
+
+  .paint-in { opacity: 0; transform: translateY(3px); }
+  .paint-in.shown {
+    opacity: 1;
+    transform: none;
+    transition: opacity 260ms ease-out, transform 260ms ease-out;
+  }
+
+  .rowkey {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+
+  .rowkey div { border-top: 1px solid var(--line); padding-top: 7px; }
+  .rowkey b { display: block; color: var(--ink); font-weight: 700; letter-spacing: 0.04em; }
+
+  /* ── Fig 3: sandbox ───────────────────────────────────── */
+
+  .sandbox {
+    display: flex;
+    gap: 22px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #sandcanvas {
+    width: 448px;
+    max-width: 100%;
+    height: auto;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .readout {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.85;
+    color: #83769c;
+    min-width: 190px;
+    flex: 1;
+  }
+
+  .readout .k { color: #5f574f; }
+  .readout .v { color: #fff1e8; }
+  .readout .hi { color: #00e436; }
+
+  .ghost {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #83769c;
+    background: none;
+    border: 1px solid rgba(255, 241, 232, 0.2);
+    border-radius: 999px;
+    padding: 6px 13px;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+
+  .ghost:hover { color: #fff1e8; border-color: rgba(255, 241, 232, 0.45); }
+  .ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Steps ────────────────────────────────────────────── */
+
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  ol.steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  ol.steps li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    padding-top: 5px;
+  }
+
+  ol.steps h3 {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin: 0 0 3px;
+  }
+
+  ol.steps p { color: var(--ink-2); font-size: 16px; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 2px 0 2px 18px;
+    color: var(--ink-2);
+  }
+
+  .callout b { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .paint-in { opacity: 1; transform: none; transition: none; }
+    * { transition-duration: 1ms !important; }
+  }
+
+  @media (max-width: 620px) {
+    .page { padding: 36px 16px 64px; }
+    body { font-size: 16px; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="col">
+    <div class="eyebrow">Mono8 · sprite editor · block (3,0)</div>
+    <h1>Drawing the 47-piece autotile block</h1>
+    <p class="standfirst">Forty-seven tiles sounds like forty-seven drawings. It is four, rotated — every piece in the block is just its four corners, and each corner has only five things it can be.</p>
+    <p class="standfirst" style="font-size: 16px;">Every tile below is already on your sheet: this exact art now sits in block (3,0), sprites <span class="num">024</span>–<span class="num">191</span>, marked as an autotile in <code>data.atl</code>. Draw over it — the shapes are the point, not the two greens.</p>
+  </header>
+
+  <hr class="rule">
+
+  <section class="col">
+    <h2>What decides a piece</h2>
+    <p>A cell either holds terrain or it does not. Which of the forty-seven pieces it <em>shows</em> is read off the eight cells around it: the four cardinals always, and each diagonal only when both of the cardinals beside it hold terrain too — otherwise the gap between them has already cut that corner off. Exactly forty-seven neighbourhoods survive that rule, which is why the block holds forty-seven pieces and not two hundred and fifty-six.</p>
+    <p>You never pick a piece by hand. You paint terrain, and the brush picks.</p>
+  </section>
+
+  <figure>
+    <div class="figcap">
+      <span class="figno">Fig. 1</span>
+      <span class="fignote">The five corner states. Each tile is four of these, one per quadrant — so this is the whole of the art you actually invent.</span>
+    </div>
+    <div class="plate">
+      <div class="corners" id="corners"><div class="corner"><canvas width="4" height="4"></canvas><div class="name">Outer corner</div><div class="when">both cardinals empty</div></div><div class="corner"><canvas width="4" height="4"></canvas><div class="name">Edge</div><div class="when">vertical filled, side open</div></div><div class="corner"><canvas width="4" height="4"></canvas><div class="name">Edge, turned</div><div class="when">side filled, vertical open</div></div><div class="corner"><canvas width="4" height="4"></canvas><div class="name">Inner corner</div><div class="when">both filled, diagonal empty</div></div><div class="corner"><canvas width="4" height="4"></canvas><div class="name">Interior</div><div class="when">all three filled</div></div></div>
+    </div>
+  </figure>
+
+  <section class="col">
+    <p>Two of those five are the same shape turned ninety degrees, so the real count is <strong>four drawings</strong>: an outer corner, a straight edge, an inner corner, and plain interior. Draw them once for the top-left quadrant, then use the sprite editor's <code>R</code> to rotate and <code>F</code> / <code>V</code> to flip for the other three.</p>
+    <p>The bright rim is the lit edge — whatever your terrain does where it meets open air. Keep it to the outermost pixel and the pieces will tile without seams.</p>
+  </section>
+
+  <figure>
+    <div class="figcap">
+      <span class="figno">Fig. 2</span>
+      <span class="fignote">The block as it sits on the sheet: 8 wide, 6 tall, sprite ids for block (3,0). Turn on the guide to see the same 3×3 diagram the sprite editor overlays on your canvas.</span>
+    </div>
+    <div class="blockhead">
+      <div class="eyebrow">Sprite ids run 024–031, 056–063, 088–095, 120–127, 152–159, 184–191</div>
+      <button class="toggle" id="guidetoggle" type="button" aria-pressed="false">
+        <span class="lamp" aria-hidden="true"></span>Guide overlay
+      </button>
+    </div>
+    <div class="plate">
+      <div class="block" id="block"><div class="cell paint-in is-empty shown"><canvas width="8" height="8" role="img" aria-label="Cell 0, sprite 024, the block&#39;s empty tile"></canvas><div class="id">— 024</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 1, sprite 025, neighbours none"></canvas><div class="id">025</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 2, sprite 026, neighbours N"></canvas><div class="id">026</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 3, sprite 027, neighbours E"></canvas><div class="id">027</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 4, sprite 028, neighbours S"></canvas><div class="id">028</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 5, sprite 029, neighbours W"></canvas><div class="id">029</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 6, sprite 030, neighbours N S"></canvas><div class="id">030</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 7, sprite 031, neighbours E W"></canvas><div class="id">031</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 8, sprite 056, neighbours N E"></canvas><div class="id">056</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 9, sprite 057, neighbours N E ne"></canvas><div class="id">057</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 10, sprite 058, neighbours E S"></canvas><div class="id">058</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 11, sprite 059, neighbours E S se"></canvas><div class="id">059</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 12, sprite 060, neighbours S W"></canvas><div class="id">060</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 13, sprite 061, neighbours S W sw"></canvas><div class="id">061</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 14, sprite 062, neighbours N W"></canvas><div class="id">062</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 15, sprite 063, neighbours N W nw"></canvas><div class="id">063</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 16, sprite 088, neighbours N E S"></canvas><div class="id">088</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 17, sprite 089, neighbours N E S ne"></canvas><div class="id">089</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 18, sprite 090, neighbours N E S se"></canvas><div class="id">090</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 19, sprite 091, neighbours N E S ne se"></canvas><div class="id">091</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 20, sprite 092, neighbours E S W"></canvas><div class="id">092</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 21, sprite 093, neighbours E S W se"></canvas><div class="id">093</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 22, sprite 094, neighbours E S W sw"></canvas><div class="id">094</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 23, sprite 095, neighbours E S W se sw"></canvas><div class="id">095</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 24, sprite 120, neighbours N S W"></canvas><div class="id">120</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 25, sprite 121, neighbours N S W sw"></canvas><div class="id">121</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 26, sprite 122, neighbours N S W nw"></canvas><div class="id">122</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 27, sprite 123, neighbours N S W sw nw"></canvas><div class="id">123</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 28, sprite 124, neighbours N E W"></canvas><div class="id">124</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 29, sprite 125, neighbours N E W nw"></canvas><div class="id">125</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 30, sprite 126, neighbours N E W ne"></canvas><div class="id">126</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 31, sprite 127, neighbours N E W ne nw"></canvas><div class="id">127</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 32, sprite 152, neighbours N E S W"></canvas><div class="id">152</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 33, sprite 153, neighbours N E S W ne"></canvas><div class="id">153</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 34, sprite 154, neighbours N E S W se"></canvas><div class="id">154</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 35, sprite 155, neighbours N E S W ne se"></canvas><div class="id">155</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 36, sprite 156, neighbours N E S W sw"></canvas><div class="id">156</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 37, sprite 157, neighbours N E S W ne sw"></canvas><div class="id">157</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 38, sprite 158, neighbours N E S W se sw"></canvas><div class="id">158</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 39, sprite 159, neighbours N E S W ne se sw"></canvas><div class="id">159</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 40, sprite 184, neighbours N E S W nw"></canvas><div class="id">184</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 41, sprite 185, neighbours N E S W ne nw"></canvas><div class="id">185</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 42, sprite 186, neighbours N E S W se nw"></canvas><div class="id">186</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 43, sprite 187, neighbours N E S W ne se nw"></canvas><div class="id">187</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 44, sprite 188, neighbours N E S W sw nw"></canvas><div class="id">188</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 45, sprite 189, neighbours N E S W ne sw nw"></canvas><div class="id">189</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 46, sprite 190, neighbours N E S W se sw nw"></canvas><div class="id">190</div></div><div class="cell paint-in shown"><canvas width="8" height="8" role="img" aria-label="Cell 47, sprite 191, neighbours N E S W ne se sw nw"></canvas><div class="id">191</div></div></div>
+    </div>
+    <div class="rowkey">
+      <div><b>Row 1</b>empty, lone cell, four end caps, two straights</div>
+      <div><b>Row 2</b>elbows — each without, then with, the diagonal that closes it</div>
+      <div><b>Row 3</b>T-junctions, north and east arms</div>
+      <div><b>Row 4</b>T-junctions, south and west arms</div>
+      <div><b>Row 5</b>all four arms, diagonals in binary</div>
+      <div><b>Row 6</b>…and the rest; the last cell is plain interior</div>
+    </div>
+  </figure>
+
+  <section class="col">
+    <p class="callout"><b>The first cell stays blank.</b> Cell 0 of every block is its empty tile — the one the brush stamps to erase — so sprite <code>024</code> must be left empty even though nothing stops you drawing in it. Anything you put there will be painted onto the map wherever you erase. (In block (0,0) the empty cell is sprite <code>000</code>, which the sheet keeps blank for you.)</p>
+  </section>
+
+  <figure>
+    <div class="figcap">
+      <span class="figno">Fig. 3</span>
+      <span class="fignote">Paint here to watch the rule work. Click or drag to lay terrain down and again to clear it; every cell you touch refits itself and its eight neighbours.</span>
+    </div>
+    <div class="plate">
+      <div class="sandbox">
+        <canvas id="sandcanvas" width="112" height="64" style="width: 448px;"></canvas>
+        <div>
+          <div class="readout" id="readout"><div class="k">Hover a cell to read it.</div><div class="k">&nbsp;</div><div class="k">Terrain <span class="v">21</span> cells</div></div>
+          <button class="ghost" id="clearbtn" type="button">Clear</button>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <hr class="rule">
+
+  <section class="col">
+    <h2>Doing it in the editor</h2>
+  </section>
+
+  <section class="col">
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>Start at the last cell</h3>
+          <p>Sprite <code>191</code> is plain interior — no edges, no corners, just the terrain's fill and whatever texture it carries. Everything else is that tile with corners taken out of it, so it sets the palette for the other forty-six.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Turn the guide on</h3>
+          <p>The button between the paint tools and <em>Select</em> toggles the autotile guide. It overlays the 3×3 diagram from Fig. 2 straight onto your canvas, so you can read which neighbours a cell is drawn for without counting rows. It is blue until the block is marked, green after.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Draw one corner, then rotate</h3>
+          <p>Sprite <code>025</code> — the lone cell — is all four outer corners at once, so drawing it gives you that shape in every orientation. Copy quadrants out of it with <code>R</code>, <code>F</code> and <code>V</code> rather than redrawing them, and the block stays consistent.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Mark the block, then paint</h3>
+          <p>In the Map Editor, select any sprite of the block and hit the autotile button — <code>AUTOTILE ON</code>. From then on the pencil lays terrain instead of stamping sprites, and the block's top-left sprite erases it again.</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>Flag all forty-seven</h3>
+          <p>Collision reads sprite flags, and the brush is free to swap a cell for any other piece as its neighbours change — so set <strong>flag 1</strong> on every one of the forty-seven, and leave it off cell 0. Miss one and the terrain will be solid in some shapes and walk-through in others.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    "use strict";
+
+    // Neighbour bits, matching AutotileSheet.
+    var N = 1, E = 2, S = 4, W = 8, NE = 16, SE = 32, SW = 64, NW = 128, C = N | E | S | W;
+
+    var CELL_MASK = [
+      -1, 0, N, E, S, W, N | S, E | W,
+      N | E, N | E | NE, E | S, E | S | SE, S | W, S | W | SW, W | N, W | N | NW,
+      N | E | S, N | E | S | NE, N | E | S | SE, N | E | S | NE | SE,
+      E | S | W, E | S | W | SE, E | S | W | SW, E | S | W | SE | SW,
+      S | W | N, S | W | N | SW, S | W | N | NW, S | W | N | SW | NW,
+      W | N | E, W | N | E | NW, W | N | E | NE, W | N | E | NW | NE,
+      C, C | NE, C | SE, C | NE | SE, C | SW, C | NE | SW, C | SE | SW, C | NE | SE | SW,
+      C | NW, C | NE | NW, C | SE | NW, C | NE | SE | NW,
+      C | SW | NW, C | NE | SW | NW, C | SE | SW | NW, C | NE | SE | SW | NW
+    ];
+
+    var CELL_FOR_MASK = (function () {
+      var t = new Int32Array(256);
+      for (var c = 1; c < CELL_MASK.length; c++) t[CELL_MASK[c]] = c;
+      return t;
+    })();
+
+    function canonicalize(m) {
+      if ((m & (N | E)) !== (N | E)) m &= ~NE;
+      if ((m & (S | E)) !== (S | E)) m &= ~SE;
+      if ((m & (S | W)) !== (S | W)) m &= ~SW;
+      if ((m & (N | W)) !== (N | W)) m &= ~NW;
+      return m;
+    }
+
+    // Sprite id of a cell of block (3,0): 8 cells to a block row, 32 to a sheet row.
+    function spriteFor(cell) { return (cell >> 3) * 32 + 24 + (cell & 7); }
+
+    // ── Tile art ────────────────────────────────────────────
+    // Colours are Mono8 palette indices 3 and 11; the plate is 17.
+    var BODY = "#008751", LIT = "#00e436", PLATE = "#111d35";
+
+    // One 4x4 quadrant, oriented as a top-left corner.
+    // 0 = open air, 1 = fill, 2 = lit edge.
+    function quadrant(vert, horiz, diag) {
+      var q = new Uint8Array(16);
+      for (var y = 0; y < 4; y++) {
+        for (var x = 0; x < 4; x++) {
+          var v = 1;
+          if (!vert && !horiz) {
+            if (x === 0 && y === 0) v = 0;          // outer corner: cut the pixel
+            else if (x === 0 || y === 0) v = 2;     // both sides exposed
+          } else if (!vert) {
+            if (y === 0) v = 2;                     // top edge exposed
+          } else if (!horiz) {
+            if (x === 0) v = 2;                     // side edge exposed
+          } else if (!diag) {
+            if (x === 0 && y === 0) v = 2;          // inner corner: seam pixel
+          }
+          q[y * 4 + x] = v;
+        }
+      }
+      return q;
+    }
+
+    var QUADS = [
+      { dx: 0, dy: 0, fx: 1, fy: 1, v: N, h: W, d: NW },
+      { dx: 4, dy: 0, fx: -1, fy: 1, v: N, h: E, d: NE },
+      { dx: 0, dy: 4, fx: 1, fy: -1, v: S, h: W, d: SW },
+      { dx: 4, dy: 4, fx: -1, fy: -1, v: S, h: E, d: SE }
+    ];
+
+    // Draws an 8x8 tile for a neighbourhood mask, in backing pixels.
+    function drawTile(ctx, ox, oy, mask) {
+      for (var i = 0; i < 4; i++) {
+        var Q = QUADS[i];
+        var q = quadrant((mask & Q.v) !== 0, (mask & Q.h) !== 0, (mask & Q.d) !== 0);
+        for (var y = 0; y < 4; y++) {
+          for (var x = 0; x < 4; x++) {
+            var v = q[y * 4 + x];
+            if (v === 0) continue;
+            var px = ox + Q.dx + (Q.fx < 0 ? 3 - x : x);
+            var py = oy + Q.dy + (Q.fy < 0 ? 3 - y : y);
+            ctx.fillStyle = v === 2 ? LIT : BODY;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+      }
+    }
+
+    // The editor's own overlay: 2px squares, half opacity, white in the middle.
+    var DIRS = [NW, N, NE, W, 0, E, SW, S, SE];
+
+    function drawGuide(ctx, ox, oy, mask) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      for (var i = 0; i < 9; i++) {
+        var centre = DIRS[i] === 0;
+        if (!centre && (mask & DIRS[i]) === 0) continue;
+        ctx.fillStyle = centre ? "#fff1e8" : LIT;
+        ctx.fillRect(ox + 1 + (i % 3) * 2, oy + 1 + ((i / 3) | 0) * 2, 2, 2);
+      }
+      ctx.restore();
+    }
+
+    function makeCanvas(w, h, cssW) {
+      var c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      if (cssW) { c.style.width = cssW; }
+      return c;
+    }
+
+    // ── Fig 1: the five corner states ───────────────────────
+    var CORNERS = [
+      { name: "Outer corner", when: "both cardinals empty", v: false, h: false, d: false },
+      { name: "Edge", when: "vertical filled, side open", v: true, h: false, d: false },
+      { name: "Edge, turned", when: "side filled, vertical open", v: false, h: true, d: false },
+      { name: "Inner corner", when: "both filled, diagonal empty", v: true, h: true, d: false },
+      { name: "Interior", when: "all three filled", v: true, h: true, d: true }
+    ];
+
+    var cornersHost = document.getElementById("corners");
+    CORNERS.forEach(function (spec) {
+      var wrap = document.createElement("div");
+      wrap.className = "corner";
+
+      var cv = makeCanvas(4, 4);
+      var ctx = cv.getContext("2d");
+      ctx.fillStyle = PLATE;
+      ctx.fillRect(0, 0, 4, 4);
+      var q = quadrant(spec.v, spec.h, spec.d);
+      for (var y = 0; y < 4; y++) {
+        for (var x = 0; x < 4; x++) {
+          var val = q[y * 4 + x];
+          if (val === 0) continue;
+          ctx.fillStyle = val === 2 ? LIT : BODY;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+
+      var name = document.createElement("div");
+      name.className = "name";
+      name.textContent = spec.name;
+
+      var when = document.createElement("div");
+      when.className = "when";
+      when.textContent = spec.when;
+
+      wrap.appendChild(cv);
+      wrap.appendChild(name);
+      wrap.appendChild(when);
+      cornersHost.appendChild(wrap);
+    });
+
+    // ── Fig 2: the block ────────────────────────────────────
+    var blockHost = document.getElementById("block");
+    var blockCells = [];
+    var guideOn = false;
+
+    function renderBlockCell(entry) {
+      var ctx = entry.ctx, mask = entry.mask;
+      ctx.fillStyle = PLATE;
+      ctx.fillRect(0, 0, 8, 8);
+      if (mask >= 0) {
+        drawTile(ctx, 0, 0, mask);
+        if (guideOn) drawGuide(ctx, 0, 0, mask);
+      }
+    }
+
+    for (var cell = 0; cell < CELL_MASK.length; cell++) {
+      var mask = CELL_MASK[cell];
+      var wrap = document.createElement("div");
+      wrap.className = "cell paint-in" + (mask < 0 ? " is-empty" : "");
+
+      var cv = makeCanvas(8, 8);
+      var entry = { ctx: cv.getContext("2d"), mask: mask };
+      entry.ctx.imageSmoothingEnabled = false;
+      blockCells.push(entry);
+      renderBlockCell(entry);
+
+      var id = document.createElement("div");
+      id.className = "id";
+      var sprite = spriteFor(cell);
+      id.textContent = mask < 0 ? "— " + pad(sprite) : pad(sprite);
+
+      cv.setAttribute("role", "img");
+      cv.setAttribute("aria-label", mask < 0
+        ? "Cell 0, sprite " + pad(sprite) + ", the block's empty tile"
+        : "Cell " + cell + ", sprite " + pad(sprite) + ", neighbours " + maskName(mask));
+
+      wrap.appendChild(cv);
+      wrap.appendChild(id);
+      blockHost.appendChild(wrap);
+    }
+
+    function pad(n) { return String(n).padStart(3, "0"); }
+
+    function maskName(mask) {
+      if (mask === 0) return "none";
+      var parts = [];
+      if (mask & N) parts.push("N");
+      if (mask & E) parts.push("E");
+      if (mask & S) parts.push("S");
+      if (mask & W) parts.push("W");
+      if (mask & NE) parts.push("ne");
+      if (mask & SE) parts.push("se");
+      if (mask & SW) parts.push("sw");
+      if (mask & NW) parts.push("nw");
+      return parts.join(" ");
+    }
+
+    // Paint the block in reading order, the way you would draw it.
+    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var tiles = blockHost.querySelectorAll(".paint-in");
+    tiles.forEach(function (el, i) {
+      if (reduced) { el.classList.add("shown"); return; }
+      setTimeout(function () { el.classList.add("shown"); }, 90 + i * 11);
+    });
+
+    var toggle = document.getElementById("guidetoggle");
+    toggle.addEventListener("click", function () {
+      guideOn = !guideOn;
+      toggle.setAttribute("aria-pressed", guideOn ? "true" : "false");
+      blockCells.forEach(renderBlockCell);
+    });
+
+    // ── Fig 3: sandbox ──────────────────────────────────────
+    var COLS = 14, ROWS = 8, ZOOM = 4;
+    var sand = document.getElementById("sandcanvas");
+    sand.width = COLS * 8;
+    sand.height = ROWS * 8;
+    sand.style.width = (COLS * 8 * ZOOM) + "px";
+    var sctx = sand.getContext("2d");
+    sctx.imageSmoothingEnabled = false;
+
+    var grid = new Uint8Array(COLS * ROWS);
+    var readout = document.getElementById("readout");
+    var hover = -1;
+
+    function filled(x, y) {
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return false;
+      return grid[y * COLS + x] === 1;
+    }
+
+    function maskAt(x, y) {
+      var m = 0;
+      if (filled(x, y - 1)) m |= N;
+      if (filled(x + 1, y)) m |= E;
+      if (filled(x, y + 1)) m |= S;
+      if (filled(x - 1, y)) m |= W;
+      if (filled(x + 1, y - 1)) m |= NE;
+      if (filled(x + 1, y + 1)) m |= SE;
+      if (filled(x - 1, y + 1)) m |= SW;
+      if (filled(x - 1, y - 1)) m |= NW;
+      return canonicalize(m);
+    }
+
+    function drawSand() {
+      sctx.fillStyle = PLATE;
+      sctx.fillRect(0, 0, sand.width, sand.height);
+
+      // A faint cell grid, so empty ground still reads as a grid.
+      sctx.fillStyle = "rgba(255,241,232,0.07)";
+      for (var gx = 1; gx < COLS; gx++) sctx.fillRect(gx * 8, 0, 1, sand.height);
+      for (var gy = 1; gy < ROWS; gy++) sctx.fillRect(0, gy * 8, sand.width, 1);
+
+      for (var y = 0; y < ROWS; y++) {
+        for (var x = 0; x < COLS; x++) {
+          if (!filled(x, y)) continue;
+          drawTile(sctx, x * 8, y * 8, maskAt(x, y));
+        }
+      }
+    }
+
+    function updateReadout() {
+      if (hover < 0) {
+        readout.innerHTML =
+          '<div class="k">Hover a cell to read it.</div>' +
+          '<div class="k">&nbsp;</div>' +
+          '<div class="k">Terrain <span class="v">' + count() + "</span> cells</div>";
+        return;
+      }
+      var x = hover % COLS, y = (hover / COLS) | 0;
+      if (!filled(x, y)) {
+        readout.innerHTML =
+          '<div class="k">cell <span class="v">' + x + ", " + y + "</span></div>" +
+          '<div class="k">no terrain</div>' +
+          '<div class="k">— <span class="v">click to fill</span></div>';
+        return;
+      }
+      var m = maskAt(x, y);
+      var c = CELL_FOR_MASK[m];
+      readout.innerHTML =
+        '<div class="k">cell <span class="v">' + x + ", " + y + "</span></div>" +
+        '<div class="k">neighbours <span class="hi">' + maskName(m) + "</span></div>" +
+        '<div class="k">block cell <span class="v">' + c + "</span></div>" +
+        '<div class="k">sprite <span class="v">' + pad(spriteFor(c)) + "</span></div>";
+    }
+
+    function count() {
+      var n = 0;
+      for (var i = 0; i < grid.length; i++) if (grid[i]) n++;
+      return n;
+    }
+
+    function cellFromEvent(ev) {
+      var r = sand.getBoundingClientRect();
+      var x = Math.floor((ev.clientX - r.left) / r.width * COLS);
+      var y = Math.floor((ev.clientY - r.top) / r.height * ROWS);
+      if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return -1;
+      return y * COLS + x;
+    }
+
+    var painting = false, paintValue = 1;
+
+    sand.addEventListener("pointerdown", function (ev) {
+      var i = cellFromEvent(ev);
+      if (i < 0) return;
+      sand.setPointerCapture(ev.pointerId);
+      painting = true;
+      paintValue = grid[i] ? 0 : 1;
+      grid[i] = paintValue;
+      hover = i;
+      drawSand();
+      updateReadout();
+      ev.preventDefault();
+    });
+
+    sand.addEventListener("pointermove", function (ev) {
+      var i = cellFromEvent(ev);
+      if (i < 0) return;
+      if (painting && grid[i] !== paintValue) {
+        grid[i] = paintValue;
+        drawSand();
+      }
+      if (i !== hover) { hover = i; updateReadout(); }
+    });
+
+    function stop() { painting = false; }
+    sand.addEventListener("pointerup", stop);
+    sand.addEventListener("pointercancel", stop);
+    sand.addEventListener("pointerleave", function () {
+      stop();
+      hover = -1;
+      updateReadout();
+    });
+
+    document.getElementById("clearbtn").addEventListener("click", function () {
+      grid.fill(0);
+      drawSand();
+      updateReadout();
+    });
+
+    // Seed with a shape that exercises an inner corner, a T and a lone cell.
+    [[2, 2], [3, 2], [4, 2], [5, 2], [5, 3], [5, 4], [4, 4], [3, 4], [2, 4], [2, 3],
+     [3, 3], [4, 3], [8, 1], [9, 1], [10, 1], [8, 2], [9, 2], [10, 2], [9, 3], [9, 4],
+     [11, 5]].forEach(function (p) { grid[p[1] * COLS + p[0]] = 1; });
+
+    drawSand();
+    updateReadout();
+  })();
+</script>
+
+</body></html>
