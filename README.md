@@ -488,6 +488,21 @@ Row 1 holds the lone cell, the four end caps and the two straights. Row 2 holds 
 
 Both editors can overlay exactly this table on your sprites, as a 3×3 diagram per tile — see the sprite editor's [Autotile Guide](#autotile-guide) and the map editor's [Autotile Blocks](#autotile-blocks).
 
+### Drawing the pieces
+
+![The 47-piece autotile block as it sits on the sprite sheet](images/autotile.png)
+
+*Block (3,0) — sprites `024`-`191` — as it ships in this project. Its first cell is the block's empty tile, which is why the top-left is blank.*
+
+Forty-seven pieces is not forty-seven drawings. Every piece is only its four corners, and a corner has five states: **outer corner** (both cardinals empty), **edge**, **edge turned** ninety degrees, **inner corner** (both cardinals filled, the diagonal empty) and **interior** (all three filled). Two of those five are the same shape rotated, so the art you actually invent is **four drawings** — an outer corner, a straight edge, an inner corner and plain interior. The rest is rotation.
+
+1. **Start at the last cell.** It is the fully surrounded one, so it is plain interior — the terrain's fill and whatever texture it carries. Everything else is that tile with corners taken out of it, so it sets the palette for the other forty-six.
+2. **Draw the lone cell** (the second cell of row 1). It is all four outer corners at once, so drawing it gives you that shape in every orientation. Copy quadrants out of it with the Sprite Editor's `R`, `F` and `V` rather than redrawing them, and the block stays consistent.
+3. **Keep the lit rim on the outermost pixel**, so two pieces set side by side meet without a seam.
+4. **Leave cell 0 blank.** Nothing stops you drawing in it, but the brush stamps it to erase — so whatever is there gets painted onto the map wherever you rub terrain out.
+5. **Turn the [Autotile Guide](#autotile-guide) on** while you draw, to read which neighbours each cell is drawn for without counting rows.
+6. **Mark the block** ([below](#marking-a-block)), then set the collision flag on all forty-seven pieces ([below](#colliding-with-it)) — miss one and the terrain is solid in some shapes and walk-through in others.
+
 ### Marking a block
 
 A block only behaves as an autotile once you mark it as such, which you do with the autotile button in the **Map Editor** (see below). The marks live in `data.atl`, one line per block row and one `0`/`1` per block, written with the rest of the project on `Ctrl+S`. A missing or short file reads as all-off, so an older project simply loads with no autotiles.
