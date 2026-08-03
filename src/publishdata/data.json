@@ -7,9 +7,9 @@
   "ROOMS": {
     "1": {
       "CELLPOS:p": [0, 0],
-      "FLAGPOS:p": [180, 109],
-      "PLYRPOS:p": [30, 100],
-      "BALLPOS:p": [46, 100]
+      "FLAGPOS:p": [180, 105],
+      "PLYRPOS:p": [30, 96],
+      "BALLPOS:p": [46, 96]
     }
   },
   "PLAYER": {

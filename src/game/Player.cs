@@ -16,6 +16,9 @@ internal static class Player
     private const int BtnRight = 1;
     private const int BtnJump = 4;
 
+    /// <summary>Sprite flag marking solid ground; set it on every tile the player must not pass through.</summary>
+    private const int FlagSolid = 1;
+
     // The engine's font advances 4 px a character, which is how the miss is centred on the sprite.
     private const int FontAdvance = 4;
 
@@ -294,6 +297,6 @@ internal static class Player
     // An unauthored HITSIZE is empty, and an empty rect meets nothing.
     private static bool SolidAt(int x, int y)
     {
-        return YourGame.API.acol(x + HitX, y + HitY, HitW, HitH);
+        return YourGame.API.mcol(x + HitX, y + HitY, HitW, HitH, FlagSolid);
     }
 }

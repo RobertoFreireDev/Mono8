@@ -63,7 +63,7 @@ Read the current data files when you need to confirm what exists — they live i
 |---|---|
 | [src/publishdata/data.json](src/publishdata/data.json) | authored json — **read this before writing any `gjson` call** |
 | [src/publishdata/data.gff](src/publishdata/data.gff) | per-sprite flag bits, one line per sheet row |
-| [src/publishdata/data.atl](src/publishdata/data.atl) | which 4×4 blocks are autotiles |
+| [src/publishdata/data.atl](src/publishdata/data.atl) | which 8×6 blocks are autotiles |
 
 Read only — never write them. (`src/data/` is the runtime copy the build consumes; it is not the authored source and is not where you look.)
 
@@ -188,16 +188,11 @@ Ask the developer which layer holds what, then keep the offset in a const. Room/
 ```csharp
 bool mcol(x, y, flag = 0)                   // point on a flagged tile
 bool mcol(x, y, w, h, flag = 0)             // rect meets a flagged tile
-bool acol(x, y, spriteId = -1)              // point on autotile terrain
-bool acol(x, y, w, h, spriteId = -1)        // rect meets autotile terrain
 ```
 
 Coordinates are **pixels over the whole map sheet** = cell coords × 8. Apply your camera/layer offsets *before* calling. The rect runs `x, y` → `x + w - 1, y + h - 1`; an empty rect (side ≤ 0) meets nothing, as does anything off the map.
 
-- `mcol` reads a sprite flag (`0`-`7`), whose meaning is entirely your game's — flag 0 solid, another ice, another hazard, per the developer. One bit per whole 8×8 tile.
-- `acol` reads **autotile terrain at quadrant precision** (quarter-tile), which is what edge and diagonal autotile pieces actually cover — a flag cannot express that. `spriteId` narrows the question to that sprite's 4×4 block, so walls answer without water answering; `-1` asks about every autotile.
-
-Use `mcol` for hand-drawn flagged tiles, `acol` for terrain painted with an autotile brush. Ask the developer which one their level uses.
+`mcol` reads a sprite flag (`0`-`7`), whose meaning is entirely your game's — one bit per whole 8×8 tile. Hand-drawn tiles and autotile pieces alike are read this way: the developer flags the tiles that are solid, ice or hazard, and the terrain an autotile brush paints answers only because its pieces carry the flag. **This project uses flag `1` for solid ground.** Confirm the flag before assuming it for anything else.
 
 ```csharp
 int  fget(spriteId)              bool fget(spriteId, flag)

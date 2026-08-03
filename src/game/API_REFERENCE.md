@@ -29,7 +29,6 @@ Two conventions that catch people out:
 - [Graphics](#graphics) — `cls` `pixel` `line` `rect` `rectfill` `circ` `circfill` `oval` `ovalfill` `spr` `sspr` `sprr` `ssprr` `print` `icon` `camera` `pal` `palt`
 - [Map](#map) — `mget` `mset` `map`
 - [Tile collision](#tile-collision) — `mcol`
-- [Autotile collision](#autotile-collision) — `acol`
 - [Sprite flags](#sprite-flags) — `fget` `fset`
 - [Input](#input) — `btn` `btnp` `btnr` `mouse*`
 - [Audio](#audio) — `sfx` `music`
@@ -408,9 +407,9 @@ Whether the tile under a point carries a sprite flag.
 | `x`, `y` | point, in map-sheet pixels | negative → `false` (off the map) |
 | `flag` | bit index to test | `0`–`7`; outside that → `false` |
 
-The meaning of each flag is entirely your game's: flag 0 solid, another ice, another hazard — ask
-the developer which is which. Cells holding sprite `0` never collide, however that sprite is
-flagged.
+The meaning of each flag is entirely your game's: one for solid, another for ice, another for
+hazards — ask the developer which is which. **This project uses flag `1` for solid ground.** Cells
+holding sprite `0` never collide, however that sprite is flagged.
 
 ### `bool mcol(int x, int y, int w, int h, int flag = 0)`
 
@@ -428,38 +427,17 @@ grows with the cells covered — a 16 × 16 hitbox touches at most 9 cells, whic
 Standard axis-separated movement:
 
 ```csharp
-const int FlagSolid = 0;
+const int FlagSolid = 1;
 x += vx * elapsedSeconds;
 if (API.mcol((int)x, (int)y, w, h, FlagSolid)) { /* undo x, zero vx */ }
 y += vy * elapsedSeconds;
 if (API.mcol((int)x, (int)y, w, h, FlagSolid)) { /* undo y, zero vy */ }
 ```
 
----
-
-## Autotile collision
-
-Same coordinate space as `mcol` (map-sheet pixels), but the answer comes from the *autotile
-terrain* painted with an autotile brush rather than from a per-sprite flag — read at **quadrant
-precision** (quarter of a tile), which is what edge and diagonal pieces actually cover and what a
-single flag bit cannot express.
-
-Only tiles inside a 4 × 4 block marked as an autotile carry terrain; loose art carries none.
-Ask the developer whether the level uses flagged tiles (`mcol`) or autotile brushes (`acol`).
-
-### `bool acol(int x, int y, int spriteId = -1)`
-
-Whether a point sits on autotile terrain.
-
-| Parameter | Meaning | Constraints |
-|---|---|---|
-| `x`, `y` | point, in map-sheet pixels | negative → `false` |
-| `spriteId` | narrows the question to *that sprite's* 4 × 4 block | `-1` (default) asks about every autotile; pass a wall sprite so water does not answer |
-
-### `bool acol(int x, int y, int w, int h, int spriteId = -1)`
-
-Whether a rectangle meets autotile terrain anywhere. Rect runs to (`x + w - 1`, `y + h - 1`); either
-side ≤ 0 → `false`; clipped to the map.
+Terrain painted with an **autotile** brush is read the same way, and there is no separate call for
+it: the brush swaps a cell between the forty-seven pieces of its 8 × 6 block as the neighbours
+change, so the developer sets one flag across the whole block and `mcol` answers wherever the brush
+went. Ask which flag a terrain uses rather than assuming.
 
 ---
 

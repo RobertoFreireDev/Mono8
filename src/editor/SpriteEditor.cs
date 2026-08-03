@@ -1215,11 +1215,10 @@ internal class SpriteEditor : IEditor, IEditorConfig
         }
     }
 
-    // The terrain each of a block's sixteen pieces is expected to cover, laid over the canvas from
+    // The neighbourhood each of a block's forty-seven pieces is drawn for, laid over the canvas from
     // its top-left tile. The canvas starts on the selected sprite, so that tile holds the sprite's
     // own cell and the rest of the block runs right and down from it: the guide is cut off both
     // where the block ends and where the current zoom stops bringing tiles onto the canvas.
-    // Sprites in the sheet's leftover rows belong to no block and get no guide.
     private void DrawAutotileGuide(int scale, int validW, int validH)
     {
         if (!AutotileSheet.TryGetBlock(sprNmbr, out int blockX, out int blockY)) return;
@@ -1229,17 +1228,17 @@ internal class SpriteEditor : IEditor, IEditorConfig
         int tileSize = Constants.GameDataSizes.TileSize;
         int tilePx = tileSize * scale;
 
-        int firstCellX = firstCell % AutotileSheet.BlockSize;
-        int firstCellY = firstCell / AutotileSheet.BlockSize;
+        int firstCellX = firstCell % AutotileSheet.BlockW;
+        int firstCellY = firstCell / AutotileSheet.BlockW;
 
-        int cols = Math.Min(AutotileSheet.BlockSize - firstCellX, validW / tileSize);
-        int rows = Math.Min(AutotileSheet.BlockSize - firstCellY, validH / tileSize);
+        int cols = Math.Min(AutotileSheet.BlockW - firstCellX, validW / tileSize);
+        int rows = Math.Min(AutotileSheet.BlockH - firstCellY, validH / tileSize);
 
         for (int tileY = 0; tileY < rows; tileY++)
         {
             for (int tileX = 0; tileX < cols; tileX++)
             {
-                int cell = (firstCellY + tileY) * AutotileSheet.BlockSize + firstCellX + tileX;
+                int cell = (firstCellY + tileY) * AutotileSheet.BlockW + firstCellX + tileX;
 
                 AutotileOverlay.DrawCell(_api,
                     sprcnvsarea.X + tileX * tilePx, sprcnvsarea.Y + tileY * tilePx,

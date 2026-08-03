@@ -150,35 +150,6 @@ public interface IMono8API
     bool mcol(int x, int y, int w, int h, int flag = 0);
 
     // ============================================================
-    // AUTOTILE COLLISION
-    // ============================================================
-
-    /// <summary>
-    /// Whether the point (<paramref name="x"/>, <paramref name="y"/>) is covered by autotile
-    /// terrain. Coordinates are pixels over the whole map sheet — map cell coordinates times 8, the
-    /// same space <see cref="mget"/> reads — so apply your own camera and layer offsets first.
-    /// <para>
-    /// Terrain is read at quadrant precision, a quarter of a tile, since that is how finely an
-    /// autotile piece describes it: an edge piece covers half its tile and a diagonal two opposite
-    /// quarters, which no per-sprite flag can say. Only tiles belonging to a block marked as an
-    /// autotile carry terrain; loose art and unmarked blocks carry none.
-    /// </para>
-    /// </summary>
-    /// <param name="spriteId">
-    /// Narrows the question to the terrain of the block this sprite belongs to, so a game can ask
-    /// about its walls without its water answering. The default of -1 asks about every autotile.
-    /// </param>
-    bool acol(int x, int y, int spriteId = -1);
-
-    /// <summary>
-    /// Whether the rectangle running from (<paramref name="x"/>, <paramref name="y"/>) to
-    /// (x + <paramref name="w"/> - 1, y + <paramref name="h"/> - 1) meets autotile terrain anywhere.
-    /// An empty rectangle — either side zero or negative — meets nothing.
-    /// </summary>
-    /// <inheritdoc cref="acol(int, int, int)"/>
-    bool acol(int x, int y, int w, int h, int spriteId = -1);
-
-    // ============================================================
     // SPRITE FLAGS
     // ============================================================
 

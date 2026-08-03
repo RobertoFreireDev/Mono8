@@ -114,7 +114,7 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 |---|---|
 | `data.gfx` | Sprite sheet pixels. |
 | `data.gff` | Per-sprite flag bits. |
-| `data.atl` | Which 4×4 sprite blocks are autotiles — 7 lines of 8 `0`/`1` digits. |
+| `data.atl` | Which 8×6 sprite blocks are autotiles — 5 lines of 4 `0`/`1` digits. |
 | `data.map` | Map cells, as two hex digits per cell. |
 | `data.sfx` | The 64 sound effects. |
 | `data.music` | The 64 music patterns. |
@@ -307,24 +307,6 @@ bool ice   = API.mcol(ox + x, oy + y, 8, 8, 4);     // flag 4
 bool ledge = API.mcol(ox + x, oy + y + 8);          // one point below the feet
 ```
 
-### Autotile Collision
-
-| Function | Parameters | Description |
-|---|---|---|
-| `acol` | `x, y, spriteId = -1` | Whether the point `x, y` is covered by [autotile](#autotile) terrain. |
-| `acol` | `x, y, w, h, spriteId = -1` | Whether the `w`×`h` rectangle whose top-left corner is `x, y` meets autotile terrain anywhere. |
-
-Coordinates are **pixels over the whole map sheet** — map cell coordinates times `8`, the same space [`mget`](#map) reads — so apply your own camera and layer offsets before asking. The rectangle runs from `x, y` to `x + w - 1, y + h - 1`, and an empty one (either side zero or negative) meets nothing, as does any point off the map.
-
-Terrain is read at **quadrant precision**, a quarter of a tile, because that is how finely an autotile piece describes it: an edge piece covers half its tile and a diagonal two opposite quarters. That is what these functions are for — a sprite flag is one bit for a whole 8×8 tile, so it can only ever be wrong by half a tile on the pieces an autotile stroke lays down. Only tiles belonging to a block **marked as an autotile** carry terrain; loose art, unmarked blocks and the block's own empty cell carry none.
-
-`spriteId` narrows the question to the terrain of the block that sprite belongs to, so a game can ask about its walls without its water answering. The default of `-1` asks about every autotile alike.
-
-```csharp
-// The block sprite 64 belongs to is the solid one; grass elsewhere is walked over.
-if (!API.acol(x + dx, y, 8, 8, 64)) x += dx;
-```
-
 ### Sprite Flags
 
 | Function | Parameters | Description |
@@ -338,7 +320,7 @@ Each sprite has 8 flags (`flag` `0`-`7`), free for you to use as collision, terr
 
 To collide against flagged tiles, [`mcol`](#tile-collision) asks the question directly for a point or a rectangle instead of your walking the cells yourself.
 
-A flag is one bit for a whole 8×8 tile, which is all a hand-drawn tile needs. For terrain painted with an [autotile](#autotile) it is too coarse — half its pieces are solid in only part of their tile — so read that with [`acol`](#autotile-collision) instead.
+Flags are how the map answers *every* collision question, hand-drawn tiles and [autotile](#autotile) terrain alike. An autotile brush swaps a cell between its forty-seven pieces as the neighbours change, so give the whole block the same flag once and the terrain answers the same wherever the brush takes it.
 
 ### Input
 
@@ -483,22 +465,28 @@ That recompile builds **new** objects and swaps the whole index at once, so an o
 
 ## Autotile
 
-An autotile is a **4×4 block of sprites** holding one terrain and every shape that terrain can take, so that painting a single cell in the Map Editor also refits the cells around it into the right edges, corners and diagonals.
+An autotile is an **8×6 block of sprites** holding one terrain and every shape that terrain can take, so that painting a single cell in the Map Editor also refits the cells around it into the right edges, corners and junctions.
 
-Blocks are fixed to the grid: a block is 4×4 sprites aligned to a multiple of four on both axes, giving **8 blocks across by 7 down**. The sprite sheet is 30 rows tall, so its **last two rows form no block** — sprites there can never be part of an autotile. Of the block's sixteen cells, the top-left one is its **empty tile** — which for the very first block is sprite `0`, the sheet's reserved "no sprite" id — and the other fifteen hold one piece each, hence a *15-piece* autotile.
+Blocks are fixed to the grid: a block is 8×6 sprites aligned to a multiple of its own size on both axes, giving **4 blocks across by 5 down**. 8×6 divides the 32×30 sheet exactly, so every sprite belongs to a block. Of the block's forty-eight cells, the top-left one is its **empty tile** — which for the very first block is sprite `0`, the sheet's reserved "no sprite" id — and the other forty-seven hold one piece each, hence a *47-piece* autotile.
 
-### The 16 cells
+### The 48 cells
 
-Terrain is tracked per **quadrant**, not per edge: each cell covers some subset of its tile's four 4×4 quadrants, and the sixteen cells cover the sixteen possible subsets exactly once — which is what lets painting pick a piece straight from the terrain a cell must show. The layout is fixed — draw your art to match it, reading the block left-to-right, top-to-bottom:
+Terrain is tracked per **cell**: a cell either holds terrain or it does not, and which piece it shows is decided by its **eight neighbours** — the four cardinals always, and each diagonal only when both of the cardinals beside it hold terrain too (otherwise the gap between them already cuts that corner off). Exactly **47 neighbourhoods** survive that rule, which is why the block holds 47 pieces and every one of the 256 raw neighbourhoods lands on one of them.
 
-| | Column 1 | Column 2 | Column 3 | Column 4 |
-|---|---|---|---|---|
-| **Row 1** | *empty* | BR | TR + BL | TL |
-| **Row 2** | BL | TR + BR | TL + BL + BR | BL + BR |
-| **Row 3** | TL + BR | TR + BL + BR | **solid** (all four) | TL + TR + BL |
-| **Row 4** | TR | TL + TR | TL + TR + BR | TL + BL |
+The layout is fixed — draw your art to match it, reading the block left-to-right, top-to-bottom. Uppercase names a cardinal neighbour, lowercase a diagonal:
 
-`TL`/`TR`/`BL`/`BR` are the tile's top-left, top-right, bottom-left and bottom-right quadrants. Both editors can overlay exactly this table on your sprites — see the sprite editor's [Autotile Guide](#autotile-guide) and the map editor's [Autotile Blocks](#autotile-blocks).
+| | c1 | c2 | c3 | c4 | c5 | c6 | c7 | c8 |
+|---|---|---|---|---|---|---|---|---|
+| **Row 1** | *empty* | *lone* | N | E | S | W | N S | E W |
+| **Row 2** | N E | N E ne | E S | E S se | S W | S W sw | W N | W N nw |
+| **Row 3** | N E S | + ne | + se | + ne se | E S W | + se | + sw | + se sw |
+| **Row 4** | S W N | + sw | + nw | + sw nw | W N E | + nw | + ne | + nw ne |
+| **Row 5** | N E S W | + ne | + se | + ne se | + sw | + ne sw | + se sw | + ne se sw |
+| **Row 6** | + nw | + ne nw | + se nw | + ne se nw | + sw nw | + ne sw nw | + se sw nw | **+ all four** |
+
+Row 1 holds the lone cell, the four end caps and the two straights. Row 2 holds the two-cardinal elbows, each without and with the diagonal that closes it. Rows 3–4 are the three-cardinal T-junctions over the two diagonals each leaves open, and rows 5–6 are all four cardinals over the sixteen subsets of the diagonals, counted in binary. The last cell — fully surrounded — is the plain interior tile.
+
+Both editors can overlay exactly this table on your sprites, as a 3×3 diagram per tile — see the sprite editor's [Autotile Guide](#autotile-guide) and the map editor's [Autotile Blocks](#autotile-blocks).
 
 ### Marking a block
 
@@ -506,7 +494,7 @@ A block only behaves as an autotile once you mark it as such, which you do with 
 
 ### Colliding with it
 
-Because terrain is tracked per quadrant, your game can collide against it directly with [`acol`](#autotile-collision) — no sprite flags to set, and no half-tile of error on the edges and diagonals a stroke lays down.
+Terrain collides through [`mcol`](#tile-collision) like anything else on the map, so set a [sprite flag](#sprite-flags) on the block's forty-seven pieces — all of them, since the brush is free to swap any cell for any other as its neighbours change — and leave it off the block's empty tile. The Sprite Editor's flag buttons are per-sprite, so it is a pass over the block once, after which the whole terrain answers.
 
 ## Sprite Editor
 
@@ -555,9 +543,9 @@ Each slot previews its own pattern: white where the pattern paints and dark grey
 
 ### Autotile Guide
 
-The button between the paint tools and **Select** on the tool row is **not a tool** — it toggles on its own, so the guide can be shown while any paint tool is selected. It overlays, on the canvas, the terrain each cell of a 4×4 [autotile](#autotile) block is expected to hold: a half-transparent quarter-tile of color per quadrant the piece covers, and nothing for the quadrants it leaves empty. The fill is **green** once the block is marked as an autotile and **blue** while it is not.
+The button between the paint tools and **Select** on the tool row is **not a tool** — it toggles on its own, so the guide can be shown while any paint tool is selected. It overlays, on the canvas, the neighbourhood each cell of an 8×6 [autotile](#autotile) block is drawn for: a half-transparent 3×3 diagram per tile, white in the middle for the tile itself and a square of color on every neighbour that piece needs to have terrain. The fill is **green** once the block is marked as an autotile and **blue** while it is not, and the block's empty cell draws nothing.
 
-The guide is laid out from the canvas's top-left tile, which holds the selected sprite's own cell, and the rest of the block runs right and down from there — so it is cut off both where the block ends and where the canvas zoom stops bringing tiles into view. Select a block's **first cell** (its empty tile) at zoom `x4` or `x8` to see all sixteen cells laid out while you draw it; at `x1` the canvas holds a single tile and the guide covers just that one. Sprites in the sheet's leftover last two rows belong to no block and draw no guide.
+The guide is laid out from the canvas's top-left tile, which holds the selected sprite's own cell, and the rest of the block runs right and down from there — so it is cut off both where the block ends and where the canvas zoom stops bringing tiles into view. Select a block's **first cell** (its empty tile) at zoom `x8` to see a full 8-wide row of it laid out while you draw; at `x1` the canvas holds a single tile and the guide covers just that one.
 
 ### Palette & Navigator
 
@@ -641,15 +629,15 @@ Edits are confined to the enabled layer's quarter and never spill into a neighbo
 
 ### Autotile Blocks
 
-One tile past the layer buttons sits the **autotile button**, which marks the 4×4 block the selected sprite belongs to as a 15-piece [autotile](#autotile) — or unmarks it. Left-click toggles it, and an `AUTOTILE ON` / `AUTOTILE OFF` notice confirms which way it went. The button lights up while the selected sprite's block is an autotile, and is inert for sprites in the sheet's last two rows, which are too short to form a block.
+One tile past the layer buttons sits the **autotile button**, which marks the 8×6 block the selected sprite belongs to as a 47-piece [autotile](#autotile) — or unmarks it. Left-click toggles it, and an `AUTOTILE ON` / `AUTOTILE OFF` notice confirms which way it went. The button lights up while the selected sprite's block is an autotile.
 
-**Hover the button** (without clicking) to preview the block over the sprite navigator: which 4×4 block the button will affect, and the terrain each of its sixteen cells is expected to hold — a half-transparent quarter-tile of color per quadrant a piece covers, **green** if the block is already an autotile and **blue** if not. Cell 0 covers nothing, being the block's empty tile, so it draws nothing at all. A block spans four sheet rows and can straddle a page boundary, in which case only the rows the current navigator page shows are overlaid.
+**Hover the button** (without clicking) to preview the block over the sprite navigator: which 8×6 block the button will affect, and the neighbourhood each of its cells is drawn for — a half-transparent 3×3 diagram per tile, white in the middle for the tile itself and a square on every neighbour its piece needs, **green** if the block is already an autotile and **blue** if not. Cell 0 is no piece at all, being the block's empty tile, so it draws nothing. A block is exactly as tall as a navigator page and there are as many block rows as pages, so a block is always shown whole, on its own page.
 
 Both the button and its preview are part of the split view, so neither is shown in the full-screen map view.
 
 ### Painting with an Autotile
 
-Once a block is marked, selecting **any** of its sprites and painting with the **Pixel** tool stamps that piece and refits the eight cells around it, so terrain grows with the correct edges, corners and diagonals as you drag. The piece you select names the terrain the stamped cell will show, and the neighbours are refitted against it: they grow edges up against terrain the stamp lays down and retract from terrain it clears. So pick the **solid** cell to paint terrain in, and the block's **empty** cell to erase it back out — the stamp always comes back out of the refit as the very piece you picked.
+Once a block is marked, selecting **any** of its sprites and painting with the **Pixel** tool lays terrain on that cell and refits the eight cells around it, so terrain grows with the correct edges, corners and junctions as you drag. The piece you select says only *whether* its cell holds terrain — every piece but one lays it down, and the block's **empty** cell (its top-left sprite) clears it — so which of the forty-seven comes back out of the refit is decided by the neighbourhood, not by which one you happened to pick off the sheet. The neighbours are refitted the same way: they grow edges up against terrain the stamp lays down and retract from terrain it clears.
 
 Nothing extra is stored to make this work: away from the stamp, the terrain is read back off the tiles already on the map, so a stroke composes with whatever it grows into. Tiles that are not pieces of the block being painted — another block's tiles, loose art, the far side of the layer's edge — carry no terrain, so the stroke fits its own edge up against them and leaves them untouched. Refitting is confined to the 3×3 around the stamped cell and to the enabled layer's quarter, and the whole drag stroke remains a single undo step.
 

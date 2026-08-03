@@ -69,8 +69,8 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         return new Rectangle(LayerButtonsStartX + layer * size * 2 + size, labelRowY - 1, size, size);
     }
 
-    // --- Autotile (15-piece) ---
-    // Marks the selected sprite's 4x4 block as an autotile. The button sits on the tool row, one
+    // --- Autotile (47-piece) ---
+    // Marks the selected sprite's 8x6 block as an autotile. The button sits on the tool row, one
     // tile past the layer buttons, and previews the block over the sheet while hovered.
     private const int AutotileButtonX =
         LayerButtonsStartX + LayerCount * 2 * Constants.GameDataSizes.TileSize + Constants.GameDataSizes.TileSize;
@@ -167,8 +167,8 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         config.MapCamY = camY;
     }
 
-    // The 4x4 block the selected sprite belongs to. The sheet's last two rows are too short to
-    // form one, so a sprite there has no block and the autotile button is inert for it.
+    // The 8x6 block the selected sprite belongs to. The block grid divides the sheet exactly, so
+    // every sprite has one.
     private bool SelectedBlock(out int blockX, out int blockY) =>
         AutotileSheet.TryGetBlock(navigator.SelectedSprite, out blockX, out blockY);
 
@@ -403,7 +403,7 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         }
     }
 
-    // Marks the selected sprite's 4x4 block as a 15-piece autotile, or unmarks it.
+    // Marks the selected sprite's 8x6 block as a 47-piece autotile, or unmarks it.
     private void HandleAutotileButton((int x, int y) mouse)
     {
         if (!autotileButton.IsClicked(_api, mouse)) return;
@@ -827,31 +827,28 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         navigator.DrawPageButtons();
     }
 
-    // Overlays the selected sprite's 4x4 block on the sheet while the autotile button is hovered:
-    // which block the button will affect, and the terrain each of its sixteen cells is expected to
-    // hold.
+    // Overlays the selected sprite's 8x6 block on the sheet while the autotile button is hovered:
+    // which block the button will affect, and the neighbourhood each of its cells is drawn for.
     private void DrawAutotilePreview()
     {
         if (!SelectedBlock(out int blockX, out int blockY)) return;
 
+        // A block is exactly as tall as a page, and there are as many block rows as pages, so a
+        // block row is a page: either the whole block is on this one or none of it is.
+        if (blockY != navigator.Page) return;
+
         int fill = AutotileOverlay.Fill(blockX, blockY);
         int size = Constants.GameDataSizes.TileSize;
         var viewer = navigator.ViewerArea;
-        int firstSheetRow = navigator.Page * SpriteNavigator.VisibleRows;
 
-        for (int cellY = 0; cellY < AutotileSheet.BlockSize; cellY++)
+        for (int cellY = 0; cellY < AutotileSheet.BlockH; cellY++)
         {
-            // A block spans four sheet rows, which can straddle a page boundary; skip what the
-            // current page doesn't show rather than wrapping it onto the wrong row.
-            int sheetRow = blockY * AutotileSheet.BlockSize + cellY;
-            if (sheetRow < firstSheetRow || sheetRow >= firstSheetRow + SpriteNavigator.VisibleRows) continue;
+            int y = viewer.Y + cellY * size;
 
-            int y = viewer.Y + (sheetRow - firstSheetRow) * size;
-
-            for (int cellX = 0; cellX < AutotileSheet.BlockSize; cellX++)
+            for (int cellX = 0; cellX < AutotileSheet.BlockW; cellX++)
             {
-                int x = viewer.X + (blockX * AutotileSheet.BlockSize + cellX) * size;
-                AutotileOverlay.DrawCell(_api, x, y, size, cellY * AutotileSheet.BlockSize + cellX, fill);
+                int x = viewer.X + (blockX * AutotileSheet.BlockW + cellX) * size;
+                AutotileOverlay.DrawCell(_api, x, y, size, cellY * AutotileSheet.BlockW + cellX, fill);
             }
         }
     }

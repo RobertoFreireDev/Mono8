@@ -16,6 +16,9 @@ internal static class Ball
     private const string StatsGroup = "BALL";
     private const string StatsObject = "STATS";
 
+    /// <summary>Sprite flag marking solid ground; set it on every tile the ball must not pass through.</summary>
+    private const int FlagSolid = 1;
+
     /// <summary>Side of the ball in pixels. The rect runs X..X+Size-1.</summary>
     public static int Size;
 
@@ -344,6 +347,6 @@ internal static class Ball
 
     private static bool SolidAt(int x, int y)
     {
-        return YourGame.API.acol(x, y, Size, Size);
+        return YourGame.API.mcol(x, y, Size, Size, FlagSolid);
     }
 }
