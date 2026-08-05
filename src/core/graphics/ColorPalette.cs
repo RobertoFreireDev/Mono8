@@ -57,8 +57,8 @@ public static class ColorPalette
         return _paltFlags[_drawPalette[colorIndex]];
     }
     private static string Pico8Palette = "#000000,#1d2b53,#7e2553,#008751,#ab5236,#5f574f,#c2c3c7,#fff1e8,#ff004d,#ffa300,#ffec27,#00e436,#29adff,#83769c,#ff77a8,#ffccaa,#291814,#111d35,#422136,#125359,#742f29,#49333b,#a28879,#f3ef7d,#be1250,#ff6c24,#a8e72e,#00b543,#065ab5,#754665,#ff6e59,#ff9d81";
-    private static string PaletteVivid = "#081820,#23335c,#7b2652,#346856,#a14b2f,#59544b,#b4bab8,#e0f8d0,#dc3b52,#ee9a17,#f7e522,#88c070,#15a1f0,#796d8f,#ef6e9c,#f7c39f,#362622,#1d2b45,#49293d,#045359,#72302a,#4b373e,#967e6d,#ede86e,#b30c4a,#f06111,#9fdd1c,#14a741,#0556ab,#6f4460,#f1634e,#f29276";
-    private static string Palette = "#081820,#243553,#6f3450,#346856,#92563c,#55554d,#b3bbb3,#e0f8d0,#c15c5b,#e0a237,#efe666,#88c070,#3ea4d7,#737188,#dd8096,#e9c9a5,#322824,#1e2c3f,#432d3c,#1e5254,#673931,#463a3f,#8e826f,#e6e98e,#9c3c4f,#d67840,#a7d865,#3ca34f,#165a9a,#674a5d,#db775a,#e09e7b";
+    private static string PaletteVivid = "#000000,#23335c,#7b2652,#346856,#a14b2f,#59544b,#b4bab8,#e0f8d0,#dc3b52,#ee9a17,#f7e522,#88c070,#15a1f0,#796d8f,#ef6e9c,#f7c39f,#362622,#1d2b45,#49293d,#045359,#72302a,#4b373e,#967e6d,#ede86e,#b30c4a,#f06111,#9fdd1c,#14a741,#0556ab,#6f4460,#f1634e,#f29276";
+    private static string Palette = "#000000,#243553,#6f3450,#346856,#92563c,#55554d,#b3bbb3,#e0f8d0,#c15c5b,#e0a237,#efe666,#88c070,#3ea4d7,#737188,#dd8096,#e9c9a5,#322824,#1e2c3f,#432d3c,#1e5254,#673931,#463a3f,#8e826f,#e6e98e,#9c3c4f,#d67840,#a7d865,#3ca34f,#165a9a,#674a5d,#db775a,#e09e7b";
 
     public static Color GetColor(int id, float colorOpaqueness = 1f)
     {

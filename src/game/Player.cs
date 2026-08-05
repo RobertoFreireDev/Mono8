@@ -40,7 +40,8 @@ internal static class Player
     private static bool AnimClimbing;
 
     // Whether the player actually travelled this frame — walking into a wall does not count. The
-    // clips only advance while it is set, so a player standing still holds the frame they stopped on.
+    // clips only advance while it is set, and off a stair it is also what drops the body back onto
+    // the idle still rather than holding the stride it stopped on.
     private static bool Moving;
 
     private static int Spr;
@@ -225,9 +226,10 @@ internal static class Player
 
     /// <summary>
     /// One clip runs at a time — the stair while climbing, the walk otherwise — and only while the
-    /// player is actually travelling, so standing still holds a frame rather than marching on the
-    /// spot. Crossing between the two rewinds the clip being taken up, since a stride index means
-    /// nothing to the ladder it is handed to.
+    /// player is actually travelling, so nobody marches on the spot. Coming to a stop off a stair
+    /// ends the walk rather than pausing it: the body goes back to the idle still and the clip is
+    /// rewound, so the next step starts on a fresh stride. Crossing between the two clips rewinds
+    /// the one being taken up, since a stride index means nothing to the ladder it is handed to.
     /// </summary>
     private static void UpdateAnim(float elapsedSeconds)
     {
@@ -252,6 +254,12 @@ internal static class Player
         if (Moving)
         {
             clip.Update(elapsedSeconds);
+        }
+        else if (!Climbing)
+        {
+            // A stair is stood on mid-rung, so that clip keeps its frame; a walk that has stopped
+            // has no such place to hold, and rewinds.
+            Walk.Play();
         }
     }
 
@@ -428,10 +436,11 @@ internal static class Player
     }
 
     // An unauthored clip reads as sprite 0 — the empty sprite, which would draw nothing at all — so
-    // the still authored under STATS is what a game without PLRWALK or PLRSTAIR falls back to.
+    // the still authored under STATS is what a game without PLRWALK or PLRSTAIR falls back to. It is
+    // also the idle: addressing the ball, and standing anywhere off a stair, are both that one frame.
     private static int BodySprite()
     {
-        if (Swing.Active)
+        if (Swing.Active || (!Climbing && !Moving))
         {
             return Spr;
         }
