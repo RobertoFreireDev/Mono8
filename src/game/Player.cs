@@ -14,10 +14,9 @@ internal static class Player
 
     private const int BtnLeft = 0;
     private const int BtnRight = 1;
+    private const int BtnUp = 2;
+    private const int BtnDown = 3;
     private const int BtnJump = 4;
-
-    /// <summary>Sprite flag marking solid ground; set it on every tile the player must not pass through.</summary>
-    private const int FlagSolid = 1;
 
     // The engine's font advances 4 px a character, which is how the miss is centred on the sprite.
     private const int FontAdvance = 4;
@@ -26,6 +25,9 @@ internal static class Player
     public static int Y;
     public static bool OnGround;
     public static bool FacingLeft;
+
+    /// <summary>On a stair — no gravity, no walking, no jumping, until one of its ends lets go.</summary>
+    public static bool Climbing;
 
     private static int Spr;
 
@@ -37,6 +39,7 @@ internal static class Player
     private static int HitW;
     private static int HitH;
     private static float MoveSpeed;
+    private static float ClimbSpeed;
     private static float Gravity;
     private static float JumpSpeed;
     private static float MaxFallSpeed;
@@ -70,6 +73,7 @@ internal static class Player
         HitW = 0;
         HitH = 0;
         MoveSpeed = 0f;
+        ClimbSpeed = 0f;
         Gravity = 0f;
         JumpSpeed = 0f;
         MaxFallSpeed = 0f;
@@ -88,6 +92,7 @@ internal static class Player
             (HitX, HitY) = stats.GetXY("HITPOS");
             (HitW, HitH) = stats.GetXY("HITSIZE");
             MoveSpeed = (float)stats.GetDec("SPEED");
+            ClimbSpeed = (float)stats.GetDec("CLIMB");
             Gravity = (float)stats.GetDec("GRAVITY");
             JumpSpeed = (float)stats.GetDec("JUMP");
             MaxFallSpeed = (float)stats.GetDec("MAXFALL");
@@ -105,6 +110,7 @@ internal static class Player
         RemY = 0f;
         OnGround = false;
         FacingLeft = false;
+        Climbing = false;
 
         Swing.Init();
     }
@@ -164,8 +170,32 @@ internal static class Player
     {
         var api = YourGame.API;
 
-        OnGround = SolidAt(X, Y + 1);
+        // A climber is never on the ground, which is what keeps the jump and the swing — both of
+        // which ask — from firing off a stair.
+        OnGround = !Climbing && SolidAt(X, Y + 1);
 
+        // Addressing the ball commits the player just as the stair does: neither is left mid-swing.
+        if (!Swing.Active && !Climbing)
+        {
+            TryGrabStair(api);
+        }
+
+        if (Climbing)
+        {
+            UpdateClimb(api, elapsedSeconds);
+        }
+        else
+        {
+            UpdateWalk(api, elapsedSeconds);
+        }
+
+        OnGround = !Climbing && SolidAt(X, Y + 1);
+
+        Swing.Update(elapsedSeconds);
+    }
+
+    private static void UpdateWalk(IMono8API api, float elapsedSeconds)
+    {
         VelX = 0f;
 
         // Addressing the ball commits the player: no walking off it, no jumping out of it, until
@@ -198,10 +228,106 @@ internal static class Player
 
         MoveX(VelX * elapsedSeconds);
         MoveY(VelY * elapsedSeconds);
+    }
 
-        OnGround = SolidAt(X, Y + 1);
+    /// <summary>
+    /// Up takes any stair the body is already standing in; Down takes the one under its feet, which
+    /// is how a stair capping a platform is entered — from above those tiles are plain floor until
+    /// they are asked for.
+    /// </summary>
+    private static void TryGrabStair(IMono8API api)
+    {
+        bool up = api.btn(BtnUp);
+        bool down = api.btn(BtnDown);
 
-        Swing.Update(elapsedSeconds);
+        if (!up && !down)
+        {
+            return;
+        }
+
+        if (up && Terrain.StairColumn(X + HitX, Y + HitY, HitW, HitH, out int cellX))
+        {
+            Grab(cellX, 0);
+            return;
+        }
+
+        if (!down || !OnGround)
+        {
+            return;
+        }
+
+        // The step down has to have somewhere to go. Standing on the floor at the foot of a stair
+        // the body still overlaps its tiles, so without the floor test the grab would take there and
+        // its one-pixel step in would drive the player into the ground, a pixel a frame, for as long
+        // as Down was held.
+        int feet = Y + 1 + HitY;
+        if (!Terrain.Blocked(X + HitX, feet, HitW, HitH)
+            && Terrain.StairColumn(X + HitX, feet, HitW, HitH, out cellX))
+        {
+            // Stepping in from above starts a pixel down, inside the cap tile. Not cosmetic: a
+            // frame's descent can round to no movement at all through RemY, and a body still level
+            // with the platform reads as having finished the stair — so without the nudge the stair
+            // would be released on the frame it was taken. The floor test above is what makes the
+            // pixel safe to take.
+            Grab(cellX, 1);
+        }
+    }
+
+    private static void Grab(int cellX, int drop)
+    {
+        X = Terrain.CenterOnColumn(cellX, HitW) - HitX;
+        Y += drop;
+        Climbing = true;
+        VelX = 0f;
+        VelY = 0f;
+        RemX = 0f;
+        RemY = 0f;
+    }
+
+    /// <summary>
+    /// One frame on the stair: up and down only, no gravity, and no way off except its two ends.
+    /// <see cref="SolidAt"/> ignores solid the stair itself carries while this is running, so the
+    /// cap tiles are climbed through rather than stopped at.
+    /// </summary>
+    private static void UpdateClimb(IMono8API api, float elapsedSeconds)
+    {
+        bool up = api.btn(BtnUp);
+
+        VelX = 0f;
+        VelY = 0f;
+        if (up)
+        {
+            VelY -= ClimbSpeed;
+        }
+        if (api.btn(BtnDown))
+        {
+            VelY += ClimbSpeed;
+        }
+
+        MoveY(VelY * elapsedSeconds);
+
+        // Off the top: the body has cleared every stair tile, which after climbing up through the
+        // cap means standing on the platform it caps. Also catches a stair ending in mid-air, where
+        // letting go is the same as falling.
+        if (!Terrain.StairColumn(X + HitX, Y + HitY, HitW, HitH, out _))
+        {
+            Release();
+            return;
+        }
+
+        // Down onto the floor. Gated on the climb not still pushing up, since at the foot of a
+        // stair the floor is right there from the first frame.
+        if (!up && Terrain.Blocked(X + HitX, Y + 1 + HitY, HitW, HitH))
+        {
+            Release();
+        }
+    }
+
+    private static void Release()
+    {
+        Climbing = false;
+        VelY = 0f;
+        RemY = 0f;
     }
 
     public static void Draw()
@@ -225,7 +351,7 @@ internal static class Player
         if (Debug.Enabled && HitW > 0 && HitH > 0)
         {
             YourGame.API.rect(X + HitX, Y + HitY, X + HitX + HitW - 1, Y + HitY + HitH - 1,
-                Constants.Colors.Red);
+                Climbing ? Constants.Colors.Yellow : Constants.Colors.Red);
         }
 
         DrawAddressDebug();
@@ -295,8 +421,14 @@ internal static class Player
     }
 
     // An unauthored HITSIZE is empty, and an empty rect meets nothing.
+    //
+    // The branch is the whole stair feature: MoveX and MoveY ask this and nothing else, so a climb
+    // passes through the tiles the stair caps itself with while a real ceiling or floor still stops
+    // it dead.
     private static bool SolidAt(int x, int y)
     {
-        return YourGame.API.mcol(x + HitX, y + HitY, HitW, HitH, FlagSolid);
+        return Climbing
+            ? Terrain.Blocked(x + HitX, y + HitY, HitW, HitH)
+            : Terrain.Solid(x + HitX, y + HitY, HitW, HitH);
     }
 }

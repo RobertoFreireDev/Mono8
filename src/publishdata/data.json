@@ -19,6 +19,7 @@
       "HITPOS:p": [3, 2],
       "HITSIZE:p": [2, 6],
       "SPEED:d": 30,
+      "CLIMB:d": 24,
       "GRAVITY:d": 450,
       "JUMP:d": 98,
       "MAXFALL:d": 200,
@@ -35,13 +36,13 @@
     "DRIVER": {
       "NAME:t": "Driver",
       "ANGLE:d": 0,
-      "DIST:d": 1,
+      "DIST:d": 1.3,
       "GNDPWR:d": 0
     },
     "WEDGE": {
       "NAME:t": "Wedge",
       "ANGLE:d": 30,
-      "DIST:d": 0.7,
+      "DIST:d": 1,
       "GNDPWR:d": 0
     },
     "PUTTER": {
@@ -78,7 +79,7 @@
     "CLUB": {
       "SPR:i": 9,
       "PRESS:d": 0.25,
-      "HITSEC:d": 2,
+      "HITSEC:d": 1,
       "FAILSEC:d": 0.5
     }
   },

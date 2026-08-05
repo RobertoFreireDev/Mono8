@@ -19,6 +19,8 @@ internal static class Ball
     /// <summary>Sprite flag marking solid ground; set it on every tile the ball must not pass through.</summary>
     private const int FlagSolid = 1;
 
+    private const int SfxEnterHole = 1;
+
     /// <summary>Side of the ball in pixels. The rect runs X..X+Size-1.</summary>
     public static int Size;
 
@@ -288,6 +290,7 @@ internal static class Ball
 
         if (Sunk >= SinkDepth)
         {
+            YourGame.API.sfx(SfxEnterHole);
             Present = false;
             Holed = true;
         }
