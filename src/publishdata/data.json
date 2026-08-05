@@ -116,6 +116,23 @@
       "ID:t": ["9", "10", "11", "12"],
       "SPEED:i": 32,
       "MODE:t": "RV"
+    },
+    "PLRWALK": {
+      "ID:t": ["36", "37", "38", "39"],
+      "SPEED:i": 8,
+      "MODE:t": "FW",
+      "PRTMAX:i": 12,
+      "PRTRATE:d": 10,
+      "PRTLIFE:d": 0.35,
+      "PRTPOS:p": [1, 7],
+      "PRTVEL:p": [12, 16],
+      "PRTGRAV:d": 40,
+      "PRTBIG:d": 0.35
+    },
+    "PLRSTAIR": {
+      "ID:t": ["68", "69", "70"],
+      "SPEED:i": 8,
+      "MODE:t": "FW"
     }
   }
 }

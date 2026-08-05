@@ -12,6 +12,9 @@ internal static class Player
     private const string StatsGroup = "PLAYER";
     private const string StatsObject = "STATS";
 
+    private const string AnimWalk = "PLRWALK";
+    private const string AnimStair = "PLRSTAIR";
+
     private const int BtnLeft = 0;
     private const int BtnRight = 1;
     private const int BtnUp = 2;
@@ -28,6 +31,17 @@ internal static class Player
 
     /// <summary>On a stair — no gravity, no walking, no jumping, until one of its ends lets go.</summary>
     public static bool Climbing;
+
+    private static readonly Anim Walk = new Anim();
+    private static readonly Anim Stair = new Anim();
+
+    // Which clip the last frame ran, so stepping on or off a stair restarts the other one from its
+    // first frame instead of carrying a stride across.
+    private static bool AnimClimbing;
+
+    // Whether the player actually travelled this frame — walking into a wall does not count. The
+    // clips only advance while it is set, so a player standing still holds the frame they stopped on.
+    private static bool Moving;
 
     private static int Spr;
 
@@ -111,7 +125,13 @@ internal static class Player
         OnGround = false;
         FacingLeft = false;
         Climbing = false;
+        Moving = false;
+        AnimClimbing = false;
 
+        Walk.Load(AnimWalk);
+        Stair.Load(AnimStair);
+
+        Dust.Init();
         Swing.Init();
     }
 
@@ -191,7 +211,48 @@ internal static class Player
 
         OnGround = !Climbing && SolidAt(X, Y + 1);
 
+        UpdateAnim(elapsedSeconds);
+
+        // Before the emit, so a fleck spends its first frame where it was thrown from.
+        Dust.Update(elapsedSeconds);
+        if (Moving && OnGround)
+        {
+            Dust.Emit(elapsedSeconds, X, Y, SprSize, FacingLeft);
+        }
+
         Swing.Update(elapsedSeconds);
+    }
+
+    /// <summary>
+    /// One clip runs at a time — the stair while climbing, the walk otherwise — and only while the
+    /// player is actually travelling, so standing still holds a frame rather than marching on the
+    /// spot. Crossing between the two rewinds the clip being taken up, since a stride index means
+    /// nothing to the ladder it is handed to.
+    /// </summary>
+    private static void UpdateAnim(float elapsedSeconds)
+    {
+        // Addressing the ball is a stance of its own — the still authored under STATS, with the club
+        // swinging over it. Rewound rather than paused, so stepping away from the ball starts on a
+        // fresh stride instead of resuming the one that was interrupted.
+        if (Swing.Active)
+        {
+            Walk.Play();
+            AnimClimbing = Climbing;
+            return;
+        }
+
+        Anim clip = Climbing ? Stair : Walk;
+
+        if (Climbing != AnimClimbing)
+        {
+            AnimClimbing = Climbing;
+            clip.Play();
+        }
+
+        if (Moving)
+        {
+            clip.Update(elapsedSeconds);
+        }
     }
 
     private static void UpdateWalk(IMono8API api, float elapsedSeconds)
@@ -228,6 +289,10 @@ internal static class Player
 
         MoveX(VelX * elapsedSeconds);
         MoveY(VelY * elapsedSeconds);
+
+        // Read after the move, which is what zeroes the velocity of a walk into a wall — pressed up
+        // against one the stride stops rather than running on the spot.
+        Moving = VelX != 0f;
     }
 
     /// <summary>
@@ -306,6 +371,8 @@ internal static class Player
 
         MoveY(VelY * elapsedSeconds);
 
+        Moving = VelY != 0f;
+
         // Off the top: the body has cleared every stair tile, which after climbing up through the
         // cap means standing on the platform it caps. Also catches a stair ending in mid-air, where
         // letting go is the same as falling.
@@ -332,7 +399,10 @@ internal static class Player
 
     public static void Draw()
     {
-        YourGame.API.spr(Spr, X, Y, 1, 1, 1f, FacingLeft);
+        // Under the body: the dust comes off the heels, not over them.
+        Dust.Draw();
+
+        YourGame.API.spr(BodySprite(), X, Y, 1, 1, 1f, FacingLeft);
 
         // The club is its own sprite over the player, so it swings without the body animating.
         if (Swing.Active)
@@ -355,6 +425,19 @@ internal static class Player
         }
 
         DrawAddressDebug();
+    }
+
+    // An unauthored clip reads as sprite 0 — the empty sprite, which would draw nothing at all — so
+    // the still authored under STATS is what a game without PLRWALK or PLRSTAIR falls back to.
+    private static int BodySprite()
+    {
+        if (Swing.Active)
+        {
+            return Spr;
+        }
+
+        int frame = Climbing ? Stair.Sprite : Walk.Sprite;
+        return frame > 0 ? frame : Spr;
     }
 
     /// <summary>
