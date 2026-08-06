@@ -55,17 +55,43 @@ internal static class OvalMath
         }
     }
 
+    private static readonly RowSpans FillSpans = new RowSpans();
+
     public static void DrawFill(int x0, int y0, int x1, int y1, Action<int, int, int> fillRow)
+    {
+        int ry0 = Math.Min(y0, y1);
+        int ry1 = Math.Max(y0, y1);
+
+        ComputeSpans(x0, y0, x1, y1, ry0, ry1, FillSpans);
+
+        for (int y = ry0; y <= ry1; y++)
+            if (FillSpans.TryGet(y, out int left, out int right))
+                fillRow(y, left, right);
+    }
+
+    /// <summary>
+    /// Writes the inclusive x span of every scanline of the filled oval into <paramref name="spans"/>,
+    /// keeping only rows within <paramref name="clipTop"/>..<paramref name="clipBottom"/> so an oval far
+    /// larger than the screen still costs one span per visible row. Sampling matches
+    /// <see cref="DrawFill"/> exactly, so a span lines up with the pixels ovalfill would paint.
+    /// </summary>
+    public static void ComputeSpans(int x0, int y0, int x1, int y1, int clipTop, int clipBottom, RowSpans spans)
     {
         int rx0 = Math.Min(x0, x1);
         int ry0 = Math.Min(y0, y1);
         int rx1 = Math.Max(x0, x1);
         int ry1 = Math.Max(y0, y1);
 
+        int top = Math.Max(ry0, clipTop);
+        int bottom = Math.Min(ry1, clipBottom);
+
+        spans.Reset(top, bottom - top + 1);
+        if (spans.Count == 0) return;
+
         if (rx1 - rx0 <= 1 || ry1 - ry0 <= 1)
         {
-            for (int y = ry0; y <= ry1; y++)
-                fillRow(y, rx0, rx1);
+            for (int y = top; y <= bottom; y++)
+                spans.Set(y, rx0, rx1);
             return;
         }
 
@@ -76,48 +102,37 @@ internal static class OvalMath
         int rX = rx1 - xC;
         int rY = ry1 - yC;
 
-        var linePixels = new Dictionary<int, List<int>>();
-
-        void AddPixel(int x, int y)
-        {
-            if (!linePixels.TryGetValue(y, out var xs))
-            {
-                xs = new List<int>();
-                linePixels[y] = xs;
-            }
-            xs.Add(x);
-        }
-
         for (int x = rx0; x <= xC; x++)
         {
             double angle = Math.Acos((x - xC) / (double)rX);
             int y = (int)Math.Round(rY * Math.Sin(angle) + yC);
 
-            AddPixel(x - evenX, y);
-            AddPixel(x - evenX, 2 * yC - y - evenY);
-            AddPixel(2 * xC - x, y);
-            AddPixel(2 * xC - x, 2 * yC - y - evenY);
+            spans.Add(y, x - evenX);
+            spans.Add(2 * yC - y - evenY, x - evenX);
+            spans.Add(y, 2 * xC - x);
+            spans.Add(2 * yC - y - evenY, 2 * xC - x);
         }
         for (int y = ry0; y <= yC; y++)
         {
             double angle = Math.Asin((y - yC) / (double)rY);
             int x = (int)Math.Round(rX * Math.Cos(angle) + xC);
 
-            AddPixel(x, y - evenY);
-            AddPixel(2 * xC - x - evenX, y - evenY);
-            AddPixel(x, 2 * yC - y);
-            AddPixel(2 * xC - x - evenX, 2 * yC - y);
+            spans.Add(y - evenY, x);
+            spans.Add(y - evenY, 2 * xC - x - evenX);
+            spans.Add(2 * yC - y, x);
+            spans.Add(2 * yC - y, 2 * xC - x - evenX);
         }
 
-        foreach (var (y, xs) in linePixels)
+        // A row whose leftmost sample landed outside the box is one the sampling never
+        // reached properly; the rest are clamped to the box.
+        for (int i = 0; i < spans.Count; i++)
         {
-            if (y < ry0 || y > ry1) continue;
-            xs.Sort();
-            int minX = xs[0];
-            int maxX = xs[^1];
-            if (minX < rx0 || minX > rx1) continue;
+            int left = spans.Left[i];
+            int right = spans.Right[i];
 
-            fillRow(y, Math.Max(minX, rx0), Math.Min(maxX, rx1));
+            // Empty rows are normalised so that callers merging equal rows see them as one.
+            if (left > right || left < rx0 || left > rx1) spans.Clear(spans.Top + i);
+            else spans.Set(spans.Top + i, Math.Max(left, rx0), Math.Min(right, rx1));
         }
     }
 }

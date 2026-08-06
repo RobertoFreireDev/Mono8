@@ -26,7 +26,7 @@ Two conventions that catch people out:
 ## Table of contents
 
 - [System](#system) — `time` `stat` `menuitem`
-- [Graphics](#graphics) — `cls` `pixel` `line` `rect` `rectfill` `circ` `circfill` `oval` `ovalfill` `spr` `sspr` `sprr` `ssprr` `print` `icon` `camera` `pal` `palt`
+- [Graphics](#graphics) — `cls` `pixel` `line` `rect` `rectfill` `circ` `circfill` `oval` `ovalfill` `rectinv` `ovalinv` `spr` `sspr` `sprr` `ssprr` `print` `icon` `camera` `pal` `palt`
 - [Map](#map) — `mget` `mset` `map`
 - [Tile collision](#tile-collision) — `mcol`
 - [Sprite flags](#sprite-flags) — `fget` `fset`
@@ -170,6 +170,41 @@ round shape — a drop shadow under a character, a bubble.
 | `x0`,`y0`,`x1`,`y1` | opposite corners of the bounding box | inclusive |
 | `color` | palette index | `0`–`31` |
 | `colorOpaqueness` | alpha | `0f`–`1f` |
+
+### `void rectinv(int x, int y, int w, int h, int color, int ditherSpriteId = 0, float colorOpaqueness = 1f)`
+### `void ovalinv(int x, int y, int w, int h, int color, int ditherSpriteId = 0, float colorOpaqueness = 1f)`
+
+The inverse of `rectfill` / `ovalfill`: they paint the **whole screen** in `color` *except* the shape,
+so what is left is a clipping mask with a hole in it. Use for a spotlight following the player, an
+iris in/out transition, a "look here" highlight over a dimmed scene.
+
+| Parameter | Meaning | Constraints |
+|---|---|---|
+| `x`, `y` | top-left of the hole | camera applies to the hole |
+| `w`, `h` | size of the hole **in pixels** | `≤ 0` fills the screen with no hole at all |
+| `color` | palette index of the mask | `0`–`31` |
+| `ditherSpriteId` | 8×8 sprite tiled over the ring just outside the hole | `0` (or an id out of range) skips the ring and leaves a hard edge |
+| `colorOpaqueness` | alpha, applied to the fill *and* the ring | `0f`–`1f` |
+
+Unlike every other shape call, the **fill follows the camera** rather than the world — it always
+covers the viewport, wherever `camera(x, y)` currently points. The hole and the ring are in world
+space like everything else, so the hole tracks whatever it is cut around. There is no need to reset
+the camera first.
+
+`ovalinv`'s hole is exactly the oval `ovalfill(x, y, x + w - 1, y + h - 1, …)` would paint, so the
+two line up pixel for pixel if you want to fill the hole afterwards.
+
+**The dither ring.** With a `ditherSpriteId`, the mask stops one tile (8 px) short of the hole on
+every side and that ring is stippled with the sprite instead, so the mask fades into the hole rather
+than cutting. The sprite tiles on a lattice anchored on the hole's centre — tiles meet exactly once,
+never overlap and never leave a gap, and a tile hanging over the ring is trimmed to a sub-rect rather
+than being skipped, so the pattern keeps its phase all the way round. Author the sprite in the same
+`color` as the mask, with colour `0` for the holes in the pattern; `pal` and `palt` apply to it as
+they do to `spr`.
+
+Cost scales with the ring, not the screen: a hard-edged full-screen oval is a few hundred fills, one
+with a dither ring a few hundred more — the same order as a single `map` call. `rectinv` is far
+cheaper than `ovalinv` (four fills, whatever the size).
 
 ### `void spr(int spriteId, int x, int y, int width = 1, int height = 1, float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)`
 

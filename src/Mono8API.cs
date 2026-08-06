@@ -315,6 +315,16 @@ internal class Mono8API : IEditorAPI
         Mono8Game.SpriteBatch.DrawOvalFill(x0, y0, x1, y1, color, colorOpaqueness);
     }
 
+    public void rectinv(int x, int y, int w, int h, int color, int ditherSpriteId = 0, float colorOpaqueness = 1f)
+    {
+        InverseMask.DrawRect(x, y, w, h, color, ditherSpriteId, colorOpaqueness);
+    }
+
+    public void ovalinv(int x, int y, int w, int h, int color, int ditherSpriteId = 0, float colorOpaqueness = 1f)
+    {
+        InverseMask.DrawOval(x, y, w, h, color, ditherSpriteId, colorOpaqueness);
+    }
+
     public void palt()
     {
         ColorPalette.PaltReset();

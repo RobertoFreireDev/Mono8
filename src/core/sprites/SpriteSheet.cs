@@ -537,6 +537,56 @@ internal class SpriteSheet
             flipX, flipY, colorOpaqueness);
     }
 
+    /// <summary>
+    /// Collects the distinct colour indices used by a sprite's 8x8 tile into <paramref name="colors"/>,
+    /// which must hold a full palette, and returns how many there are. A dither pattern uses two or
+    /// three, so a caller that blits the same tile many times can skip the rest of the palette.
+    /// </summary>
+    public int TileColors(int spriteId, int[] colors)
+    {
+        if (spriteId < 0 || spriteId >= TotalSprites) return 0;
+
+        int tile = Constants.GameDataSizes.TileSize;
+        int sx = (spriteId % Constants.GameDataSizes.SpriteSheetColumns) * tile;
+        int sy = (spriteId / Constants.GameDataSizes.SpriteSheetColumns) * tile;
+
+        int count = 0;
+        for (int y = 0; y < tile; y++)
+            for (int x = 0; x < tile; x++)
+            {
+                int ci = Data[sy + y, sx + x];
+
+                bool seen = false;
+                for (int i = 0; i < count; i++)
+                    if (colors[i] == ci) { seen = true; break; }
+
+                if (!seen && count < colors.Length) colors[count++] = ci;
+            }
+
+        return count;
+    }
+
+    /// <summary>
+    /// <see cref="DrawSub"/> narrowed to a colour set the source region is known to contain — same
+    /// masks, same <c>pal</c>/<c>palt</c> handling, without sweeping the palette entries it cannot hold.
+    /// </summary>
+    public void DrawSubColors(int sx, int sy, int sw, int sh, int dx, int dy,
+        int[] colors, int count, float colorOpaqueness = 1f)
+    {
+        var source = new Rectangle(sx, sy, sw, sh);
+        var destination = new Rectangle(dx, dy, sw, sh);
+
+        for (int i = 0; i < count; i++)
+        {
+            int ci = colors[i];
+            if (ci < 0 || ci >= Constants.GameDataSizes.ColorPalette) continue;
+            if (ColorPalette.IsDrawTransparent(ci)) continue;
+            if (ColorTextures[ci] == null) continue;
+
+            Mono8Game.SpriteBatch.Draw(ColorTextures[ci], destination, source, SpriteEffects.None, ci, colorOpaqueness);
+        }
+    }
+
     /// <summary>Smallest and largest <c>scale</c> honoured by <see cref="Draw"/>; values outside are clamped.</summary>
     public const float MinScale = 0.125f;
     public const float MaxScale = 8f;

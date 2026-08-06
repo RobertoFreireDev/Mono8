@@ -38,6 +38,22 @@ public interface IMono8API
 
     void ovalfill(int x0, int y0, int x1, int y1, int color, float colorOpaqueness = 1f);
 
+    /// <summary>
+    /// Covers the screen in <paramref name="color"/> except the rect at
+    /// (<paramref name="x"/>, <paramref name="y"/>, <paramref name="w"/>, <paramref name="h"/>) — a
+    /// clipping mask with a rectangular hole. The fill spans the viewport wherever the camera is;
+    /// the hole is in world space, so it tracks whatever it is cut around.
+    /// <paramref name="ditherSpriteId"/> tiles an 8x8 sprite over the one-tile ring just outside the
+    /// hole, so the mask fades into the hole rather than cutting; 0 leaves a hard edge.
+    /// </summary>
+    void rectinv(int x, int y, int w, int h, int color, int ditherSpriteId = 0, float colorOpaqueness = 1f);
+
+    /// <summary>
+    /// <see cref="rectinv"/> with an oval hole. The hole is the oval <c>ovalfill</c> would draw for
+    /// the same box, so the two line up pixel for pixel.
+    /// </summary>
+    void ovalinv(int x, int y, int w, int h, int color, int ditherSpriteId = 0, float colorOpaqueness = 1f);
+
     void sprr(
         int spriteId,
         int x,
