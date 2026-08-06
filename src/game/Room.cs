@@ -78,6 +78,9 @@ internal class Room
     {
         // Backdrop first — it replaces the cleared screen, so it draws before the room itself.
         YourGame.API.map(BackCellX, BackCellY, 0, 0, CellW, CellH);
+        YourGame.API.palt(7, true);
+        YourGame.API.ovalinv(8, 32, 256 - 8, 144, 17, 117, 0.4f);
+        YourGame.API.palt();
         YourGame.API.map(CellX, CellY, 0, 0, CellW, CellH);
         Flag.Draw();
 
