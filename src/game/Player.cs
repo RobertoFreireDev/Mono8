@@ -15,15 +15,6 @@ internal static class Player
     private const string AnimWalk = "PLRWALK";
     private const string AnimStair = "PLRSTAIR";
 
-    private const int BtnLeft = 0;
-    private const int BtnRight = 1;
-    private const int BtnUp = 2;
-    private const int BtnDown = 3;
-    private const int BtnJump = 4;
-
-    // The engine's font advances 4 px a character, which is how the miss is centred on the sprite.
-    private const int FontAdvance = 4;
-
     public static int X;
     public static int Y;
     public static bool OnGround;
@@ -81,6 +72,20 @@ internal static class Player
 
     public static void Init(Room room)
     {
+        LoadStats();
+        Spawn(room);
+
+        Walk.Load(AnimWalk);
+        Stair.Load(AnimStair);
+
+        Dust.Init();
+        Steps.Init();
+        Swing.Init();
+    }
+
+    // Zeroed first, then read, so a half-authored STATS still runs on the fields it does carry.
+    private static void LoadStats()
+    {
         Spr = 0;
         SprSize = 0;
         HitX = 0;
@@ -100,23 +105,28 @@ internal static class Player
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var stats = YourGame.API.gjson(StatsGroup, StatsObject);
-        if (stats != null)
+        if (stats == null)
         {
-            Spr = stats.GetInt("SPR");
-            SprSize = stats.GetInt("SPRSIZE");
-            (HitX, HitY) = stats.GetXY("HITPOS");
-            (HitW, HitH) = stats.GetXY("HITSIZE");
-            MoveSpeed = (float)stats.GetDec("SPEED");
-            ClimbSpeed = (float)stats.GetDec("CLIMB");
-            Gravity = (float)stats.GetDec("GRAVITY");
-            JumpSpeed = (float)stats.GetDec("JUMP");
-            MaxFallSpeed = (float)stats.GetDec("MAXFALL");
-            ClubX = stats.GetInt("CLUBX");
-            (ReachX, ReachY) = stats.GetXY("REACH");
-            FailText = stats.GetStr("FAILTXT");
-            FailTextY = stats.GetInt("FAILY");
+            return;
         }
 
+        Spr = stats.GetInt("SPR");
+        SprSize = stats.GetInt("SPRSIZE");
+        (HitX, HitY) = stats.GetXY("HITPOS");
+        (HitW, HitH) = stats.GetXY("HITSIZE");
+        MoveSpeed = (float)stats.GetDec("SPEED");
+        ClimbSpeed = (float)stats.GetDec("CLIMB");
+        Gravity = (float)stats.GetDec("GRAVITY");
+        JumpSpeed = (float)stats.GetDec("JUMP");
+        MaxFallSpeed = (float)stats.GetDec("MAXFALL");
+        ClubX = stats.GetInt("CLUBX");
+        (ReachX, ReachY) = stats.GetXY("REACH");
+        FailText = stats.GetStr("FAILTXT");
+        FailTextY = stats.GetInt("FAILY");
+    }
+
+    private static void Spawn(Room room)
+    {
         X = room.PlayerX;
         Y = room.PlayerY;
         VelX = 0f;
@@ -128,13 +138,6 @@ internal static class Player
         Climbing = false;
         Moving = false;
         AnimClimbing = false;
-
-        Walk.Load(AnimWalk);
-        Stair.Load(AnimStair);
-
-        Dust.Init();
-        Steps.Init();
-        Swing.Init();
     }
 
     /// <summary>
@@ -192,9 +195,7 @@ internal static class Player
     {
         var api = YourGame.API;
 
-        // A climber is never on the ground, which is what keeps the jump and the swing — both of
-        // which ask — from firing off a stair.
-        OnGround = !Climbing && SolidAt(X, Y + 1);
+        RefreshOnGround();
 
         // Addressing the ball commits the player just as the stair does: neither is left mid-swing.
         if (!Swing.Active && !Climbing)
@@ -211,20 +212,35 @@ internal static class Player
             UpdateWalk(api, elapsedSeconds);
         }
 
-        OnGround = !Climbing && SolidAt(X, Y + 1);
+        // Asked again after the move: the frame's landing is what the animation and the dust read.
+        RefreshOnGround();
 
         UpdateAnim(elapsedSeconds);
+        UpdateFootFx(elapsedSeconds);
+
+        Swing.Update(elapsedSeconds);
+    }
+
+    // A climber is never on the ground, which is what keeps the jump and the swing — both of which
+    // ask — from firing off a stair.
+    private static void RefreshOnGround()
+    {
+        OnGround = !Climbing && SolidAt(X, Y + 1);
+    }
+
+    /// <summary>Dust and footsteps, both of them a walk along the ground and nothing else.</summary>
+    private static void UpdateFootFx(float elapsedSeconds)
+    {
+        bool walking = Moving && OnGround;
 
         // Before the emit, so a fleck spends its first frame where it was thrown from.
         Dust.Update(elapsedSeconds);
-        if (Moving && OnGround)
+        if (walking)
         {
             Dust.Emit(elapsedSeconds, X, Y, SprSize, FacingLeft);
         }
 
-        Steps.Update(elapsedSeconds, Moving && OnGround);
-
-        Swing.Update(elapsedSeconds);
+        Steps.Update(elapsedSeconds, walking);
     }
 
     /// <summary>
@@ -274,29 +290,25 @@ internal static class Player
         // the swing has run itself back to Idle.
         if (!Swing.Active)
         {
-            if (api.btn(BtnLeft))
+            if (api.btn(Btn.Left))
             {
                 VelX = -MoveSpeed;
                 FacingLeft = true;
             }
-            if (api.btn(BtnRight))
+            if (api.btn(Btn.Right))
             {
                 VelX = MoveSpeed;
                 FacingLeft = false;
             }
 
-            if (OnGround && api.btnp(BtnJump))
+            if (OnGround && api.btnp(Btn.Jump))
             {
                 VelY = -JumpSpeed;
                 OnGround = false;
             }
         }
 
-        VelY += Gravity * elapsedSeconds;
-        if (VelY > MaxFallSpeed)
-        {
-            VelY = MaxFallSpeed;
-        }
+        VelY = Motion.Fall(VelY, Gravity, MaxFallSpeed, elapsedSeconds);
 
         MoveX(VelX * elapsedSeconds);
         MoveY(VelY * elapsedSeconds);
@@ -313,8 +325,8 @@ internal static class Player
     /// </summary>
     private static void TryGrabStair(IMono8API api)
     {
-        bool up = api.btn(BtnUp);
-        bool down = api.btn(BtnDown);
+        bool up = api.btn(Btn.Up);
+        bool down = api.btn(Btn.Down);
 
         if (!up && !down)
         {
@@ -367,7 +379,7 @@ internal static class Player
     /// </summary>
     private static void UpdateClimb(IMono8API api, float elapsedSeconds)
     {
-        bool up = api.btn(BtnUp);
+        bool up = api.btn(Btn.Up);
 
         VelX = 0f;
         VelY = 0f;
@@ -375,7 +387,7 @@ internal static class Player
         {
             VelY -= ClimbSpeed;
         }
-        if (api.btn(BtnDown))
+        if (api.btn(Btn.Down))
         {
             VelY += ClimbSpeed;
         }
@@ -410,31 +422,26 @@ internal static class Player
 
     public static void Draw()
     {
+        var api = YourGame.API;
+
         // Under the body: the dust comes off the heels, not over them.
         Dust.Draw();
 
-        YourGame.API.spr(BodySprite(), X, Y, 1, 1, 1f, FacingLeft);
+        api.spr(BodySprite(), X, Y, 1, 1, 1f, FacingLeft);
 
         // The club is its own sprite over the player, so it swings without the body animating.
         if (Swing.Active)
         {
-            YourGame.API.spr(Swing.Sprite, X, Y, 1, 1, 1f, FacingLeft);
+            api.spr(Swing.Sprite, X, Y, 1, 1, 1f, FacingLeft);
         }
 
         if (Swing.Failed && FailText.Length > 0)
         {
-            YourGame.API.print(FailText, X + SprSize / 2 - FailText.Length * FontAdvance / 2,
-                Y - FailTextY, Constants.Colors.Red);
+            api.print(FailText, X + SprSize / 2 - Font.Width(FailText) / 2, Y - FailTextY,
+                Constants.Colors.Red);
         }
 
-        // The rect SolidAt actually tests. Skipped when HITSIZE is unauthored, since an empty rect
-        // would draw inverted.
-        if (Debug.Enabled && HitW > 0 && HitH > 0)
-        {
-            YourGame.API.rect(X + HitX, Y + HitY, X + HitX + HitW - 1, Y + HitY + HitH - 1,
-                Climbing ? Constants.Colors.Yellow : Constants.Colors.Red);
-        }
-
+        DrawHitboxDebug();
         DrawAddressDebug();
     }
 
@@ -450,6 +457,21 @@ internal static class Player
 
         int frame = Climbing ? Stair.Sprite : Walk.Sprite;
         return frame > 0 ? frame : Spr;
+    }
+
+    /// <summary>
+    /// The rect <see cref="SolidAt"/> actually tests, which is rarely the sprite it is drawn under.
+    /// </summary>
+    private static void DrawHitboxDebug()
+    {
+        // Skipped when HITSIZE is unauthored, since an empty rect would draw inverted.
+        if (!Debug.Enabled || HitW <= 0 || HitH <= 0)
+        {
+            return;
+        }
+
+        YourGame.API.rect(X + HitX, Y + HitY, X + HitX + HitW - 1, Y + HitY + HitH - 1,
+            Climbing ? Constants.Colors.Yellow : Constants.Colors.Red);
     }
 
     /// <summary>
@@ -471,8 +493,8 @@ internal static class Player
             CanStartSwing() ? Constants.Colors.Green : Constants.Colors.Pink);
     }
 
-    // One pixel at a time so a fast mover can never step over a thin wall, and so the stop lands
-    // flush against the terrain — autotile edges are quadrant-precise, with no tile edge to snap to.
+    // Walked a pixel at a time (see Motion) so the stop lands flush against the terrain — autotile
+    // edges are quadrant-precise, with no tile edge to snap to.
     private static void MoveX(float amount)
     {
         // Tested before the rounding as well as inside the walk below: a frame's travel can round to
@@ -486,10 +508,7 @@ internal static class Player
             return;
         }
 
-        RemX += amount;
-        int steps = (int)YourGame.API.round(RemX);
-        RemX -= steps;
-
+        int steps = Motion.Pixels(ref RemX, amount);
         int step = steps < 0 ? -1 : 1;
         while (steps != 0)
         {
@@ -507,10 +526,7 @@ internal static class Player
 
     private static void MoveY(float amount)
     {
-        RemY += amount;
-        int steps = (int)YourGame.API.round(RemY);
-        RemY -= steps;
-
+        int steps = Motion.Pixels(ref RemY, amount);
         int step = steps < 0 ? -1 : 1;
         while (steps != 0)
         {

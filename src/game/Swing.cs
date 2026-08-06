@@ -27,12 +27,6 @@ internal static class Swing
     private const string PowerObject = "POWER";
     private const string ClubObject = "CLUB";
 
-    // B (X). Button 4 is the jump, so the swing sits on the next one.
-    private const int BtnSwing = 5;
-
-    // X (C). Backs out of an addressed or pulled-back swing.
-    private const int BtnCancel = 6;
-
     // A miss threshold of a whole bar would leave no shot to scale, so the read is kept under one.
     private const float MaxMiss = 0.99f;
 
@@ -127,8 +121,6 @@ internal static class Swing
 
     public static void Update(float elapsedSeconds)
     {
-        var api = YourGame.API;
-
         Seconds += elapsedSeconds;
 
         if (Current == Phase.Pull || Current == Phase.Hit)
@@ -138,51 +130,102 @@ internal static class Swing
 
         Meter.Update(elapsedSeconds);
 
-        // Contact is the end of the swing-through, not its start, so the ball leaves when the club
-        // has actually come round. Once per hit.
-        if (Current == Phase.Hit && !Launched && Clip.Done)
+        UpdateHit();
+
+        if (TryCancel())
         {
-            Launched = true;
-            if (!Failed && Ball.Hit(Player.FacingLeft, Power))
-            {
-                api.sfx(SfxHit);
-                Hud.CountHit();
-            }
+            return;
         }
 
-        if (Current == Phase.Hit && Seconds >= (Failed ? FailSeconds : HitSeconds))
+        TryPress();
+    }
+
+    /// <summary>
+    /// The swing-through playing itself out: the ball leaves on the last frame of the clip, and the
+    /// club is put away once it has been on screen long enough.
+    /// </summary>
+    private static void UpdateHit()
+    {
+        if (Current != Phase.Hit)
+        {
+            return;
+        }
+
+        // Contact is the end of the swing-through, not its start, so the ball leaves when the club
+        // has actually come round. Once per hit.
+        if (!Launched && Clip.Done)
+        {
+            Launched = true;
+            Launch();
+        }
+
+        if (Seconds >= (Failed ? FailSeconds : HitSeconds))
         {
             Current = Phase.Idle;
             Seconds = 0f;
             Failed = false;    // the shout goes away with the club
         }
+    }
 
-        // Backing out. Only before anything is committed: once the swing-through is running the
-        // shot has been taken and it plays itself out.
-        if ((Current == Phase.Ready || Current == Phase.Pull) && api.btnp(BtnCancel))
+    // A whiff is silent and uncounted: only a stroke that actually sends the ball is a shot.
+    private static void Launch()
+    {
+        if (Failed || !Ball.Hit(Player.FacingLeft, Power))
         {
-            Current = Phase.Idle;
-            Seconds = 0f;    // the gap still applies, so the club cannot be flicked straight back out
-            Power = 0f;
-            Failed = false;
-            Meter.Stop();
             return;
         }
 
+        YourGame.API.sfx(SfxHit);
+        Hud.CountHit();
+    }
+
+    /// <summary>
+    /// Backing out. Only before anything is committed: once the swing-through is running the shot
+    /// has been taken and it plays itself out. Returns whether the swing was dropped this frame.
+    /// </summary>
+    private static bool TryCancel()
+    {
+        if (Current != Phase.Ready && Current != Phase.Pull)
+        {
+            return false;
+        }
+
+        if (!YourGame.API.btnp(Btn.Cancel))
+        {
+            return false;
+        }
+
+        Current = Phase.Idle;
+        Seconds = 0f;    // the gap still applies, so the club cannot be flicked straight back out
+        Power = 0f;
+        Failed = false;
+        Meter.Stop();
+        return true;
+    }
+
+    private static void TryPress()
+    {
+        var api = YourGame.API;
+
         // Letting go is what re-arms the button, so a press can never be spent twice.
-        if (!Armed && !api.btn(BtnSwing))
+        if (!Armed && !api.btn(Btn.Swing))
         {
             Armed = true;
         }
 
-        if (!Armed || !api.btnp(BtnSwing) || !Accepts())
+        if (!Armed || !api.btnp(Btn.Swing) || !Accepts())
         {
             return;
         }
 
         Armed = false;
         Seconds = 0f;
+        Advance();
+    }
 
+    // One press, one state.
+    private static void Advance()
+    {
         switch (Current)
         {
             case Phase.Idle:

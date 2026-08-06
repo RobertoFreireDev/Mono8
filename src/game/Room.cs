@@ -12,11 +12,9 @@ namespace mono8.game;
 /// </summary>
 internal class Room
 {
-    // A room is one screenful of the console's 8x8 cells.
-    private const int TileSize = 8;
-
-    public const int CellW = Constants.Screen.ResolutionX / TileSize;
-    public const int CellH = Constants.Screen.ResolutionY / TileSize;
+    // A room is one screenful of the console's cells.
+    public const int CellW = Constants.Screen.ResolutionX / Terrain.TileSize;
+    public const int CellH = Constants.Screen.ResolutionY / Terrain.TileSize;
 
     // Where a room's backdrop sits when it authors no BACKPOS — the start of map layer 2, which
     // begins 256 cells to the right of layer 1. Screen is never cleared, so there is always one.
@@ -108,23 +106,28 @@ internal class Room
         // Re-read every load: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var data = string.IsNullOrEmpty(name) ? null : YourGame.API.gjson(JsonGroup, name);
 
-        // The origin has to be settled before anything measured from it, so CELLPOS is read first.
-        // (0, 0) is a legitimate origin — the top-left room — so an unauthored one costs nothing.
-        if (data != null && data.Has(FieldCell))
+        if (data != null)
         {
-            (CellX, CellY) = data.GetXY(FieldCell);
+            // The origin has to be settled before anything measured from it, so CELLPOS is read
+            // first. (0, 0) is a legitimate origin — the top-left room — so an unauthored one costs
+            // nothing.
+            if (data.Has(FieldCell))
+            {
+                (CellX, CellY) = data.GetXY(FieldCell);
+            }
+
+            // Absolute cells on the map sheet, not room-relative: the backdrop is its own layer, so
+            // it is free to sit anywhere the developer parked it.
+            if (data.Has(FieldBack))
+            {
+                (BackCellX, BackCellY) = data.GetXY(FieldBack);
+            }
         }
 
-        // Absolute cells on the map sheet, not room-relative: the backdrop is its own layer, so it
-        // is free to sit anywhere the developer parked it.
-        if (data != null && data.Has(FieldBack))
-        {
-            (BackCellX, BackCellY) = data.GetXY(FieldBack);
-        }
+        int originX = CellX * Terrain.TileSize;
+        int originY = CellY * Terrain.TileSize;
 
-        int originX = CellX * TileSize;
-        int originY = CellY * TileSize;
-
+        // Whatever the room does not place goes in its top-left corner.
         PlayerX = originX;
         PlayerY = originY;
         HasFlag = false;
@@ -133,29 +136,31 @@ internal class Room
         BallX = originX;
         BallY = originY;
 
-        if (data != null)
+        if (data == null)
         {
-            if (data.Has(FieldPlayer))
-            {
-                var (px, py) = data.GetXY(FieldPlayer);
-                PlayerX = originX + px;
-                PlayerY = originY + py;
-            }
+            return;
+        }
 
-            if (data.Has(FieldFlag))
-            {
-                var (fx, fy) = data.GetXY(FieldFlag);
-                FlagX = originX + fx;
-                FlagY = originY + fy;
-                HasFlag = true;
-            }
+        if (data.Has(FieldPlayer))
+        {
+            var (px, py) = data.GetXY(FieldPlayer);
+            PlayerX = originX + px;
+            PlayerY = originY + py;
+        }
 
-            if (data.Has(FieldBall))
-            {
-                var (bx, by) = data.GetXY(FieldBall);
-                BallX = originX + bx;
-                BallY = originY + by;
-            }
+        if (data.Has(FieldFlag))
+        {
+            var (fx, fy) = data.GetXY(FieldFlag);
+            FlagX = originX + fx;
+            FlagY = originY + fy;
+            HasFlag = true;
+        }
+
+        if (data.Has(FieldBall))
+        {
+            var (bx, by) = data.GetXY(FieldBall);
+            BallX = originX + bx;
+            BallY = originY + by;
         }
     }
 }

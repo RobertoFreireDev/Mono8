@@ -16,9 +16,6 @@ internal static class Ball
     private const string StatsGroup = "BALL";
     private const string StatsObject = "STATS";
 
-    /// <summary>Sprite flag marking solid ground; set it on every tile the ball must not pass through.</summary>
-    private const int FlagSolid = 1;
-
     private const int SfxEnterHole = 1;
 
     /// <summary>Side of the ball in pixels. The rect runs X..X+Size-1.</summary>
@@ -73,6 +70,13 @@ internal static class Ball
 
     public static void Init(Room room)
     {
+        LoadStats();
+        Place(room);
+    }
+
+    // Zeroed first, then read, so a half-authored STATS still runs on the fields it does carry.
+    private static void LoadStats()
+    {
         Size = 0;
         Gravity = 0f;
         MaxFallSpeed = 0f;
@@ -111,7 +115,10 @@ internal static class Ball
         }
 
         BlinkSeconds = blink > 0 ? 1f / blink : 0f;
+    }
 
+    private static void Place(Room room)
+    {
         Present = true;
         X = room.BallX;
         Y = room.BallY;
@@ -167,17 +174,7 @@ internal static class Ball
             return;
         }
 
-        var api = YourGame.API;
-
-        if (BlinkSeconds > 0f)
-        {
-            BlinkTimer += elapsedSeconds;
-            while (BlinkTimer >= BlinkSeconds)
-            {
-                BlinkTimer -= BlinkSeconds;
-                BlinkOn = !BlinkOn;
-            }
-        }
+        UpdateBlink(elapsedSeconds);
 
         if (Sinking)
         {
@@ -190,38 +187,63 @@ internal static class Ball
         // Rolling only sheds speed on the ground; in the air the ball keeps its horizontal throw.
         if (OnGround)
         {
-            float drop = Friction * elapsedSeconds;
-            if (api.abs(VelX) <= drop)
-            {
-                VelX = 0f;
-            }
-            else
-            {
-                VelX -= VelX < 0f ? -drop : drop;
-            }
+            VelX = Rolled(VelX, elapsedSeconds);
         }
 
-        VelY += Gravity * elapsedSeconds;
-        if (VelY > MaxFallSpeed)
-        {
-            VelY = MaxFallSpeed;
-        }
+        VelY = Motion.Fall(VelY, Gravity, MaxFallSpeed, elapsedSeconds);
 
         MoveX(VelX * elapsedSeconds);
         MoveY(VelY * elapsedSeconds);
 
         OnGround = SolidAt(X, Y + 1);
 
-        // Asked after the move, so the velocities read are what the ball came to rest with rather
-        // than what it started the frame on.
-        if (OnGround && api.abs(VelX) <= HoleSpeed && api.abs(VelY) <= HoleSpeed && OverHole())
+        TryEnterHole();
+    }
+
+    private static void UpdateBlink(float elapsedSeconds)
+    {
+        if (BlinkSeconds <= 0f)
         {
-            Sinking = true;
-            VelX = 0f;
-            VelY = 0f;
-            RemX = 0f;
-            RemY = 0f;
+            return;
         }
+
+        BlinkTimer += elapsedSeconds;
+        while (BlinkTimer >= BlinkSeconds)
+        {
+            BlinkTimer -= BlinkSeconds;
+            BlinkOn = !BlinkOn;
+        }
+    }
+
+    // Friction is a flat drop rather than a scale, so a roll actually comes to a stop instead of
+    // halving forever.
+    private static float Rolled(float velX, float elapsedSeconds)
+    {
+        float drop = Friction * elapsedSeconds;
+        if (YourGame.API.abs(velX) <= drop)
+        {
+            return 0f;
+        }
+
+        return velX - (velX < 0f ? -drop : drop);
+    }
+
+    // Asked after the move, so the velocities read are what the ball came to rest with rather than
+    // what it started the frame on.
+    private static void TryEnterHole()
+    {
+        var api = YourGame.API;
+
+        if (!OnGround || api.abs(VelX) > HoleSpeed || api.abs(VelY) > HoleSpeed || !OverHole())
+        {
+            return;
+        }
+
+        Sinking = true;
+        VelX = 0f;
+        VelY = 0f;
+        RemX = 0f;
+        RemY = 0f;
     }
 
     public static void Draw()
@@ -298,21 +320,15 @@ internal static class Ball
 
     private static void MoveX(float amount)
     {
-        RemX += amount;
-        int steps = (int)YourGame.API.round(RemX);
-        RemX -= steps;
-
+        int steps = Motion.Pixels(ref RemX, amount);
         int step = steps < 0 ? -1 : 1;
+
         while (steps != 0)
         {
             if (SolidAt(X + step, Y))
             {
                 RemX = 0f;
-                VelX = -VelX * Bounce;
-                if (YourGame.API.abs(VelX) < RestSpeed)
-                {
-                    VelX = 0f;
-                }
+                VelX = Bounced(VelX);
                 return;
             }
 
@@ -323,23 +339,15 @@ internal static class Ball
 
     private static void MoveY(float amount)
     {
-        RemY += amount;
-        int steps = (int)YourGame.API.round(RemY);
-        RemY -= steps;
-
+        int steps = Motion.Pixels(ref RemY, amount);
         int step = steps < 0 ? -1 : 1;
+
         while (steps != 0)
         {
             if (SolidAt(X, Y + step))
             {
                 RemY = 0f;
-                VelY = -VelY * Bounce;
-
-                // A bounce this shallow would only buzz against the floor, so the ball settles.
-                if (YourGame.API.abs(VelY) < RestSpeed)
-                {
-                    VelY = 0f;
-                }
+                VelY = Bounced(VelY);
                 return;
             }
 
@@ -348,8 +356,15 @@ internal static class Ball
         }
     }
 
+    // A bounce under REST would only buzz against the wall it came off, so the ball settles instead.
+    private static float Bounced(float velocity)
+    {
+        float back = -velocity * Bounce;
+        return YourGame.API.abs(back) < RestSpeed ? 0f : back;
+    }
+
     private static bool SolidAt(int x, int y)
     {
-        return YourGame.API.mcol(x, y, Size, Size, FlagSolid);
+        return Terrain.Solid(x, y, Size, Size);
     }
 }

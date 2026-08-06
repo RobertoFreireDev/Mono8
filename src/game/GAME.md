@@ -82,13 +82,22 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 | [Hud.cs](Hud.cs) | Shot counter, plus `PrintOutlined` which every HUD caption uses. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
-| [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. The one instance class. |
+| [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. Instance. |
+| [SfxList.cs](SfxList.cs) | A sfx array field played one at a time at random — the footsteps and the club swap. Instance. |
+| [Motion.cs](Motion.cs) | The pixel-stepped travel and the gravity clamp the player and the ball both move by. Stateless. |
+| [Btn.cs](Btn.cs) | Button indices by name, so no `btn` call carries a bare number. |
+| [Font.cs](Font.cs) | The engine font's advance and line height, and the string width captions are placed by. |
 | [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
 
-Most of the game is `static` — there is one player, one ball, one swing. `Room` and `Anim` are the
-exceptions: `YourGame` holds a room instance so entering another is just another `Enter`, and the
-player, the flag and the swing each hold their own clips.
+Most of the game is `static` — there is one player, one ball, one swing. `Room`, `Anim` and `SfxList`
+are the exceptions: `YourGame` holds a room instance so entering another is just another `Enter`, the
+player, the flag and the swing each hold their own clips, and the footsteps and the club swap each
+hold their own sounds.
+
+**Every type here is in scope engine-wide** — [src/GlobalUsings.cs](../GlobalUsings.cs) carries
+`global using mono8.game`, so a new game type whose name collides with a MonoGame one breaks the
+*engine's* build. That is why the buttons are `Btn` and not `Buttons`.
 
 ---
 
@@ -173,9 +182,10 @@ switches to while `Climbing`. That branch is the whole stair feature: a climb pa
 tiles while a real ceiling or floor still stops it.
 
 Both the player and the ball move **one pixel at a time**, x and y separately, with a fractional
-remainder carried between frames. At these speeds a frame of travel is several pixels and stepping is
-what keeps anything from tunnelling through a thin wall; it also lands the stop flush against
-quadrant-precise autotile edges, which have no tile boundary to snap to.
+remainder carried between frames (`Motion.Pixels`). At these speeds a frame of travel is several
+pixels and stepping is what keeps anything from tunnelling through a thin wall; it also lands the
+stop flush against quadrant-precise autotile edges, which have no tile boundary to snap to. What a
+blocked step means is each body's own: the player stops, the ball bounces.
 
 Stairs: ↑ takes any stair the body already stands in; ↓ takes the one under its feet (so a stair
 capping a platform is entered from above), gated on there being floor there to leave. The grab centres
@@ -238,7 +248,8 @@ than failing. A room without `FLAGPOS` has no flag — and with no flag to measu
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
 Sfx ids fixed in code: `0` club on ball, `1` ball into the cup. Everything else (footsteps, club swap)
-is authored as a list in json.
+is authored as a list in json and read through `SfxList`, which drops a negative or wrong-typed entry
+rather than loading it.
 
 ---
 
@@ -252,8 +263,10 @@ is authored as a list in json.
   crashing, so failures are quiet.
 - **Guard the degenerate draw.** An unauthored `SIZE`/`HITSIZE`/`BARW` is 0, and `rect` with an empty
   extent draws inverted — every debug and HUD rect checks first.
-- **No per-frame allocation.** Fixed pools (`Dust`, `Club`, `Steps`), captions rebuilt only when the
-  number moves (`Hud.Count`), `Swing.State` returns literals.
+- **No per-frame allocation.** Fixed pools (`Dust`, `Club`, `SfxList`), captions rebuilt only when the
+  number moves (`Hud.SetHits`), `Swing.State` returns literals.
+- **One home per shared number.** The cell size is `Terrain.TileSize`, the font metrics are `Font`,
+  the button indices are `Btn` — a literal `8`, `4` or `5` in game code is a bug waiting to drift.
 - **Comments say why, not what.** The density here is deliberate: the tricky invariants (the one-pixel
   step-in on a stair grab, reading the meter before anything else can move it, the ball leaving on the
   clip's last frame) are commented; the obvious is not.

@@ -92,18 +92,20 @@ internal static class Meter
     /// <summary>Puts the empty bar on screen without sweeping it. Called when the club comes out.</summary>
     public static void Show()
     {
-        Level = 0f;
-        Direction = 1;
-        Running = false;
-        Shown = true;
+        Reset(false);
     }
 
     /// <summary>Starts the sweep from empty. Called when the club goes back.</summary>
     public static void Start()
     {
+        Reset(true);
+    }
+
+    private static void Reset(bool running)
+    {
         Level = 0f;
         Direction = 1;
-        Running = true;
+        Running = running;
         Shown = true;
     }
 
@@ -156,11 +158,14 @@ internal static class Meter
         int filled = (int)api.round(Level * BarW);
         if (filled > 0)
         {
-            // A full bar lands on 10, which is past the last band — keep it in the top one.
-            int band = (int)api.mid(0, (int)(Level * FillColors.Length), FillColors.Length - 1);
-
-            api.rectfill(x0 + Border, y0 + Border, x0 + Border + filled - 1, y1 - Border,
-                FillColors[band]);
+            api.rectfill(x0 + Border, y0 + Border, x0 + Border + filled - 1, y1 - Border, FillColor());
         }
+    }
+
+    // A full bar lands on one past the last band — keep it in the top one.
+    private static int FillColor()
+    {
+        int band = (int)YourGame.API.mid(0, (int)(Level * FillColors.Length), FillColors.Length - 1);
+        return FillColors[band];
     }
 }

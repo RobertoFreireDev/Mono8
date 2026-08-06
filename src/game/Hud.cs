@@ -11,10 +11,6 @@ internal static class Hud
     private const string JsonGroup = "HUD";
     private const string JsonObject = "HITS";
 
-    // The engine's font advances 4 px a character and prints upper-case, which is how the caption
-    // is right-aligned.
-    private const int FontAdvance = 4;
-
     private static string HitLabel;
     private static int Margin;
 
@@ -34,21 +30,21 @@ internal static class Hud
             Margin = data.GetInt("MARGIN");
         }
 
-        Hits = -1;    // anything but 0, so the first Count builds the caption
-        Count(0);
+        Hits = -1;    // anything but 0, so the first SetHits builds the caption
+        SetHits(0);
     }
 
     /// <summary>One more ball actually struck.</summary>
     public static void CountHit()
     {
-        Count(Hits + 1);
+        SetHits(Hits + 1);
     }
 
     public static void Draw()
     {
-        PrintOutlined(HitCaption,
-            Constants.Screen.ResolutionX - Margin - HitCaption.Length * FontAdvance, Margin,
-            Constants.Colors.White);
+        // Right-aligned, which is what the caption has to be measured for.
+        PrintOutlined(HitCaption, Constants.Screen.ResolutionX - Margin - Font.Width(HitCaption),
+            Margin, Constants.Colors.White);
     }
 
     /// <summary>
@@ -67,7 +63,7 @@ internal static class Hud
     }
 
     // Rebuilt only when the count moves, so drawing the caption allocates nothing.
-    private static void Count(int hits)
+    private static void SetHits(int hits)
     {
         if (hits == Hits)
         {

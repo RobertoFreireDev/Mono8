@@ -24,14 +24,8 @@ internal static class Club
     private const string LabelGroup = "HUD";
     private const string LabelObject = "CLUB";
 
-    // Y (V). The last face button free — A jumps, B swings, X backs out of a swing.
-    private const int BtnClub = 7;
-
     // The authoring limit on one array is what the bag can hold.
     private const int MaxClubs = 16;
-
-    // The engine's font is 7 px tall, which is what the label is lifted off the bar by.
-    private const int FontHeight = 7;
 
     // Straight up. Past it the shot would come back over the player's shoulder.
     private const double MaxAngle = 0.25;
@@ -43,8 +37,7 @@ internal static class Club
 
     // The sfx a swap picks from, authored on the bag itself — the sound is the bag being rummaged
     // through, not any one club's.
-    private static readonly int[] SwapSounds = new int[MaxClubs];
-    private static int SwapSoundCount;
+    private static readonly SfxList SwapSounds = new SfxList();
 
     private static int Loaded;
     private static int Index;
@@ -82,7 +75,6 @@ internal static class Club
 
         Loaded = 0;
         Index = 0;
-        SwapSoundCount = 0;
         LabelGap = 0;
         SwapSeconds = 0f;
         SwapX = 0;
@@ -99,20 +91,9 @@ internal static class Club
             {
                 Load(order.GetStr(FieldOrder, i));
             }
-
-            int sounds = order.Count(FieldSwapSfx);
-            for (int i = 0; i < sounds && SwapSoundCount < MaxClubs; i++)
-            {
-                // A negative id stops channels rather than playing anything, so an unauthored or
-                // wrong-typed entry is dropped instead of loaded.
-                int id = order.GetInt(FieldSwapSfx, i, -1);
-                if (id >= 0)
-                {
-                    SwapSounds[SwapSoundCount] = id;
-                    SwapSoundCount++;
-                }
-            }
         }
+
+        SwapSounds.Load(ClubGroup, OrderObject, FieldSwapSfx);
 
         var label = api.gjson(LabelGroup, LabelObject);
         if (label != null)
@@ -137,7 +118,7 @@ internal static class Club
         }
 
         // Not mid-swing: the club that was addressed is the club that hits.
-        if (Loaded > 1 && !Swing.Active && YourGame.API.btnp(BtnClub))
+        if (Loaded > 1 && !Swing.Active && YourGame.API.btnp(Btn.Club))
         {
             // Whatever is showing is what leaves, so a second press part way through a swap picks
             // the turn up from where it got to rather than snapping back.
@@ -145,10 +126,7 @@ internal static class Club
             SwapLeft = SwapSeconds;
             Index = (Index + 1) % Loaded;
 
-            if (SwapSoundCount > 0)
-            {
-                YourGame.API.sfx(SwapSounds[YourGame.API.rnd(SwapSoundCount)]);
-            }
+            SwapSounds.PlayRandom();
         }
     }
 
@@ -161,7 +139,7 @@ internal static class Club
         }
 
         int x = Meter.LeftX;
-        int y = Meter.TopY - LabelGap - FontHeight;
+        int y = Meter.TopY - LabelGap - Font.Height;
 
         // How far through the turn: 1 once it is over, which is also what an unauthored SWAPSEC
         // leaves it at, so the label just changes.

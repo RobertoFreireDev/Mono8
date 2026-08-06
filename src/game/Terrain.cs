@@ -10,7 +10,8 @@ namespace mono8.game;
 /// </summary>
 internal static class Terrain
 {
-    private const int TileSize = 8;
+    /// <summary>Side of one map cell in pixels — what turns a pixel coordinate into a cell one.</summary>
+    public const int TileSize = 8;
 
     /// <summary>Sprite flag marking solid ground; set it on every tile a body must not pass through.</summary>
     public const int FlagSolid = 1;
