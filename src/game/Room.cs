@@ -18,8 +18,14 @@ internal class Room
     public const int CellW = Constants.Screen.ResolutionX / TileSize;
     public const int CellH = Constants.Screen.ResolutionY / TileSize;
 
+    // Where a room's backdrop sits when it authors no BACKPOS — the start of map layer 2, which
+    // begins 256 cells to the right of layer 1. Screen is never cleared, so there is always one.
+    private const int DefaultBackX = 256;
+    private const int DefaultBackY = 0;
+
     private const string JsonGroup = "ROOMS";
     private const string FieldCell = "CELLPOS";
+    private const string FieldBack = "BACKPOS";
     private const string FieldPlayer = "PLYRPOS";
     private const string FieldFlag = "FLAGPOS";
     private const string FieldBall = "BALLPOS";
@@ -27,6 +33,9 @@ internal class Room
     public string Name { get; private set; }
     public int CellX { get; private set; }
     public int CellY { get; private set; }
+
+    public int BackCellX { get; private set; }
+    public int BackCellY { get; private set; }
 
     public int PlayerX { get; private set; }
     public int PlayerY { get; private set; }
@@ -69,6 +78,8 @@ internal class Room
 
     public void Draw()
     {
+        // Backdrop first — it replaces the cleared screen, so it draws before the room itself.
+        YourGame.API.map(BackCellX, BackCellY, 0, 0, CellW, CellH);
         YourGame.API.map(CellX, CellY, 0, 0, CellW, CellH);
         Flag.Draw();
 
@@ -91,6 +102,8 @@ internal class Room
         Name = name;
         CellX = 0;
         CellY = 0;
+        BackCellX = DefaultBackX;
+        BackCellY = DefaultBackY;
 
         // Re-read every load: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var data = string.IsNullOrEmpty(name) ? null : YourGame.API.gjson(JsonGroup, name);
@@ -100,6 +113,13 @@ internal class Room
         if (data != null && data.Has(FieldCell))
         {
             (CellX, CellY) = data.GetXY(FieldCell);
+        }
+
+        // Absolute cells on the map sheet, not room-relative: the backdrop is its own layer, so it
+        // is free to sit anywhere the developer parked it.
+        if (data != null && data.Has(FieldBack))
+        {
+            (BackCellX, BackCellY) = data.GetXY(FieldBack);
         }
 
         int originX = CellX * TileSize;

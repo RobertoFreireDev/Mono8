@@ -50,7 +50,6 @@ internal class YourGame : IEditor
 
     public void Draw()
     {
-        API.cls(Constants.Colors.Blue);
         _room.Draw();
         Debug.Draw();
     }

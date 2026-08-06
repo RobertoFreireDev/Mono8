@@ -9,7 +9,8 @@
       "CELLPOS:p": [0, 0],
       "FLAGPOS:p": [180, 105],
       "PLYRPOS:p": [30, 96],
-      "BALLPOS:p": [46, 96]
+      "BALLPOS:p": [46, 96],
+      "BACKPOS:p": [256, 0]
     }
   },
   "PLAYER": {
