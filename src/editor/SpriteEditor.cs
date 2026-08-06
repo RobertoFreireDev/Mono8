@@ -809,6 +809,18 @@ internal class SpriteEditor : IEditor, IEditorConfig
         return false;
     }
 
+    // What the slot holds and whether it is the mask being painted through. The row only paints under
+    // the pencil, so a slot reads as on exactly when it draws as on. An empty slot has no state to
+    // report - it can never be the active one.
+    private string DitherLabel(int slot)
+    {
+        string state = selectedTool == Tool.Pixel && slot == selectedDitherSlot ? "ON" : "OFF";
+        if (slot == DitherSolidSlot) return $"PENCIL {state}";
+
+        int sprite = ditherSprites[slot];
+        return sprite < 0 ? "EMPTY" : $"SPR:{sprite:D3} {state}";
+    }
+
     private static string ToolLabel(Tool tool) => tool switch
     {
         Tool.Rect => "RECT",
@@ -873,8 +885,7 @@ internal class SpriteEditor : IEditor, IEditorConfig
 
         for (int i = 0; i < ditherButtons.Length; i++)
         {
-            if (ditherButtons[i].Contains(mouse.x, mouse.y))
-                return i == DitherSolidSlot ? "PENCIL" : "DITHERING";
+            if (ditherButtons[i].Contains(mouse.x, mouse.y)) return DitherLabel(i);
         }
 
         foreach (var (button, tool) in toolButtons)
