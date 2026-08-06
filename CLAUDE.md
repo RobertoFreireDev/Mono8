@@ -5,6 +5,11 @@ Mono8 is a PICO-8 game engine built on MonoGame (.NET 8). The repo contains **tw
 1. **The engine** — everything under [src/](src/) except [src/game/](src/game/). Editors, renderer, audio, file formats. **Off limits.**
 2. **The game** — [src/game/](src/game/). This is the only place game code lives, and the only place you write.
 
+**Read [src/game/GAME.md](src/game/GAME.md) before touching game code.** It is the current state of the
+game — what it is, how a frame runs, what each file owns, which `data.json` group feeds which system,
+and what is not built yet. This document tells you the rules; that one tells you what is already there.
+Keep it current when you change how the game works.
+
 ---
 
 ## The two hard rules
@@ -87,6 +92,9 @@ Colors have names in `Constants.Colors`: `Black`(0) `DarkBlue`(1) `DarkPurple`(2
 ---
 
 ## Game entry point
+
+The game as it currently stands — systems, frame order, json layout, open ends — is
+[src/game/GAME.md](src/game/GAME.md). Start there, then come back here for the rules.
 
 [src/game/YourGame.cs](src/game/YourGame.cs) is the only class the engine calls:
 
