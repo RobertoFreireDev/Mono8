@@ -73,21 +73,22 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 | [YourGame.cs](YourGame.cs) | Engine entry point. Reads `GAME/START.ROOM` and forwards the three methods to `_room`. |
 | [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
-| [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking 2×2 rect, not a sprite. Static. |
+| [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
 | [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
-| [Meter.cs](Meter.cs) | The strength bar that sweeps while the club is back. Static. |
-| [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the label over the meter. Static. |
+| [Meter.cs](Meter.cs) | The strength bar that sweeps while the club is back, filled in ten colour bands weakest-first. Static. |
+| [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
 | [Hud.cs](Hud.cs) | Shot counter, plus `PrintOutlined` which every HUD caption uses. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
 | [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. The one instance class. |
-| [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. |
+| [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
 
-Most of the game is `static` — there is one player, one ball, one swing. `Anim` is the exception,
-since the player, the flag and the swing each hold their own.
+Most of the game is `static` — there is one player, one ball, one swing. `Room` and `Anim` are the
+exceptions: `YourGame` holds a room instance so entering another is just another `Enter`, and the
+player, the flag and the swing each hold their own clips.
 
 ---
 
@@ -102,13 +103,15 @@ Idle ──X──> Ready ──X──> Pull ──X──> Hit ──(HITSEC /
              └────C───────┘  cancel: club away, meter dropped
 ```
 
-- **Idle → Ready** only if `Player.CanStartSwing()` — both feet on the ground and the ball inside the
-  `CLUBX` + `REACH` window. `Player.AlignToBall()` then slides the player a pixel at a time so the club
-  head lands on the ball, stopping flush if a wall is in the way. `Meter.Show()` puts the empty bar up.
+- **Idle → Ready** only if `Player.CanStartSwing()` — both feet on the ground, the ball still in play
+  (one already dropping into the cup is not), and the ball inside the `CLUBX` + `REACH` window.
+  `Player.AlignToBall()` then slides the player a pixel at a time so the club head lands on the ball,
+  stopping flush if a wall is in the way. `Meter.Show()` puts the empty bar up.
 - **Ready → Pull** plays `ANIM/GOLFPULL` (one-shot) and starts the meter sweeping.
-- **Pull → Hit** reads `Meter.Value` **once**, right there. Under `MISS` the swing fails outright
-  (`Failed`, the player shouts `FAILTXT`, no sfx, no shot counted); otherwise `MISS..1` is stretched
-  onto `MINHIT..1` so any connecting swing moves the ball. Plays `ANIM/GOLFHIT`.
+- **Pull → Hit** waits for the pull clip to finish (`Clip.Done` — there is no swinging through a club
+  still going back), then reads `Meter.Value` **once**, right there. Under `MISS` the swing fails
+  outright (`Failed`, the player shouts `FAILTXT`, no sfx, no shot counted); otherwise `MISS..1` is
+  stretched onto `MINHIT..1` so any connecting swing moves the ball. Plays `ANIM/GOLFHIT`.
 - The ball leaves on the **last frame** of the hit clip, not the press — `Clip.Done`, once per hit.
 
 While `Swing.Active` the player is committed: no walking, no jumping, no stair grab, no club swap.
@@ -122,6 +125,37 @@ angle = clamp(atan2(HITY, HITX) + Club.Angle, 0, 0.25 turns)   // 0 when power <
 ```
 
 That last clause is the putter: at or under `GNDPWR` the shot stays flat however lofted the club is.
+
+### The bag
+
+`CLUBS/ORDER.LIST` names the club objects in swap order and V walks them, blocked while `Swing.Active`
+so the club addressed is the club that hits. Each swap plays one of `ORDER.SFX` at random. A club named
+in `LIST` but never authored is skipped rather than loaded as a zero-distance one, and an empty bag
+leaves the ball hitting exactly as `BALL/HITX`/`HITY` say — `Angle` 0, `Distance` 1, `GroundPower` 0.
+
+The label sits over the meter bar and is drawn whether or not the bar is up, so a club can be picked
+while walking. Over `HUD/CLUB.SWAPSEC` the outgoing name drops away and the incoming one comes down
+from above, both set back by `SWAPX`/`SWAPY` at their extremes so the pair reads as one face turning
+rather than two labels sliding past each other. A second press part way through picks the turn up from
+whatever is showing.
+
+---
+
+## Animation and the idle still
+
+`Anim` walks an `ANIM/<name>` object: `ID` the sprite ids (authored as Text, parsed once on load),
+`SPEED` in frames per second, `MODE` matched without regard to case — `FW` forward, `BW` or `RV`
+backward, `PP` ping-pong. A clip loops unless it is loaded with `loop: false`, which makes it a
+one-shot that holds the frame it ends on and reports `Done` — that flag is what the swing times both of
+its clips on. An unauthored `SPEED` or a single-frame list can never reach an end on its own, so a
+one-shot over one is `Done` the moment it starts.
+
+The player runs one clip at a time and only while actually travelling, so a walk into a wall does not
+march on the spot. Off a stair, stopping rewinds `PLRWALK` and the body falls back to
+`PLAYER/STATS.SPR` — the idle still, which is also what an unauthored clip falls back to. On a stair
+the frame is held instead, since a rung is a place to stand. Crossing between the two clips rewinds the
+one being taken up, and addressing the ball is that same idle still with the club sprite swinging over
+it.
 
 ---
 
@@ -163,12 +197,29 @@ next-room, win screen or score tally yet.
 
 ---
 
+## The debug overlay
+
+`Debug.Enabled` is off by default and toggled from the pause menu. It persists in `dget`/`dset` slot 0
+offset by one — `1` off, `2` on — so a fresh save reading `0` lands on off rather than on.
+
+`Debug.Draw` itself only puts FPS, `Swing.State` and the power reading in the top-left corner. Every
+box is drawn by whoever owns it, each guarded against an unauthored size that `rect` would draw
+inverted:
+
+| Drawn by | Shows |
+|---|---|
+| `Player.Draw` | the `HITPOS`/`HITSIZE` rect `SolidAt` actually tests — yellow while climbing, red otherwise |
+| `Player.DrawAddressDebug` | the `CLUBX` + `REACH` window, green once the ball is inside it |
+| `Ball.DrawHoleDebug` | the cup rect, over the flag it is measured from so it stays readable |
+
+---
+
 ## data.json map
 
 | Group / object | Read by | Holds |
 |---|---|---|
 | `GAME/START` | `YourGame` | `ROOM` — which `ROOMS` object to open on |
-| `ROOMS/<name>` | `Room` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room) |
+| `ROOMS/<name>` | `Room` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room) |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
 | `SWING/POWER` | `Swing`, `Meter` | `SWEEP` (seconds for one out-and-back), `MISS`, `MINHIT` |
@@ -180,6 +231,9 @@ next-room, win screen or score tally yet.
 | `HUD/CLUB` | `Club` | `GAP` `SWAPSEC` `SWAPX` `SWAPY` |
 | `ANIM/<name>` | `Anim` | `ID` (sprite ids as Text), `SPEED` (fps), `MODE` — `FW` / `BW` / `RV` / `PP` |
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
+
+An unknown room, or one missing a field, loads as an empty room at the top-left of the sheet rather
+than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
