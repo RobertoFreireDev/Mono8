@@ -19,6 +19,7 @@ internal static class Club
     private const string ClubGroup = "CLUBS";
     private const string OrderObject = "ORDER";
     private const string FieldOrder = "LIST";
+    private const string FieldSwapSfx = "SFX";
 
     private const string LabelGroup = "HUD";
     private const string LabelObject = "CLUB";
@@ -39,6 +40,11 @@ internal static class Club
     private static readonly float[] Angles = new float[MaxClubs];
     private static readonly float[] Distances = new float[MaxClubs];
     private static readonly float[] GroundPowers = new float[MaxClubs];
+
+    // The sfx a swap picks from, authored on the bag itself — the sound is the bag being rummaged
+    // through, not any one club's.
+    private static readonly int[] SwapSounds = new int[MaxClubs];
+    private static int SwapSoundCount;
 
     private static int Loaded;
     private static int Index;
@@ -76,6 +82,7 @@ internal static class Club
 
         Loaded = 0;
         Index = 0;
+        SwapSoundCount = 0;
         LabelGap = 0;
         SwapSeconds = 0f;
         SwapX = 0;
@@ -91,6 +98,19 @@ internal static class Club
             for (int i = 0; i < listed && Loaded < MaxClubs; i++)
             {
                 Load(order.GetStr(FieldOrder, i));
+            }
+
+            int sounds = order.Count(FieldSwapSfx);
+            for (int i = 0; i < sounds && SwapSoundCount < MaxClubs; i++)
+            {
+                // A negative id stops channels rather than playing anything, so an unauthored or
+                // wrong-typed entry is dropped instead of loaded.
+                int id = order.GetInt(FieldSwapSfx, i, -1);
+                if (id >= 0)
+                {
+                    SwapSounds[SwapSoundCount] = id;
+                    SwapSoundCount++;
+                }
             }
         }
 
@@ -124,6 +144,11 @@ internal static class Club
             Outgoing = Name;
             SwapLeft = SwapSeconds;
             Index = (Index + 1) % Loaded;
+
+            if (SwapSoundCount > 0)
+            {
+                YourGame.API.sfx(SwapSounds[YourGame.API.rnd(SwapSoundCount)]);
+            }
         }
     }
 

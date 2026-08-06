@@ -133,6 +133,7 @@ internal static class Player
         Stair.Load(AnimStair);
 
         Dust.Init();
+        Steps.Init();
         Swing.Init();
     }
 
@@ -220,6 +221,8 @@ internal static class Player
         {
             Dust.Emit(elapsedSeconds, X, Y, SprSize, FacingLeft);
         }
+
+        Steps.Update(elapsedSeconds, Moving && OnGround);
 
         Swing.Update(elapsedSeconds);
     }
@@ -472,6 +475,17 @@ internal static class Player
     // flush against the terrain — autotile edges are quadrant-precise, with no tile edge to snap to.
     private static void MoveX(float amount)
     {
+        // Tested before the rounding as well as inside the walk below: a frame's travel can round to
+        // no step at all, and on those frames a body already flush against a wall would keep its
+        // velocity and read as walking to everything that asks it — the stride, the dust, the
+        // footsteps.
+        if (amount != 0f && SolidAt(X + (amount < 0f ? -1 : 1), Y))
+        {
+            RemX = 0f;
+            VelX = 0f;
+            return;
+        }
+
         RemX += amount;
         int steps = (int)YourGame.API.round(RemX);
         RemX -= steps;
