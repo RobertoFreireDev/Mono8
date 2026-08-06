@@ -49,7 +49,7 @@ The same goes the other way round: `Ctrl+S` in an editor writes to the `data/` f
 
 ### Sprite Editor
 
-![alt text](images/mono8.png) 
+![alt text](images/mono8sprt.png)
 
 ### Map Editor
 
