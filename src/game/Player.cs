@@ -68,6 +68,13 @@ internal static class Player
     private static float RemX;
     private static float RemY;
 
+    // The room's side walls, as the leftmost and rightmost X the body may stand at. A room is one
+    // screen with nothing beyond it, so walking off the side would only lose a hole that is still
+    // playable — the sides read as terrain instead. The ball still leaves that way, and so does a
+    // fall out of the bottom: this is the walk and nothing else.
+    private static int MinX;
+    private static int MaxX;
+
     /// <summary>Where the club head sits right now, in map-sheet pixels — the ball's target.</summary>
     public static int ClubPointX => X + (FacingLeft ? SprSize - 1 - ClubX : ClubX);
 
@@ -139,6 +146,12 @@ internal static class Player
 
     private static void Spawn(Room room)
     {
+        // Read after LoadStats, since the right-hand limit is measured off the sprite's own width.
+        // An unauthored SPRSIZE reads as 1 for the same reason Room.Escaped does it: at 0 the body
+        // would be held a pixel outside the wall it is meant to stop at.
+        MinX = room.Left;
+        MaxX = room.Right - (SprSize > 0 ? SprSize : 1) + 1;
+
         X = room.PlayerX;
         Y = room.PlayerY;
         VelX = 0f;
@@ -194,7 +207,7 @@ internal static class Player
         int target = Ball.CenterX - (FacingLeft ? SprSize - 1 - ClubX : ClubX);
         int step = target < X ? -1 : 1;
 
-        while (X != target && !SolidAt(X + step, Y))
+        while (X != target && !BlockedAt(X + step, Y, step))
         {
             X += step;
         }
@@ -515,7 +528,8 @@ internal static class Player
         // no step at all, and on those frames a body already flush against a wall would keep its
         // velocity and read as walking to everything that asks it — the stride, the dust, the
         // footsteps.
-        if (amount != 0f && SolidAt(X + (amount < 0f ? -1 : 1), Y))
+        int dir = amount < 0f ? -1 : 1;
+        if (amount != 0f && BlockedAt(X + dir, Y, dir))
         {
             RemX = 0f;
             VelX = 0f;
@@ -526,7 +540,7 @@ internal static class Player
         int step = steps < 0 ? -1 : 1;
         while (steps != 0)
         {
-            if (SolidAt(X + step, Y))
+            if (BlockedAt(X + step, Y, step))
             {
                 RemX = 0f;
                 VelX = 0f;
@@ -554,6 +568,21 @@ internal static class Player
             Y += step;
             steps -= step;
         }
+    }
+
+    /// <summary>
+    /// A sideways step the body may not take: the map's solid, or one of the two walls the room has
+    /// for want of anything beyond it. Only the walk asks — <see cref="MoveY"/> goes straight to
+    /// <see cref="SolidAt"/>, since falling out of the bottom is a lost hole rather than a blocked
+    /// step, and the top is open on purpose.
+    ///
+    /// The wall is tested by the direction of the step rather than by where the step lands, so a
+    /// body that starts outside — a PLYRPOS authored past the room's edge — can still walk back in
+    /// instead of being pinned where it spawned.
+    /// </summary>
+    private static bool BlockedAt(int x, int y, int step)
+    {
+        return (step < 0 ? x < MinX : x > MaxX) || SolidAt(x, y);
     }
 
     // An unauthored HITSIZE is empty, and an empty rect meets nothing.

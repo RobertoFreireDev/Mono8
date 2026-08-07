@@ -132,8 +132,8 @@ four fields together.
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
 | [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, which have been sunk, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
 | [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
-| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges and its `HITMAX`, and restarts the level when a body leaves the edges or the strokes run out. `Exists` is what the level select asks. |
-| [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
+| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges — `Left`/`Right` are public, since the player walks into them — and its `HITMAX`, and restarts the level when a body leaves the edges or the strokes run out. `Exists` is what the level select asks. |
+| [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Takes the room's sides as walls, so the walk never leaves the screen sideways. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
 | [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
 | [Meter.cs](Meter.cs) | The strength bar that sweeps while the club is back, filled in ten colour bands weakest-first. Static. |
@@ -424,6 +424,14 @@ and a loss re-enters the room: same level, everything back at its spawn, the str
 
 - **Left, right and bottom** lose a body. The **top is open**: a lofted shot arcs over the screen and
   gravity brings it back, and that is the shot the game is about.
+- **The player cannot reach the sides.** `Room.Left` / `Room.Right` are walls to the walk:
+  `Player.BlockedAt` is the map's solid *plus* those two, so a body stops flush against the edge of
+  the screen exactly as it stops against terrain, and the alignment slide into a ball by the wall
+  stops there too. Losing a still-playable hole to a stray step was never the point of the test —
+  what it is there for is the fall out of the bottom, which is untouched, and the ball, which is
+  free to leave any of the three. The wall is tested by the **direction** of the step rather than
+  by where it lands, so a `PLYRPOS` authored outside its own room can still walk back in instead of
+  being pinned; the out-of-bounds test below is still what catches one authored past the bottom.
 - The test is *every* pixel past one edge, so clipping a corner on the way past is not a loss.
 - The player is measured by `SPRSIZE`, the ball by `SIZE`; an unauthored one reads as 1 rather than
   0, which would take a body flush against the left edge as already gone.

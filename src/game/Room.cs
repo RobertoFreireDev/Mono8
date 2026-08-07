@@ -65,7 +65,12 @@ internal class Room
 
     // The far edges, also in map-sheet pixels. A room is exactly one screen, so anything past them
     // is off the map as far as the game is concerned.
-    private int Right => OriginX + CellW * Terrain.TileSize - 1;
+    //
+    // The sides are public because the player walks into them rather than out of them: with nothing
+    // beyond a room they are terrain, and <see cref="Player"/> stops flush against them. The bottom
+    // stays private — a fall out of a room is still a loss.
+    public int Left => OriginX;
+    public int Right => OriginX + CellW * Terrain.TileSize - 1;
     private int Bottom => OriginY + CellH * Terrain.TileSize - 1;
 
     /// <summary>
