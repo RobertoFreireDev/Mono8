@@ -3,9 +3,10 @@ namespace mono8.game;
 /// <summary>
 /// The level select: the screen the game opens on, and what the pause menu goes back to.
 ///
-/// One number per level in a grid centred on the screen. Level N is the room authored as the object
-/// named "N" under ROOMS, so what the developer has authored is what can be picked — a number with
-/// no room behind it is not drawn at all, which is how a grid laid out for twenty shows five.
+/// One number per level in a grid centred on the screen. Level N is the room whose NUMBER is N —
+/// <see cref="Levels"/> is what finds it, whatever the developer called the object — so what has
+/// been authored is what can be picked, and a number with no room behind it is not drawn at all.
+/// That is how a grid laid out for twenty shows five.
 ///
 /// Driven by the d-pad: a hole already sunk is yellow, one still to play white, and the number the
 /// cursor is on takes the warmer half of its own pair — orange over yellow, green over white — and
@@ -38,16 +39,18 @@ internal static class LevelSelect
     // it breaks the line the others sit on.
     private const int CursorDrop = 1;
 
-    // A group holds at most 64 objects, so no grid can offer more levels than that.
-    private const int MaxLevels = 64;
+    // The grid offers one cell per level number there can be, and no more.
+    private const int MaxLevels = Levels.MaxNumber;
 
     // Debug owns entry 0.
     private const int MenuIndex = 1;
     private const string MenuLabel = "LEVELS";
 
-    // Measured once per Init and indexed by level, so a frame of the menu allocates nothing.
-    private static readonly string[] Names = new string[MaxLevels];
-    private static readonly bool[] Authored = new bool[MaxLevels];
+    // Measured once per Init and indexed by cell, so a frame of the menu allocates nothing. Cell i is
+    // level i + 1: Captions is the number it prints, Rooms the ROOMS object behind it — null for a
+    // number no room claims, which is what makes the cell empty.
+    private static readonly string[] Captions = new string[MaxLevels];
+    private static readonly string[] Rooms = new string[MaxLevels];
     private static readonly int[] TextX = new int[MaxLevels];
     private static readonly int[] TextY = new int[MaxLevels];
 
@@ -92,7 +95,7 @@ internal static class LevelSelect
         // rather than measured once with the grid.
         for (int i = 0; i < Count; i++)
         {
-            Done[i] = Save.Played(Names[i]);
+            Done[i] = Save.Played(i + 1);
         }
 
         // The pause menu is down to Continue and Exit while the menu is what is on screen: nothing to
@@ -112,10 +115,10 @@ internal static class LevelSelect
     }
 
     /// <summary>
-    /// The level after <paramref name="name"/>: the next number up the developer has authored a room
-    /// for, so a gap in ROOMS is stepped over rather than ending the run at it — the same reading the
-    /// cursor gives a gap. Null when there is no level above it, which is what sends the game back
-    /// here once the last hole is sunk.
+    /// The room after <paramref name="name"/>: the next number up the developer has authored a room
+    /// for, so a gap in the numbering is stepped over rather than ending the run at it — the same
+    /// reading the cursor gives a gap. Null when there is no level above it, which is what sends the
+    /// game back here once the last hole is sunk.
     /// </summary>
     public static string Next(string name)
     {
@@ -128,9 +131,9 @@ internal static class LevelSelect
 
         for (int i = from + 1; i < Count; i++)
         {
-            if (Authored[i])
+            if (Rooms[i] != null)
             {
-                return Names[i];
+                return Rooms[i];
             }
         }
 
@@ -146,7 +149,7 @@ internal static class LevelSelect
     {
         int i = IndexOf(name);
 
-        if (i >= 0 && Authored[i])
+        if (i >= 0 && Rooms[i] != null)
         {
             Cursor = i;
         }
@@ -182,7 +185,7 @@ internal static class LevelSelect
         // level cannot go on to be the jump its first frame sees.
         if (Cursor >= 0 && (api.btnp(Btn.Jump) || api.btnp(Btn.Swing)))
         {
-            Picked = Names[Cursor];
+            Picked = Rooms[Cursor];
         }
     }
 
@@ -200,7 +203,7 @@ internal static class LevelSelect
         {
             // An unauthored level is the empty cell it leaves: there is nothing to pick, so there is
             // nothing to show.
-            if (!Authored[i])
+            if (Rooms[i] == null)
             {
                 continue;
             }
@@ -216,23 +219,18 @@ internal static class LevelSelect
 
             // Dropped as well as coloured: with no pointer on screen, the row breaking out of line is
             // what finds the cursor at a glance, and colour alone is a difference you have to look for.
-            Font.PrintOutlined(Names[i], TextX[i], on ? TextY[i] + CursorDrop : TextY[i], color);
+            Font.PrintOutlined(Captions[i], TextX[i], on ? TextY[i] + CursorDrop : TextY[i], color);
         }
     }
 
-    // Which cell of the grid a room name is. The names are the ones laid out in Layout, so a room
-    // entered from here always finds itself; anything else is not a level and reads as -1.
+    // Which cell of the grid a room is: its NUMBER, one-based, and the grid is zero-based. A room
+    // with no number, or one past the end of a grid too small to offer it, is not a cell here and
+    // reads as -1.
     private static int IndexOf(string name)
     {
-        for (int i = 0; i < Count; i++)
-        {
-            if (Names[i] == name)
-            {
-                return i;
-            }
-        }
+        int i = Levels.Number(name) - 1;
 
-        return -1;
+        return i >= 0 && i < Count ? i : -1;
     }
 
     // One step in the direction pressed, and on past every number no room stands behind. Clamped, not
@@ -265,7 +263,7 @@ internal static class LevelSelect
                 return;
             }
 
-            if (Authored[i])
+            if (Rooms[i] != null)
             {
                 Cursor = i;
                 return;
@@ -313,21 +311,22 @@ internal static class LevelSelect
 
         for (int i = 0; i < Count; i++)
         {
-            // Level 1 is the room named "1". Built here rather than per frame — a level number is
-            // the one caption in the game that can never change.
-            Names[i] = (i + 1).ToString();
-            Authored[i] = Room.Exists(Names[i]);
+            // Cell i is level i + 1, whichever room claimed that number. The caption is built here
+            // rather than per frame — a level number is the one caption in the game that can never
+            // change.
+            Captions[i] = (i + 1).ToString();
+            Rooms[i] = Levels.Name(i + 1);
 
             // The cursor opens on the lowest level there is a room for — level 1 in a finished game,
             // and whatever is authored so far in this one.
-            if (Cursor < 0 && Authored[i])
+            if (Cursor < 0 && Rooms[i] != null)
             {
                 Cursor = i;
             }
 
             int col = i % Cols;
             int row = i / Cols;
-            TextX[i] = originX + col * cellW + (cellW - Font.Width(Names[i])) / 2;
+            TextX[i] = originX + col * cellW + (cellW - Font.Width(Captions[i])) / 2;
             TextY[i] = originY + row * cellH + (cellH - Font.Height) / 2;
         }
 

@@ -439,6 +439,10 @@ internal class Mono8API : IEditorAPI
 
     public Mono8JsonObject gjson(string group, string obj) => _jsonData.Find(group, obj);
 
+    public int gjsoncount(string group) => _jsonData.CountOf(group);
+
+    public string gjsonobj(string group, int index) => _jsonData.NameAt(group, index);
+
     // One overload per runtime type: the compiler picks the setter, so no value is ever boxed and
     // a mismatched type is a false rather than a silent conversion.
     public bool sjson(string group, string obj, string field, int value, int index = 0)

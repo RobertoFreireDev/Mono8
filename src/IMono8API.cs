@@ -287,6 +287,20 @@ public interface IMono8API
     Mono8JsonObject gjson(string group, string obj);
 
     /// <summary>
+    /// How many objects <paramref name="group"/> holds, or 0 when the group is unknown. With
+    /// <see cref="gjsonobj"/> this walks a group whose object names the game does not know in
+    /// advance — a set of levels keyed on a field rather than on the object name, say.
+    /// </summary>
+    int gjsoncount(string group);
+
+    /// <summary>
+    /// The name of the object at <paramref name="index"/>, in the order <c>data.json</c> authors
+    /// them, or null when the group is unknown or the index is past the end. Feed it back to
+    /// <see cref="gjson"/> to read the object itself.
+    /// </summary>
+    string gjsonobj(string group, int index);
+
+    /// <summary>
     /// Writes one value into an existing field. Returns false — and changes nothing — when the
     /// group, object or field is unknown, when <paramref name="index"/> is past the end of an
     /// array, or when the overload does not match the field's declared type. Never throws and

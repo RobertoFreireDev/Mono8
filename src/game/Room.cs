@@ -33,8 +33,16 @@ internal class Room
     private const string FieldFlag = "FLAGPOS";
     private const string FieldBall = "BALLPOS";
     private const string FieldHitMax = "HITMAX";
+    private const string FieldNumber = "NUMBER";
 
     public string Name { get; private set; }
+
+    /// <summary>
+    /// The room's NUMBER — which level it is, and so which <see cref="Save"/> slot records it. 0 for
+    /// a room that authors none, which is a room that can still be played but not recorded.
+    /// </summary>
+    public int Number { get; private set; }
+
     public int CellX { get; private set; }
     public int CellY { get; private set; }
 
@@ -72,15 +80,6 @@ internal class Room
     public int Left => OriginX;
     public int Right => OriginX + CellW * Terrain.TileSize - 1;
     private int Bottom => OriginY + CellH * Terrain.TileSize - 1;
-
-    /// <summary>
-    /// Whether a room is authored under ROOMS. A room that is not there is not a level, which is
-    /// what the <see cref="LevelSelect"/> draws a number for.
-    /// </summary>
-    public static bool Exists(string name)
-    {
-        return !string.IsNullOrEmpty(name) && YourGame.API.gjson(JsonGroup, name) != null;
-    }
 
     /// <summary>
     /// <paramref name="name"/> is the object name under ROOMS. An unknown room, or one missing a
@@ -179,6 +178,7 @@ internal class Room
     private void Load(string name)
     {
         Name = name;
+        Number = 0;
         CellX = 0;
         CellY = 0;
         BackCellX = DefaultBackX;
@@ -206,6 +206,10 @@ internal class Room
             }
 
             HitMax = data.GetInt(FieldHitMax, 0, DefaultHitMax);
+
+            // Which level this room is. Read here rather than taken off Levels, so a room entered by
+            // name knows what it is whether or not it is one the grid offers.
+            Number = data.GetInt(FieldNumber, 0, 0);
         }
 
         // Whatever the room does not place goes in its own top-left corner rather than the sheet's,

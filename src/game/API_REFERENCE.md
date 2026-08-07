@@ -35,7 +35,7 @@ Two conventions that catch people out:
 - [Random](#random) — `rnd` `srand`
 - [Math](#math) — `abs` `atan2` `cos` `sin` `sqrt` `min` `max` `mid` `flr` `ceil` `round` `sgn`
 - [Persistence](#persistence) — `dget` `dset`
-- [JSON data](#json-data) — `gjson` `sjson` + `Mono8JsonObject`
+- [JSON data](#json-data) — `gjson` `gjsoncount` `gjsonobj` `sjson` + `Mono8JsonObject`
 - [Not available to game code](#not-available-to-game-code)
 
 ---
@@ -822,6 +822,32 @@ int n = data.Count("SPAWN");
 for (int i = 0; i < n; i++) { var (sx, sy) = data.GetXY("SPAWN", i); }
 
 foreach (int hp in data.IntArray("HP")) { }
+```
+
+### `int gjsoncount(string group)` / `string gjsonobj(string group, int index)`
+
+Walks a group whose object names the game does not know in advance — a set of levels keyed on a
+field rather than on the object name, say, where renaming the object must not renumber the game.
+
+| Call | Returns |
+|---|---|
+| `gjsoncount(group)` | how many objects the group holds; `0` for an unknown group |
+| `gjsonobj(group, index)` | the name of the object at `index`, in the order `data.json` authors them; `null` for an unknown group or an index past the end |
+
+Feed the name back to `gjson` to read the object. Neither call allocates, but the walk is `Init()`
+work: build your own index once and keep it, rather than scanning a group per frame.
+
+```csharp
+int objects = API.gjsoncount("ROOMS");
+for (int i = 0; i < objects; i++)
+{
+    string name = API.gjsonobj("ROOMS", i);
+    var room = API.gjson("ROOMS", name);
+    if (room == null) continue;
+
+    int number = room.GetInt("NUMBER", 0, 0);
+    if (number >= 1 && number <= 63) Rooms[number] = name;
+}
 ```
 
 ### `bool sjson(string group, string obj, string field, <value>, int index = 0)`

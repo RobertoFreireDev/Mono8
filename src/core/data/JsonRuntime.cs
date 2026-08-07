@@ -15,6 +15,11 @@ internal sealed class JsonRuntime
     private Dictionary<string, Dictionary<string, Mono8JsonObject>> _groups =
         new Dictionary<string, Dictionary<string, Mono8JsonObject>>(StringComparer.OrdinalIgnoreCase);
 
+    // The same objects in the order they were authored, which the dictionary throws away. A game that
+    // keys its data on a field rather than on the object name has no other way to find the objects.
+    private Dictionary<string, string[]> _order =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Recompiles the whole index. Worst case is 16 × 64 objects of 16 fields, which is a few
     /// milliseconds once per load — cheap enough to redo wholesale rather than track deltas.
@@ -25,6 +30,9 @@ internal sealed class JsonRuntime
         var groups = new Dictionary<string, Dictionary<string, Mono8JsonObject>>(
             sheet?.Groups.Count ?? 0, StringComparer.OrdinalIgnoreCase);
 
+        var order = new Dictionary<string, string[]>(
+            sheet?.Groups.Count ?? 0, StringComparer.OrdinalIgnoreCase);
+
         if (sheet != null)
         {
             foreach (var group in sheet.Groups)
@@ -32,16 +40,22 @@ internal sealed class JsonRuntime
                 var objects = new Dictionary<string, Mono8JsonObject>(
                     group.Objects.Count, StringComparer.OrdinalIgnoreCase);
 
-                foreach (var obj in group.Objects)
+                var names = new string[group.Objects.Count];
+
+                for (int i = 0; i < group.Objects.Count; i++)
                 {
+                    var obj = group.Objects[i];
                     objects[obj.Name] = Mono8JsonObject.Build(obj);
+                    names[i] = obj.Name;
                 }
 
                 groups[group.Name] = objects;
+                order[group.Name] = names;
             }
         }
 
         _groups = groups;
+        _order = order;
     }
 
     /// <summary>
@@ -55,5 +69,25 @@ internal sealed class JsonRuntime
         if (!_groups.TryGetValue(group, out var objects)) return null;
 
         return objects.TryGetValue(obj, out var found) ? found : null;
+    }
+
+    /// <summary>How many objects <paramref name="group"/> holds, or 0 when the group is unknown.</summary>
+    public int CountOf(string group)
+    {
+        if (group == null) return 0;
+
+        return _order.TryGetValue(group, out var names) ? names.Length : 0;
+    }
+
+    /// <summary>
+    /// The name of the object at <paramref name="index"/>, in the order the group authors them, or
+    /// null when the group is unknown or the index is past the end.
+    /// </summary>
+    public string NameAt(string group, int index)
+    {
+        if (group == null) return null;
+        if (!_order.TryGetValue(group, out var names)) return null;
+
+        return index >= 0 && index < names.Length ? names[index] : null;
     }
 }

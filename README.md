@@ -425,6 +425,8 @@ Reads and writes the data authored in [`data.json`](#datajson).
 | Function | Parameters | Description |
 |---|---|---|
 | `gjson` | `group, obj` | Returns the object authored at `group` / `obj`, or `null` when either name is unknown. |
+| `gjsoncount` | `group` | How many objects the group holds, or `0` when the group is unknown. |
+| `gjsonobj` | `group, index` | The name of the object at `index`, in the order the file authors them, or `null` when the group is unknown or the index is past the end. With `gjsoncount` this walks a group whose object names the game does not know in advance — feed the name back to `gjson`. |
 | `sjson` | `group, obj, field, value, index = 0` | Writes one value into an existing field. Returns `false` when the group, object or field is unknown, when `index` is past the end of an array, or when `value`'s type is not the field's declared type. |
 
 Names match without regard to case, so `gjson("enemy", "slime")` and `gjson("ENEMY", "SLIME")` are the same object. The lookup is two dictionary hits and allocates nothing, so calling it from `Update` every frame is fine.

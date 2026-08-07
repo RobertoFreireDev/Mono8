@@ -8,18 +8,18 @@ namespace mono8.game;
 /// result behind it. Only a finished hole writes a count: leaving a level, losing it to spent
 /// strokes or walking out of bounds all leave the slot exactly as it was.
 ///
-/// Level N is slot N — the <see cref="LevelSelect"/> names its rooms with the number they stand for,
-/// so the room name is the slot. Slot 0 is <see cref="Debug"/>'s, which is why the levels start at 1.
+/// Level N is slot N, and N is the room's NUMBER — not its object name, which is the developer's to
+/// change. <see cref="Levels"/> is what turns one into the other. Slot 0 is <see cref="Debug"/>'s,
+/// which is why the levels start at 1.
 /// </summary>
 internal static class Save
 {
     /// <summary>A level with no result behind it. What every slot reads as on a fresh save.</summary>
     public const int NotPlayed = -1;
 
-    // Debug owns slot 0. dget/dset hold 64 ints and drop anything past them, so 63 is the highest
-    // level that can be recorded at all — well past the 20 the grid offers.
-    private const int FirstSlot = 1;
-    private const int SlotCount = 64;
+    // dget/dset hold 64 ints and drop anything past them, which is where Levels.MaxNumber comes
+    // from: the last level that can be recorded is the last slot there is.
+    private const int SlotCount = Levels.MaxNumber + 1;
 
     // Read once at Init and kept here, so asking after a level is an array read rather than a trip
     // through the save file.
@@ -29,7 +29,7 @@ internal static class Save
     {
         var api = YourGame.API;
 
-        for (int slot = FirstSlot; slot < SlotCount; slot++)
+        for (int slot = Levels.MinNumber; slot < SlotCount; slot++)
         {
             int stored = api.dget(slot);
 
@@ -41,7 +41,7 @@ internal static class Save
             {
                 Hits[slot] = NotPlayed;
 
-                if (Room.Exists(slot.ToString()))
+                if (Levels.Exists(slot))
                 {
                     api.dset(slot, NotPlayed);
                 }
@@ -54,55 +54,40 @@ internal static class Save
     }
 
     /// <summary>
-    /// The strokes <paramref name="name"/> was sunk in, or <see cref="NotPlayed"/> for a level never
-    /// finished — and for anything that is not a level at all.
+    /// The strokes level <paramref name="number"/> was sunk in, or <see cref="NotPlayed"/> for a
+    /// level never finished — and for anything that is not a level at all.
     /// </summary>
-    public static int Get(string name)
+    public static int Get(int number)
     {
-        int slot = SlotOf(name);
-
-        return slot < 0 ? NotPlayed : Hits[slot];
+        return number >= Levels.MinNumber && number < SlotCount ? Hits[number] : NotPlayed;
     }
 
     /// <summary>Whether the level has ever been sunk.</summary>
-    public static bool Played(string name)
+    public static bool Played(int number)
     {
-        return Get(name) != NotPlayed;
+        return Get(number) != NotPlayed;
     }
 
     /// <summary>
     /// A hole sunk, in <paramref name="hits"/> strokes. Called when the ball drops into the cup and
-    /// nowhere else, so a level lost or walked away from keeps whatever was there.
+    /// nowhere else, so a level lost or walked away from keeps whatever was there. A room that
+    /// authors no NUMBER has no slot and is not recorded.
     /// </summary>
-    public static void Complete(string name, int hits)
+    public static void Complete(int number, int hits)
     {
-        int slot = SlotOf(name);
-
-        if (slot < 0)
+        if (number < Levels.MinNumber || number >= SlotCount)
         {
             return;
         }
 
         // dset writes the whole file every call, so replaying a level to the same score is not
         // written out again.
-        if (Hits[slot] == hits)
+        if (Hits[number] == hits)
         {
             return;
         }
 
-        Hits[slot] = hits;
-        YourGame.API.dset(slot, hits);
-    }
-
-    // Level N is slot N. Room takes any object under ROOMS, but only the numbered ones are levels —
-    // anything else has no slot and is not recorded.
-    private static int SlotOf(string name)
-    {
-        if (!int.TryParse(name, out int level))
-        {
-            return -1;
-        }
-
-        return level >= FirstSlot && level < SlotCount ? level : -1;
+        Hits[number] = hits;
+        YourGame.API.dset(number, hits);
     }
 }

@@ -32,6 +32,10 @@ internal class YourGame : IEditor
     public void Init()
     {
         Debug.Init();
+
+        // First: which room is which level is what the save slots and the grid are both indexed by.
+        Levels.Init();
+
         Save.Init();
         Wipe.Init();
         LevelSelect.Init();
@@ -63,7 +67,7 @@ internal class YourGame : IEditor
         {
             // The one frame a hole is finished on, so it is the one place a result is recorded —
             // losing the room or leaving it never reaches here and never writes.
-            Save.Complete(_room.Name, Hud.Taken);
+            Save.Complete(_room.Number, Hud.Taken);
 
             Wipe.Start();
         }
