@@ -99,6 +99,47 @@ internal static class LevelSelect
         Debug.Show();
     }
 
+    /// <summary>
+    /// The level after <paramref name="name"/>: the next number up the developer has authored a room
+    /// for, so a gap in ROOMS is stepped over rather than ending the run at it — the same reading the
+    /// cursor gives a gap. Null when there is no level above it, which is what sends the game back
+    /// here once the last hole is sunk.
+    /// </summary>
+    public static string Next(string name)
+    {
+        int from = IndexOf(name);
+
+        if (from < 0)
+        {
+            return null;
+        }
+
+        for (int i = from + 1; i < Count; i++)
+        {
+            if (Authored[i])
+            {
+                return Names[i];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Puts the cursor on a level. The game walks on from the level that was picked, and the cursor
+    /// is left where it was — so without this, coming back here after four holes would land on the
+    /// one they started from.
+    /// </summary>
+    public static void Focus(string name)
+    {
+        int i = IndexOf(name);
+
+        if (i >= 0 && Authored[i])
+        {
+            Cursor = i;
+        }
+    }
+
     public static void Update()
     {
         var api = YourGame.API;
@@ -159,6 +200,21 @@ internal static class LevelSelect
             Font.PrintOutlined(Names[i], TextX[i], on ? TextY[i] - CursorLift : TextY[i],
                 on ? Constants.Colors.Green : Constants.Colors.White);
         }
+    }
+
+    // Which cell of the grid a room name is. The names are the ones laid out in Layout, so a room
+    // entered from here always finds itself; anything else is not a level and reads as -1.
+    private static int IndexOf(string name)
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            if (Names[i] == name)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     // One step in the direction pressed, and on past every number no room stands behind. Clamped, not

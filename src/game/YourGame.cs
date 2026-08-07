@@ -32,6 +32,7 @@ internal class YourGame : IEditor
     public void Init()
     {
         Debug.Init();
+        Wipe.Init();
         LevelSelect.Init();
     }
 
@@ -46,13 +47,58 @@ internal class YourGame : IEditor
             if (LevelSelect.Picked != null)
             {
                 LevelSelect.Close();
-                _room.Enter(LevelSelect.Picked);
+                Enter(LevelSelect.Picked);
             }
 
             return;
         }
 
         _room.Update(elapsedSeconds);
+
+        // Sinking the ball ends the hole: the screen closes onto the player, the next level is
+        // loaded behind it, and the same oval opens back out. The room keeps running underneath —
+        // only its controls are off — so this asks after it rather than instead of it.
+        if (Ball.Holed && !Wipe.Active)
+        {
+            Wipe.Start();
+        }
+
+        // The wipe is drawn with the camera back at the origin, so the player is handed to it in
+        // screen pixels — a room anywhere but the top-left of the sheet would otherwise close the
+        // iris onto a point off the screen entirely.
+        Wipe.Update(elapsedSeconds, Player.CenterX - _room.OriginX, Player.CenterY - _room.OriginY);
+
+        if (Wipe.Closed)
+        {
+            Advance();
+        }
+    }
+
+    // The frame the screen is covered, which is the one frame a room can be swapped without it
+    // being seen. Out of levels the game goes back to the menu, and the mask comes off with the
+    // room it was covering: the menu is its own screen and there is nothing left to reveal.
+    private void Advance()
+    {
+        string next = LevelSelect.Next(_room.Name);
+
+        if (next == null)
+        {
+            Wipe.Stop();
+            LevelSelect.Show();
+            return;
+        }
+
+        Enter(next);
+        Wipe.Open();
+    }
+
+    // Every room entry goes through here, so the menu's cursor never falls behind the level actually
+    // being played: pausing out of the third hole comes back to the menu on 3, not on the 1 picked
+    // to start the run.
+    private void Enter(string name)
+    {
+        LevelSelect.Focus(name);
+        _room.Enter(name);
     }
 
     public void Draw()
@@ -65,6 +111,9 @@ internal class YourGame : IEditor
         {
             _room.Draw();
         }
+
+        // Over the room and its HUD, under the debug readout.
+        Wipe.Draw();
 
         Debug.Draw();
     }

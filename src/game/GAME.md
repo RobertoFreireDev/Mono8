@@ -16,6 +16,9 @@ A side-on golf platformer on one screen. The player walks, jumps and climbs stai
 out of the map sheet, walks up to the ball, addresses it, swings, and tries to sink it in the cup the
 flag marks. A shot counter in the corner counts every stroke that actually sent the ball.
 
+Sinking the ball ends the hole: the controls go dead, an iris closes onto the player, and the next
+level comes up behind it. Run out of levels and it puts you back on the menu.
+
 The game opens on the **level select** — a grid of numbers, one per room, walked with the d-pad.
 
 Controls:
@@ -49,17 +52,20 @@ occupants. `LevelSelect.Active` is the switch, and only one of the two runs in a
 
 ```
 Init()   Debug.Init()
+         Wipe.Init()          nothing on screen — a restart lands on the menu
          LevelSelect.Init()   MENU/GRID lays the grid out, ROOMS says which numbers are levels
 
 Update() menu up:
          LevelSelect.Update   the d-pad walks the cursor, and the Z that picks
-         a pick  →  Room.Enter(name)
-                      Room.Load(name)      read ROOMS/<name>
-                      Club.Init()          the bag first — the ball leaves the club face
-                      Ball.Init(room)      before the player: the swing reads it frame 1
-                      Player.Init(room)      → Dust.Init, Steps.Init, Swing.Init → Meter.Init
-                      Flag.Init(room)
-                      Hud.Init()
+         a pick  →  YourGame.Enter(name)
+                      LevelSelect.Focus    the cursor follows the level being played
+                      Room.Enter(name)
+                        Room.Load(name)    read ROOMS/<name>
+                        Club.Init()        the bag first — the ball leaves the club face
+                        Ball.Init(room)    before the player: the swing reads it frame 1
+                        Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
+                        Flag.Init(room)
+                        Hud.Init()
 
          menu down:
          Player.Update      walk / climb / gravity, then Dust, Steps, Swing (→ Meter)
@@ -67,28 +73,51 @@ Update() menu up:
          Flag.Update        wave clip
          Club.Update        club swap — after the player, so the swing state it checks is this frame's
          out of bounds?     player or ball off the room  →  Room.Enter(Name), the level over again
+                            skipped while the wipe is up
+         Ball.Holed?        →  Wipe.Start(), once
+         Wipe.Update        the iris, focused on the player wherever the frame left them
+         Wipe.Closed?       →  YourGame.Advance(): the next level, or back to the menu
 
 Draw()   menu up:
          LevelSelect.Draw   cls, the title, the numbers
 
          menu down:
-         map(BACKPOS)       backdrop layer — the screen is never cleared
+         map(BACKPOS)       backdrop layer, screen pixels — the screen is never cleared
+         camera(origin)     the room's corner onto (0, 0)
          map(CELLPOS)       the room itself
          Flag.Draw
          Ball.DrawHoleDebug over the flag it is measured from
          Player.Draw        Dust under the body, body, club sprite over it, miss text
          Ball.Draw
+         camera()
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
 
+         Wipe.Draw          over the room and its HUD, whichever screen is up
          Debug.Draw         last, over everything — over the menu too
 ```
 
-A picked room is entered from `YourGame.Update`, not from the menu, so `Room.Enter` is called from
-one place. The room does not update the frame it is entered: its first frame is the next one.
+Every room entry goes through `YourGame.Enter`, whether the level select picked it or the last hole
+advanced onto it, so `Room.Enter` is called from one place and the menu's cursor is moved from one
+place. The room does not update the frame it is entered: its first frame is the next one.
 
-There is no camera: a room is exactly one screen (`Room.CellW` × `Room.CellH` = 32×18 cells), so world
-pixels and screen pixels are the same thing. Everything except the HUD works in **map-sheet pixels**
-(cell × 8), which is the space `mcol` uses.
+`Wipe` is the one thing that spans two rooms, so it is `YourGame`'s and nothing inside a room resets
+it. It runs *after* the room rather than instead of it: while it is up the room keeps moving — the
+body falls, the club finishes the swing it was mid-way through — and only the controls are gone.
+
+A room is exactly one screen (`Room.CellW` × `Room.CellH` = 32×18 cells) cut out of the map sheet
+wherever its `CELLPOS` says, so there are two spaces and one conversion between them:
+
+- **map-sheet pixels** (cell × 8) — everything in the room. Positions, hit boxes, terrain queries;
+  it is the space `mcol` works in, so nothing has to be translated to ask the map a question.
+- **screen pixels** — the HUD, the backdrop, the `Wipe`, the level select.
+
+`Room.Draw` sets `camera(OriginX, OriginY)` for the room layer and resets it for the HUD, so a room
+anywhere on the sheet lands on the screen the same way. `Room.OriginX` / `OriginY` is `CELLPOS × 8`,
+and world minus origin is screen — the one conversion anything outside a room needs, which is how
+`YourGame` hands the player's position to the `Wipe`.
+
+The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are pixels *within* the room, so the origin is
+added to them once, in `Room.Load`. Nothing downstream knows a room has an origin at all.
 
 ---
 
@@ -96,8 +125,9 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 
 | File | Owns |
 |---|---|
-| [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, and enters the room a pick names. |
-| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Static. |
+| [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
+| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
+| [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
 | [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. Owns the room's edges, and restarts the level when a body leaves them. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
@@ -148,6 +178,11 @@ that level.
 
 `Z` (`Btn.Jump`) picks. `btnp`, not `btn`, and the player reads jump with `btnp` too — so the press that
 picked cannot go on to be the jump the room's first frame sees.
+
+The grid is also what "the next level" means. `Next(name)` is the next number up with a room behind
+it, so a gap in `ROOMS` is stepped over exactly as the cursor steps over it, and `null` — no level
+above this one — is what sends the game back to the menu. `Focus(name)` moves the cursor onto a
+level, called on every room entry so a run that has walked from 1 to 4 comes back here on 4.
 
 The whole grid — the level each number stands for, whether it is authored, where it prints — is
 measured once in `Init`, so a frame of the menu allocates nothing and asks json nothing.
@@ -262,8 +297,47 @@ both axes, and its centre is inside that rect. It then sinks `SINKDEP` pixels st
 `SINKSPD`, ignoring terrain (the cup is a hole in ground the map still reads as solid), plays sfx 1,
 and clears `Present` / sets `Holed`.
 
-`Holed` stays set until the room is re-entered. **Nothing currently reacts to it** — there is no
-next-room, win screen or score tally yet.
+`Holed` stays set until the room is re-entered, and it is what starts the wipe onto the next level.
+
+---
+
+## Between levels
+
+Sinking the ball is the end of the level, so `YourGame` closes the screen on it. `Wipe` is a five-state
+run of one `ovalinv` call, and it is the only thing in the game that outlives a room — which is why it
+is `YourGame`'s and why nothing a room does to itself resets it.
+
+```
+None ──Ball.Holed──> Wait ──WAITSEC──> Close ──OUTSEC──> Held ──> Open ──INSEC──> None
+                                                           │
+                                                           └── no next level: Stop(), straight to None
+```
+
+- **Wait** is the room still fully on screen, and is what leaves the ball in the cup long enough to be
+  seen going in rather than the screen shutting on the frame it lands.
+- **Close** shrinks the hole from an oval that just swallows the screen down to nothing, centred on the
+  player. The focus is re-read every frame, so a body still falling keeps the iris on it.
+- **Held** is the one frame the screen is covered, which is the one frame a room can be swapped
+  without it being seen. `YourGame.Advance` reads it: `LevelSelect.Next` names the level, and the
+  room is entered right there. With no next level the mask is dropped outright and the level select
+  comes up — the menu is its own screen and there is nothing behind it to reveal.
+- **Open** runs the same oval the other way, around whoever is standing in the room that came up.
+
+The hole is an ellipse in the screen's own proportions, so it closes evenly instead of pinching. It
+starts at the size that just swallows the furthest corner from the focus, which is why the reveal is
+clean wherever in the room the player is standing. `ovalinv` reads a hole of nothing as the covered
+screen, so `Held` needs no case of its own.
+
+The ring around the hole is the dither sprite `DITHER` tiled one tile deep. That sprite's holes are
+authored in **white**, not colour 0, so the draw is wrapped in `palt(7, true)` — and the mask colour
+has to be the sprite's other colour or the band reads as a stripe rather than as the mask thinning
+out. `COLOR` and `DITHER` are a pair, not two independent choices.
+
+**While the wipe is up the player has no controls.** `Player.Controlled` is the one switch: no walk,
+no jump, no stair grab, no new swing. Gravity is deliberately not part of it — a body caught in the
+air still settles while the screen closes on it — and a swing already mid-flight still plays itself
+out. `Room`'s out-of-bounds restart is off for the same stretch: the hole is already won, and
+restarting a level nobody is going to see again would only undo the level about to be loaded.
 
 ---
 
@@ -280,6 +354,8 @@ and a loss re-enters the room: same level, everything back at its spawn, the sho
   0, which would take a body flush against the left edge as already gone.
 - A ball dropping into the cup is exempt (`Ball.InPlay`) — it is leaving on purpose, and a cup at the
   bottom of the screen could sink it past the edge.
+- The whole test is off while the `Wipe` is up: the hole is already won and the room is on its way
+  out, so a player left in mid-air when the ball dropped falls out of it harmlessly.
 
 A room whose `PLYRPOS` or `BALLPOS` puts a body outside its own cells restarts every frame. That is
 an authoring error rather than a crash, and it shows as one.
@@ -310,7 +386,8 @@ inverted:
 | Group / object | Read by | Holds |
 |---|---|---|
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel lift now |
-| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room). The object name is the level number the menu shows |
+| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room). The object name is the level number the menu shows, and the next number up with an object is the level sinking this one advances to |
+| `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
 | `SWING/POWER` | `Swing`, `Meter` | `SWEEP` (seconds for one out-and-back), `MISS`, `MINHIT` |
@@ -324,8 +401,9 @@ inverted:
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
 
 An unknown room, or one missing a field, loads as an empty room at the top-left of the sheet rather
-than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup. Only
-`ROOMS/1` is authored, so the menu currently shows one number out of twenty.
+than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup.
+`ROOMS/1` and `ROOMS/2` are authored, so the menu shows two numbers out of twenty and sinking the
+first hole advances onto the second.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
@@ -357,9 +435,11 @@ rather than loading it.
 
 ## Not done yet
 
-- `Ball.Holed` is set and then ignored — no hole-complete and no scorecard. Sinking the ball leaves
-  the room where it is; the pause menu's `LEVELS` is the only way out.
-- One room authored. The level select can open any of the twenty, but nineteen of the numbers have no
+- Sinking the ball advances the level, but there is no **scorecard**: no par, no per-hole result
+  screen, and nothing at the end of the run but the level select coming back up.
+- Two rooms authored. The level select can open any of the twenty, but eighteen of the numbers have no
   `ROOMS` object behind them and so are not drawn.
 - Nothing carries between levels: the shot counter starts again at every `Room.Enter`, and no level
-  is recorded as cleared.
+  is recorded as cleared — so the menu will not show which holes have been played.
+- `GAME/WIPE` is not authored. The wipe runs on its code defaults until it is, and `GAME/START` is
+  still the dead object the level select replaced.

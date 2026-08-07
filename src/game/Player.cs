@@ -71,6 +71,17 @@ internal static class Player
     /// <summary>Where the club head sits right now, in map-sheet pixels — the ball's target.</summary>
     public static int ClubPointX => X + (FacingLeft ? SprSize - 1 - ClubX : ClubX);
 
+    /// <summary>The middle of the body, which is what the <see cref="Wipe"/> closes onto.</summary>
+    public static int CenterX => X + SprSize / 2;
+    public static int CenterY => Y + SprSize / 2;
+
+    /// <summary>
+    /// Whether the controls are the player's. The <see cref="Wipe"/> takes them for as long as it is
+    /// on screen: the ball is in the cup, the hole is over, and nothing pressed can change either.
+    /// Gravity is not part of it — a body caught in the air still settles while the screen closes.
+    /// </summary>
+    private static bool Controlled => !Wipe.Active;
+
     public static void Init(Room room)
     {
         LoadStats();
@@ -147,7 +158,7 @@ internal static class Player
     /// </summary>
     public static bool CanStartSwing()
     {
-        if (!OnGround || !Ball.InPlay)
+        if (!OnGround || !Ball.InPlay || !Controlled)
         {
             return false;
         }
@@ -199,7 +210,7 @@ internal static class Player
         RefreshOnGround();
 
         // Addressing the ball commits the player just as the stair does: neither is left mid-swing.
-        if (!Swing.Active && !Climbing)
+        if (!Swing.Active && !Climbing && Controlled)
         {
             TryGrabStair(api);
         }
@@ -288,8 +299,8 @@ internal static class Player
         VelX = 0f;
 
         // Addressing the ball commits the player: no walking off it, no jumping out of it, until
-        // the swing has run itself back to Idle.
-        if (!Swing.Active)
+        // the swing has run itself back to Idle. So does the wipe, and for good.
+        if (!Swing.Active && Controlled)
         {
             if (api.btn(Btn.Left))
             {
@@ -380,7 +391,9 @@ internal static class Player
     /// </summary>
     private static void UpdateClimb(IMono8API api, float elapsedSeconds)
     {
-        bool up = api.btn(Btn.Up);
+        // A climber caught by the wipe holds its rung: with neither key reading, the release below
+        // only fires if there is floor underfoot, which is a landing rather than a let go.
+        bool up = Controlled && api.btn(Btn.Up);
 
         VelX = 0f;
         VelY = 0f;
@@ -388,7 +401,7 @@ internal static class Player
         {
             VelY -= ClimbSpeed;
         }
-        if (api.btn(Btn.Down))
+        if (Controlled && api.btn(Btn.Down))
         {
             VelY += ClimbSpeed;
         }

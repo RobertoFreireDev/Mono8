@@ -45,12 +45,19 @@ internal class Room
     public int BallX { get; private set; }
     public int BallY { get; private set; }
 
-    // The room's edges in map-sheet pixels. A room is exactly one screen, so these are the screen
-    // edges too, and anything past them is off the map as far as the game is concerned.
-    private int Left => CellX * Terrain.TileSize;
-    private int Top => CellY * Terrain.TileSize;
-    private int Right => Left + CellW * Terrain.TileSize - 1;
-    private int Bottom => Top + CellH * Terrain.TileSize - 1;
+    /// <summary>
+    /// The room's top-left corner in map-sheet pixels — CELLPOS in cells, so times the tile size.
+    /// Everything the room places is measured from it, and it is what the camera subtracts to put
+    /// the room on screen: world minus origin is screen, which is the one conversion anything
+    /// outside a room needs.
+    /// </summary>
+    public int OriginX => CellX * Terrain.TileSize;
+    public int OriginY => CellY * Terrain.TileSize;
+
+    // The far edges, also in map-sheet pixels. A room is exactly one screen, so anything past them
+    // is off the map as far as the game is concerned.
+    private int Right => OriginX + CellW * Terrain.TileSize - 1;
+    private int Bottom => OriginY + CellH * Terrain.TileSize - 1;
 
     /// <summary>
     /// Whether a room is authored under ROOMS. A room that is not there is not a level, which is
@@ -92,8 +99,13 @@ internal class Room
         // Last, on the positions the frame settled on: a body that has left the room is never
         // coming back — there is nothing outside one screen — so the hole is unplayable and the
         // level starts over. A ball on its way into the cup is excluded: it is leaving on purpose.
-        if (Escaped(Player.X, Player.Y, Player.SprSize)
-            || (Ball.InPlay && Escaped(Ball.X, Ball.Y, Ball.Size)))
+        //
+        // Not while the wipe is up. The hole is already won by then, and a player left in mid-air
+        // when the ball dropped is falling out of a room that is on its way out anyway — restarting
+        // it under the mask would only reset a level nobody is going to see again.
+        if (!Wipe.Active
+            && (Escaped(Player.X, Player.Y, Player.SprSize)
+                || (Ball.InPlay && Escaped(Ball.X, Ball.Y, Ball.Size))))
         {
             Enter(Name);
         }
@@ -111,17 +123,24 @@ internal class Room
         // already gone and restart the room every frame.
         int right = x + (size > 0 ? size : 1) - 1;
 
-        return right < Left || x > Right || y > Bottom;
+        return right < OriginX || x > Right || y > Bottom;
     }
 
     public void Draw()
     {
-        // Backdrop first — it replaces the cleared screen, so it draws before the room itself.
-        YourGame.API.map(BackCellX, BackCellY, 0, 0, CellW, CellH);
-        YourGame.API.palt(7, true);
-        YourGame.API.ovalinv(8, 32, 256 - 8, 144, 17, 117, 0.4f);
-        YourGame.API.palt();
-        YourGame.API.map(CellX, CellY, 0, 0, CellW, CellH);
+        var api = YourGame.API;
+
+        // Backdrop first — it replaces the cleared screen, so it draws before the room itself. It is
+        // its own patch of sheet rather than part of the room, so it goes straight on the screen,
+        // before the camera moves off the origin.
+        api.map(BackCellX, BackCellY, 0, 0, CellW, CellH);
+
+        // Everything in the room — its cells and everything standing on them — is in map-sheet
+        // pixels, so the camera is what shows it: the room's corner lands on (0, 0) and a body draws
+        // where it actually stands, whichever room on the sheet that happens to be.
+        api.camera(OriginX, OriginY);
+
+        api.map(CellX, CellY, OriginX, OriginY, CellW, CellH);
         Flag.Draw();
 
         // Over the flag it is measured from, so the outline is readable against the sprite.
@@ -132,7 +151,8 @@ internal class Room
         // Last, so two pixels are never lost behind the body the swing lines them up against.
         Ball.Draw();
 
-        // HUD, over the room.
+        // HUD, over the room and back in screen pixels.
+        api.camera();
         Meter.Draw();
         Club.Draw();
         Hud.Draw();
@@ -167,8 +187,10 @@ internal class Room
             }
         }
 
-        int originX = CellX * Terrain.TileSize;
-        int originY = CellY * Terrain.TileSize;
+        // CELLPOS is in cells, so the origin the authored positions are measured from is it times
+        // the tile size. Read once here rather than per field — CellX and CellY are settled above.
+        int originX = OriginX;
+        int originY = OriginY;
 
         // Whatever the room does not place goes in its top-left corner.
         PlayerX = originX;
