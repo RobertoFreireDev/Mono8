@@ -147,13 +147,13 @@ internal static class Club
 
         if (t < 1f && Outgoing.Length > 0)
         {
-            Hud.PrintOutlined(Outgoing, x - Offset(SwapX, t), y + Offset(SwapY, t),
+            Font.PrintOutlined(Outgoing, x - Offset(SwapX, t), y + Offset(SwapY, t),
                 Constants.Colors.White, 1f - t);
         }
 
         // Outlined, since the bar is only up during a swing and the label is over the room the rest
         // of the time.
-        Hud.PrintOutlined(name, x - Offset(SwapX, 1f - t), y - Offset(SwapY, 1f - t),
+        Font.PrintOutlined(name, x - Offset(SwapX, 1f - t), y - Offset(SwapY, 1f - t),
             Constants.Colors.White, t);
     }
 

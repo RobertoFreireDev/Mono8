@@ -2,7 +2,7 @@ namespace mono8.game;
 
 /// <summary>
 /// The screen furniture: the shot counter in the top-right corner. Screen pixels, drawn after
-/// everything in the room.
+/// everything in the room, through <see cref="Font"/> like every other caption in the game.
 ///
 /// Only strokes that actually send the ball count — a whiff is not a shot.
 /// </summary>
@@ -43,23 +43,8 @@ internal static class Hud
     public static void Draw()
     {
         // Right-aligned, which is what the caption has to be measured for.
-        PrintOutlined(HitCaption, Constants.Screen.ResolutionX - Margin - Font.Width(HitCaption),
+        Font.PrintOutlined(HitCaption, Constants.Screen.ResolutionX - Margin - Font.Width(HitCaption),
             Margin, Constants.Colors.White);
-    }
-
-    /// <summary>
-    /// Screen text with a one-pixel black outline, which is what keeps the HUD readable over a room
-    /// the game has no say in. Five passes: the four neighbours, then the text itself over them.
-    /// </summary>
-    public static void PrintOutlined(string text, int x, int y, int color, float opacity = 1f)
-    {
-        var api = YourGame.API;
-
-        api.print(text, x - 1, y, Constants.Colors.Black, opacity);
-        api.print(text, x + 1, y, Constants.Colors.Black, opacity);
-        api.print(text, x, y - 1, Constants.Colors.Black, opacity);
-        api.print(text, x, y + 1, Constants.Colors.Black, opacity);
-        api.print(text, x, y, color, opacity);
     }
 
     // Rebuilt only when the count moves, so drawing the caption allocates nothing.

@@ -17,12 +17,6 @@ namespace mono8.game;
 /// </summary>
 internal class YourGame : IEditor
 {
-    // Which room the game opens on, authored under GAME / START as the object name to look up in
-    // ROOMS. Where that room sits on the map sheet is the room's own CELLPOS.
-    private const string StartGroup = "GAME";
-    private const string StartObject = "START";
-    private const string FieldRoom = "ROOM";
-
     private readonly Room _room = new Room();
 
     public static IMono8API API;
@@ -32,25 +26,46 @@ internal class YourGame : IEditor
         API = api;
     }
 
-    // Everything in play lives inside a room, so the three methods are a forward to the current
-    // one. Adding rooms is a matter of calling Enter again.
+    // The game is either the level select or the room it picked, so the three methods are a forward
+    // to one or the other. Everything in play lives inside a room, and every room is a level the
+    // menu can open.
     public void Init()
     {
         Debug.Init();
-
-        // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
-        var start = API.gjson(StartGroup, StartObject);
-        _room.Enter(start != null ? start.GetStr(FieldRoom) : string.Empty);
+        LevelSelect.Init();
     }
 
     public void Update(float elapsedSeconds)
     {
+        if (LevelSelect.Active)
+        {
+            LevelSelect.Update();
+
+            // Entered from here rather than from the menu, so Room.Enter still runs from one place.
+            // The room does not update the frame it is entered — its first frame is the next one.
+            if (LevelSelect.Picked != null)
+            {
+                LevelSelect.Close();
+                _room.Enter(LevelSelect.Picked);
+            }
+
+            return;
+        }
+
         _room.Update(elapsedSeconds);
     }
 
     public void Draw()
     {
-        _room.Draw();
+        if (LevelSelect.Active)
+        {
+            LevelSelect.Draw();
+        }
+        else
+        {
+            _room.Draw();
+        }
+
         Debug.Draw();
     }
 }

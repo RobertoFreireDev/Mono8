@@ -46,6 +46,15 @@ internal class Room
     public int BallY { get; private set; }
 
     /// <summary>
+    /// Whether a room is authored under ROOMS. A room that is not there is not a level, which is
+    /// what the <see cref="LevelSelect"/> draws a number for.
+    /// </summary>
+    public static bool Exists(string name)
+    {
+        return !string.IsNullOrEmpty(name) && YourGame.API.gjson(JsonGroup, name) != null;
+    }
+
+    /// <summary>
     /// <paramref name="name"/> is the object name under ROOMS. An unknown room, or one missing a
     /// field, loads as an empty room at the top-left of the map sheet rather than failing — a
     /// half-authored room still runs.

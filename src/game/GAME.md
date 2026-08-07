@@ -16,6 +16,8 @@ A side-on golf platformer on one screen. The player walks, jumps and climbs stai
 out of the map sheet, walks up to the ball, addresses it, swings, and tries to sink it in the cup the
 flag marks. A shot counter in the corner counts every stroke that actually sent the ball.
 
+The game opens on the **level select** — a grid of numbers, one per room, picked with the mouse.
+
 Controls:
 
 | Button | Key | Does |
@@ -27,38 +29,55 @@ Controls:
 | 6 | C | Back out of a swing that has not been taken yet |
 | 7 | V | Next club |
 
-Pause menu (Enter) carries the `DEBUG: ON/OFF` toggle, which is persisted in `dget`/`dset` slot 0.
+The level select is mouse only: the number under the pointer turns green, and the left button picks it.
+
+Pause menu (Enter) carries the `DEBUG: ON/OFF` toggle, persisted in `dget`/`dset` slot 0, and
+`LEVELS`, which goes back to the level select. Restart also lands there, since it re-runs `Init`.
 
 ---
 
 ## Frame flow
 
-`YourGame` is a forward to the current `Room`; the room runs its occupants.
+`YourGame` is a forward to either the level select or the current `Room`; the room runs its
+occupants. `LevelSelect.Active` is the switch, and only one of the two runs in a frame.
 
 ```
 Init()   Debug.Init()
-         gjson(GAME/START).ROOM  →  Room.Enter(name)
-                                      Room.Load(name)      read ROOMS/<name>
-                                      Club.Init()          the bag first — the ball leaves the club face
-                                      Ball.Init(room)      before the player: the swing reads it frame 1
-                                      Player.Init(room)      → Dust.Init, Steps.Init, Swing.Init → Meter.Init
-                                      Flag.Init(room)
-                                      Hud.Init()
+         LevelSelect.Init()   MENU/GRID lays the grid out, ROOMS says which numbers are levels
 
-Update() Player.Update      walk / climb / gravity, then Dust, Steps, Swing (→ Meter)
+Update() menu up:
+         LevelSelect.Update   hover, and the click that picks
+         a pick  →  Room.Enter(name)
+                      Room.Load(name)      read ROOMS/<name>
+                      Club.Init()          the bag first — the ball leaves the club face
+                      Ball.Init(room)      before the player: the swing reads it frame 1
+                      Player.Init(room)      → Dust.Init, Steps.Init, Swing.Init → Meter.Init
+                      Flag.Init(room)
+                      Hud.Init()
+
+         menu down:
+         Player.Update      walk / climb / gravity, then Dust, Steps, Swing (→ Meter)
          Ball.Update        gravity, bounce, roll, drop into the cup
          Flag.Update        wave clip
          Club.Update        club swap — after the player, so the swing state it checks is this frame's
 
-Draw()   map(BACKPOS)       backdrop layer — the screen is never cleared
+Draw()   menu up:
+         LevelSelect.Draw   cls, the title, the numbers
+
+         menu down:
+         map(BACKPOS)       backdrop layer — the screen is never cleared
          map(CELLPOS)       the room itself
          Flag.Draw
          Ball.DrawHoleDebug over the flag it is measured from
          Player.Draw        Dust under the body, body, club sprite over it, miss text
          Ball.Draw
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
-         Debug.Draw         last, over everything
+
+         Debug.Draw         last, over everything — over the menu too
 ```
+
+A picked room is entered from `YourGame.Update`, not from the menu, so `Room.Enter` is called from
+one place. The room does not update the frame it is entered: its first frame is the next one.
 
 There is no camera: a room is exactly one screen (`Room.CellW` × `Room.CellH` = 32×18 cells), so world
 pixels and screen pixels are the same thing. Everything except the HUD works in **map-sheet pixels**
@@ -70,8 +89,9 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 
 | File | Owns |
 |---|---|
-| [YourGame.cs](YourGame.cs) | Engine entry point. Reads `GAME/START.ROOM` and forwards the three methods to `_room`. |
-| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. |
+| [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, and enters the room a pick names. |
+| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, which one the pointer is on, and the pause-menu entry that comes back to it. Static. |
+| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
 | [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
@@ -79,14 +99,14 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Hud.cs](Hud.cs) | Shot counter, plus `PrintOutlined` which every HUD caption uses. Static. |
+| [Hud.cs](Hud.cs) | Shot counter. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
 | [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. Instance. |
 | [SfxList.cs](SfxList.cs) | A sfx array field played one at a time at random — the footsteps and the club swap. Instance. |
 | [Motion.cs](Motion.cs) | The pixel-stepped travel and the gravity clamp the player and the ball both move by. Stateless. |
 | [Btn.cs](Btn.cs) | Button indices by name, so no `btn` call carries a bare number. |
-| [Font.cs](Font.cs) | The engine font's advance and line height, and the string width captions are placed by. |
+| [Font.cs](Font.cs) | The engine font's advance and line height, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with. |
 | [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
 
@@ -98,6 +118,30 @@ hold their own sounds.
 **Every type here is in scope engine-wide** — [src/GlobalUsings.cs](../GlobalUsings.cs) carries
 `global using mono8.game`, so a new game type whose name collides with a MonoGame one breaks the
 *engine's* build. That is why the buttons are `Btn` and not `Buttons`.
+
+---
+
+## The level select
+
+A grid of level numbers centred on the screen, laid out by `MENU/GRID` and defaulting to the 5×4 of
+twenty the game asks for. **Level N is the room authored as the object named `N` under `ROOMS`** —
+there is no list of levels anywhere else, so authoring `ROOMS/7` is what makes level 7 exist. A number
+with no room behind it is not drawn at all: the gap in the grid is the disabled state.
+
+Each number prints through `Font.PrintOutlined` — white with a one-pixel black outline, green while the
+pointer is on it. The hover box is the number itself grown by `PAD` on every side, not the whole cell,
+so the numbers stay separately pickable however wide the cells are. The pick is taken on the mouse
+*press*: the menu is gone before the button comes back up, and the release would otherwise land in the
+room it just opened.
+
+The whole grid — the level each number stands for, whether it is authored, where it prints — is
+measured once in `Init`, so a frame of the menu allocates nothing and asks json nothing.
+
+The menu is where the game starts and where the pause menu's `LEVELS` entry goes back to. That entry
+is registered only while a room is running, and the menu clears it while it is up.
+
+`GAME/START` is no longer read: the level select replaced the fixed opening room, so the object can be
+deleted or repurposed.
 
 ---
 
@@ -228,8 +272,8 @@ inverted:
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `GAME/START` | `YourGame` | `ROOM` — which `ROOMS` object to open on |
-| `ROOMS/<name>` | `Room` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room) |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `PAD` (hover box margin, default 3), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it** |
+| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room). The object name is the level number the menu shows |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
 | `SWING/POWER` | `Swing`, `Meter` | `SWEEP` (seconds for one out-and-back), `MISS`, `MINHIT` |
@@ -243,7 +287,8 @@ inverted:
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
 
 An unknown room, or one missing a field, loads as an empty room at the top-left of the sheet rather
-than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup.
+than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup. Only
+`ROOMS/1` is authored, so the menu currently shows one number out of twenty.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
@@ -275,5 +320,9 @@ rather than loading it.
 
 ## Not done yet
 
-- `Ball.Holed` is set and then ignored — no hole-complete, no room progression, no scorecard.
-- One room. `Room.Enter` can be called again with another name, but nothing calls it.
+- `Ball.Holed` is set and then ignored — no hole-complete and no scorecard. Sinking the ball leaves
+  the room where it is; the pause menu's `LEVELS` is the only way out.
+- One room authored. The level select can open any of the twenty, but nineteen of the numbers have no
+  `ROOMS` object behind them and so are not drawn.
+- Nothing carries between levels: the shot counter starts again at every `Room.Enter`, and no level
+  is recorded as cleared.
