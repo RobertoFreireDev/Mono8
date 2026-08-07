@@ -32,6 +32,7 @@ internal class YourGame : IEditor
     public void Init()
     {
         Debug.Init();
+        Save.Init();
         Wipe.Init();
         LevelSelect.Init();
     }
@@ -60,6 +61,10 @@ internal class YourGame : IEditor
         // only its controls are off — so this asks after it rather than instead of it.
         if (Ball.Holed && !Wipe.Active)
         {
+            // The one frame a hole is finished on, so it is the one place a result is recorded —
+            // losing the room or leaving it never reaches here and never writes.
+            Save.Complete(_room.Name, Hud.Taken);
+
             Wipe.Start();
         }
 

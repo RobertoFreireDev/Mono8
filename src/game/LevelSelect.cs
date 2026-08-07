@@ -7,8 +7,9 @@ namespace mono8.game;
 /// named "N" under ROOMS, so what the developer has authored is what can be picked — a number with
 /// no room behind it is not drawn at all, which is how a grid laid out for twenty shows five.
 ///
-/// Driven by the d-pad: the number the cursor is on is green and stands a pixel higher than the rest,
-/// every other one white and in line. The cursor clamps at the edges of the grid rather than wrapping,
+/// Driven by the d-pad: a hole already sunk is yellow, one still to play white, and the number the
+/// cursor is on takes the warmer half of its own pair — orange over yellow, green over white — and
+/// sits a pixel lower than the rest. The cursor clamps at the edges of the grid rather than wrapping,
 /// and steps over the numbers no room stands behind — they are not drawn, so a cursor sitting on one
 /// would be a cursor that vanished.
 ///
@@ -33,9 +34,9 @@ internal static class LevelSelect
     private const int DefaultCellW = 32;
     private const int DefaultCellH = 20;
 
-    // Pixels the number under the cursor is lifted. One is enough to read as picked out of a row —
+    // Pixels the number under the cursor is dropped. One is enough to read as picked out of a row —
     // it breaks the line the others sit on.
-    private const int CursorLift = 1;
+    private const int CursorDrop = 1;
 
     // A group holds at most 64 objects, so no grid can offer more levels than that.
     private const int MaxLevels = 64;
@@ -49,6 +50,10 @@ internal static class LevelSelect
     private static readonly bool[] Authored = new bool[MaxLevels];
     private static readonly int[] TextX = new int[MaxLevels];
     private static readonly int[] TextY = new int[MaxLevels];
+
+    // Which levels have been sunk, taken off Save whenever the menu comes up rather than per frame:
+    // the only thing that can finish a hole is a room, and a room can only hand back through Show.
+    private static readonly bool[] Done = new bool[MaxLevels];
 
     private static int Cols;
     private static int Rows;
@@ -82,6 +87,13 @@ internal static class LevelSelect
     {
         Active = true;
         Picked = null;
+
+        // The hole that was just sunk is one of these, so the results are re-read on the way back
+        // rather than measured once with the grid.
+        for (int i = 0; i < Count; i++)
+        {
+            Done[i] = Save.Played(Names[i]);
+        }
 
         // The pause menu is down to Continue and Exit while the menu is what is on screen: nothing to
         // go back to, nothing to debug, and Restart only re-runs Init, which lands right back here.
@@ -195,10 +207,16 @@ internal static class LevelSelect
 
             bool on = i == Cursor;
 
-            // Lifted as well as green: with no pointer on screen, the row breaking out of line is what
-            // finds the cursor at a glance, and colour alone is a difference you have to look for.
-            Font.PrintOutlined(Names[i], TextX[i], on ? TextY[i] - CursorLift : TextY[i],
-                on ? Constants.Colors.Green : Constants.Colors.White);
+            // Two pairs, not two signals fighting over one number: a hole already sunk is yellow and
+            // orange under the cursor, one still to play white and green. The cursor keeps its own
+            // colour either way, so it is still the warmer of the pair it is standing in.
+            int color = Done[i]
+                ? (on ? Constants.Colors.Orange : Constants.Colors.Yellow)
+                : (on ? Constants.Colors.Green : Constants.Colors.White);
+
+            // Dropped as well as coloured: with no pointer on screen, the row breaking out of line is
+            // what finds the cursor at a glance, and colour alone is a difference you have to look for.
+            Font.PrintOutlined(Names[i], TextX[i], on ? TextY[i] + CursorDrop : TextY[i], color);
         }
     }
 

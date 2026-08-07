@@ -53,6 +53,7 @@ occupants. `LevelSelect.Active` is the switch, and only one of the two runs in a
 
 ```
 Init()   Debug.Init()
+         Save.Init()          the levels finished so far, read out of data.save
          Wipe.Init()          nothing on screen — a restart lands on the menu
          LevelSelect.Init()   MENU/GRID lays the grid out, ROOMS says which numbers are levels
 
@@ -75,7 +76,7 @@ Update() menu up:
          Club.Update        club swap — after the player, so the swing state it checks is this frame's
          out of bounds?     player or ball off the room  →  Room.Enter(Name), the level over again
                             skipped while the wipe is up
-         Ball.Holed?        →  Wipe.Start(), once
+         Ball.Holed?        →  Save.Complete(room, Hud.Taken), then Wipe.Start() — once
          Wipe.Update        the iris, focused on the player wherever the frame left them
          Wipe.Closed?       →  YourGame.Advance(): the next level, or back to the menu
 
@@ -129,7 +130,7 @@ four fields together.
 | File | Owns |
 |---|---|
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
-| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
+| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, which have been sunk, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
 | [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
 | [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges and its `HITMAX`, and restarts the level when a body leaves the edges or the strokes run out. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
@@ -139,7 +140,8 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX`. `OutOfShots` is what loses the level. Static. |
+| [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX`. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as. Static. |
+| [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
 | [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. Instance. |
@@ -168,9 +170,21 @@ twenty the game asks for. **Level N is the room authored as the object named `N`
 there is no list of levels anywhere else, so authoring `ROOMS/7` is what makes level 7 exist. A number
 with no room behind it is not drawn at all: the gap in the grid is the disabled state.
 
-Each number prints through `Font.PrintOutlined` — white with a one-pixel black outline. The one the
-cursor is on is green **and drawn one pixel higher**: breaking the line the rest of the row sits on is
-what finds the cursor at a glance, with colour as the second signal rather than the only one.
+Each number prints through `Font.PrintOutlined` with a one-pixel black outline, in the colour that
+says what it is: **yellow for a hole already sunk, white for one still to play**, read out of `Save`
+when the menu comes up rather than measured with the grid — the hole just finished is one of them.
+
+The cursor is a colour **within** that pair rather than one over the top of it, so a number never has
+to choose which of the two things it is saying:
+
+| | Not sunk | Sunk |
+|---|---|---|
+| Cursor elsewhere | White | Yellow |
+| **Under the cursor** | **Green** | **Orange** |
+
+It is also **drawn one pixel lower** than the rest, which is what actually finds it: breaking the line
+the row sits on reads at a glance, where a colour shift is a difference you have to look for — and
+with four colours in play, colour alone could no longer carry it.
 
 ← → ↑ ↓ walk the cursor one cell per press, no key repeat. It **clamps** rather than wraps: at the edge
 of the grid the press does nothing. Numbers with no room behind them are stepped over — the cursor
@@ -369,6 +383,39 @@ unlimited rather than as a level lost on its first frame.
 
 ---
 
+## Progress
+
+`Save` is the run kept across runs: the engine's 64 persistence slots, **one per level**, read once in
+`Init` and cached in an array so asking after a level costs nothing.
+
+| Slot | Holds |
+|---|---|
+| `0` | `Debug.Enabled`, offset by one |
+| `1`-`63` | level N's result — the strokes it was sunk in, or `-1` for a level never finished |
+
+**Level N is slot N**, since the level select names its rooms with the number they stand for. A name
+that is not one of those numbers has no slot and is never recorded, which is what keeps a ROOMS object
+that is not a level out of the save.
+
+A fresh save reads `0` in every slot, so `0` is *nothing written here yet* rather than a hole finished
+in no strokes. `Save.Init` maps it to `-1`, and writes that `-1` back for every level that has a room
+behind it — so the file says "not played" in its own terms rather than by omission. Slots with no
+level behind them are only mapped in memory: there is nothing there to record.
+
+**Only a sunk hole writes.** `YourGame.Update` calls `Save.Complete` on the frame `Ball.Holed` starts
+the wipe, which is the one frame a hole is finished on — losing the room to spent strokes, walking out
+of bounds and backing out to the level select never reach it, so those leave the slot as it was. The
+count written is `Hud.Taken`, counted up as the strokes are struck rather than read off the count
+left, which floors at zero and says nothing at all in a room that allows unlimited strokes. Replaying
+a level to the same score does not write again — `dset` rewrites the whole file on every call.
+
+`LevelSelect` is what reads the results back: a level `Save.Played` says is done prints yellow instead
+of white. It takes them in `Show`, not in `Layout` — the menu can only come back up through `Show`,
+and the hole that was just sunk is one of the numbers about to be drawn. The stroke count itself is
+stored but not shown anywhere.
+
+---
+
 ## Out of bounds
 
 A room is one screen and there is nothing outside it, so a body that leaves is never coming back —
@@ -413,7 +460,7 @@ inverted:
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel lift now |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel drop now |
 | `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5). The object name is the level number the menu shows, and the next number up with an object is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
@@ -467,8 +514,9 @@ rather than loading it.
   screen, and nothing at the end of the run but the level select coming back up.
 - Two rooms authored. The level select can open any of the twenty, but eighteen of the numbers have no
   `ROOMS` object behind them and so are not drawn.
-- Nothing carries between levels: the strokes reset to `HITMAX` at every `Room.Enter`, and no level
-  is recorded as cleared — so the menu will not show which holes have been played.
+- The level select shows *whether* a hole is done, not **what it was done in**: `Save` holds the
+  stroke count and nothing draws it, so there is still no scorecard and no par. The strokes themselves
+  reset to `HITMAX` at every `Room.Enter`.
 - Running out of strokes restarts the room with no notice of any kind: no "out of shots" caption, no
   pause, no sound — the level is simply back at its spawns the frame the ball stops.
 - `GAME/WIPE` is not authored. The wipe runs on its code defaults until it is, and `GAME/START` is

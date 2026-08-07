@@ -28,6 +28,13 @@ internal static class Hud
     /// </summary>
     public static bool OutOfShots => Max > 0 && Left <= 0;
 
+    /// <summary>
+    /// Strokes actually taken this attempt — what a hole is recorded as once it is sunk. Counted up
+    /// rather than read off the count left, which stops at zero and says nothing at all in a room
+    /// that allows unlimited strokes.
+    /// </summary>
+    public static int Taken { get; private set; }
+
     /// <param name="max">The room's HITMAX — the strokes it allows.</param>
     public static void Init(int max)
     {
@@ -43,6 +50,7 @@ internal static class Hud
         }
 
         Max = max;
+        Taken = 0;
 
         Left = max - 1;    // anything but max, so the first SetLeft builds the caption
         SetLeft(max);
@@ -51,6 +59,8 @@ internal static class Hud
     /// <summary>One more ball actually struck, so one stroke fewer to play it with.</summary>
     public static void CountHit()
     {
+        Taken++;
+
         // Floored, so a stroke taken on the frame the level is already lost cannot read as strokes
         // still in hand.
         SetLeft(Left > 0 ? Left - 1 : 0);
