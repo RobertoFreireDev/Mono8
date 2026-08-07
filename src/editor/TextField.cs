@@ -187,7 +187,7 @@ internal sealed class TextField
             {
                 if (_text.Length >= _maxLength) break;
 
-                char c = ApplyCapsLock(raw);
+                char c = ApplyCase(raw);
                 if (!IsAllowed(c)) continue;
                 _text = _text.Insert(_caret, c.ToString());
                 _caret++;
@@ -406,16 +406,22 @@ internal sealed class TextField
     }
 
     /// <summary>
-    /// Caps Lock, applied to the letter the OS handed over. The character comes from a platform text
-    /// event that does not reliably fold the lock into it, so the case is decided here instead, off
-    /// the modifiers: locked or shifted is upper case, both together is lower, which is what every
-    /// other text field on the machine does. Nothing but a-z is touched, and because the answer comes
-    /// from the modifiers and not from the character, a platform that did fold it in already lands on
-    /// the same letter rather than having it flipped a second time.
+    /// The case the letter the OS handed over is stored in. A Text value is the only field whose case
+    /// the developer chooses, so it is the only one the lock and Shift get a say in: the character
+    /// comes from a platform text event that does not reliably fold the lock into it, so the case is
+    /// decided here off the modifiers — locked or shifted is upper case, both together is lower, which
+    /// is what every other text field on the machine does. Everywhere else — names and every non-Text
+    /// value — the entry is upper case by the format's own rules, so the letter is folded up and the
+    /// modifiers are ignored rather than letting a lock briefly show a case the commit would undo.
+    /// Nothing but a-z is touched, and because the answer comes from the modifiers and not from the
+    /// character, a platform that did fold it in already lands on the same letter rather than having
+    /// it flipped a second time.
     /// </summary>
-    private static char ApplyCapsLock(char c)
+    private char ApplyCase(char c)
     {
-        if (!char.IsAsciiLetter(c) || !KeybrdInput.IsCapsLockOn()) return c;
+        if (!char.IsAsciiLetter(c)) return c;
+        if (!_preserveCase) return char.ToUpperInvariant(c);
+        if (!KeybrdInput.IsCapsLockOn()) return c;
 
         return KeybrdInput.IsShiftPressed() ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c);
     }
