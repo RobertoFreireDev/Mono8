@@ -215,14 +215,16 @@ While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) ope
 
 | Key | Description |
 |---|---|
-| `Enter` / gamepad `Start` | Toggles the pause menu. |
+| `Enter` / gamepad `Start` | Opens the pause menu; once it is open, confirms the selected entry. |
 | `Up`/`Down` | Moves the menu selection. |
 | `B`/`X` (button 5) | Confirms the selected entry. |
+
+`Enter` / `Start` does **not** toggle. It opens the menu, and from then on it is a second confirm key alongside `B`/`X` — so the key that opened the menu is also the key that answers it, and the way back out is the **Continue** entry rather than pressing it again. The menu opens on **Continue**, so `Enter` twice is open-and-resume.
 
 Entries are laid out in this order: **Continue**, then any custom entries, then **Restart** and **Exit**.
 
 - **Continue** resumes the game.
-- **Restart** reinitializes the active editor via `Init()`.
+- **Restart** reinitializes the active editor via `Init()`. Hide it with [`menurestart(false)`](#system) on a screen a re-run of `Init()` means nothing on — a title or a level select, which `Init()` lands on anyway.
 - **Exit** quits the application.
 - Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected. `index` is `0`-`2`, and labels longer than 16 characters are truncated.
 
@@ -238,6 +240,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `stat` | `id` | Returns a system statistic. Only `id` `7` is implemented (current FPS); any other `id` returns `0`. |
 | `menuitem` | `index, label, callback` | Adds/updates a custom menu item (`index` `0`-`2`; `label` truncated to 16 chars). |
 | `menuitem` | `index` | Removes the custom menu item at `index`. |
+| `menurestart` | `visible` | Shows or hides the [pause menu](#start-pause-menu)'s built-in **Restart** entry. Visible until you say otherwise, and the setting is engine state — it survives `Init()` exactly as `menuitem` does. |
 
 ### Graphics
 

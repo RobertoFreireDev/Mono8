@@ -36,8 +36,9 @@ Controls:
 The level select takes no mouse: ← → ↑ ↓ walk the cursor around the grid and Z picks the level it is
 on.
 
-Pause menu (Enter) carries the `DEBUG: ON/OFF` toggle, persisted in `dget`/`dset` slot 0, and
-`LEVELS`, which goes back to the level select. Restart also lands there, since it re-runs `Init`.
+Pause menu (Enter opens it, and confirms once it is open — it does not toggle, so the way out is
+*Continue*) carries the `DEBUG: ON/OFF` toggle, persisted in `dget`/`dset` slot 0, and `LEVELS`,
+which goes back to the level select. Restart also lands there, since it re-runs `Init`.
 
 All three are room entries. On the level select the pause menu is down to *Continue* and *Exit*:
 there is no room to debug or go back to, and Restart would only re-run `Init` onto the screen already
@@ -167,8 +168,8 @@ hold their own sounds.
 
 ## The level select
 
-A grid of level numbers centred on the screen, laid out by `MENU/GRID` and defaulting to the 5×4 of
-twenty the game asks for. **Level N is the room whose `NUMBER` is N**, whatever the developer called
+A grid of level numbers centred on the screen, laid out by `MENU/GRID` — authored as the 5×4 of
+twenty the game asks for, and falling back to that same 5×4 if the object goes missing. **Level N is the room whose `NUMBER` is N**, whatever the developer called
 the object — `Levels` is what finds it. There is no list of levels anywhere else, so authoring a room
 with `NUMBER: 7` is what makes level 7 exist. A number with no room behind it is not drawn at all: the
 gap in the grid is the disabled state.
@@ -474,7 +475,7 @@ inverted:
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel drop now |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a one-pixel drop now |
 | `ROOMS/<name>` | `Room`, `Levels` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |

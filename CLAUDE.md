@@ -152,6 +152,7 @@ line(x0, y0, x1, y1, color)
 rect(x0, y0, x1, y1, color, opacity = 1f)      rectfill(...)
 circ(x, y, radius, color, opacity = 1f)        circfill(...)
 oval(x0, y0, x1, y1, color, opacity = 1f)      ovalfill(...)
+rectinv(x, y, w, h, color, ditherSpriteId = 0, opacity = 1f)   ovalinv(...)
 spr(spriteId, x, y, width = 1, height = 1, scale = 1f, flipX = false, flipY = false, opacity = 1f)
 sspr(sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, opacity = 1f)
 sprr(...)  ssprr(...)   // same params, single-pass fast path
@@ -166,6 +167,7 @@ pal()  pal(c0, c1)  palt()  palt(c)  palt(c, transparent)
 - `pal(c0, c1)` remaps any draw that names a color index — `cls`, the shapes, `print`, `icon`, `spr`, `sspr`. `palt` is narrower: it only affects the per-color pass, so `spr`, `sspr` and `icon` honor it while shapes and `print` do not. **`sprr`, `ssprr` and `map` ignore both** (single pre-baked pass) — color `0` is still transparent there, and `opacity` still works. `pal()` with no arguments resets the remap *and* transparency. Use `sprr`/`ssprr` for many sprites needing no palette tricks; use `spr`/`sspr` when you need recoloring or custom transparency.
 - `print` draws the string **in the case you pass it**. The font carries both cases, digits and common punctuation; a character it has no glyph for prints as `?`. (`menuitem` labels are the exception — the pause menu still folds those to upper case.)
 - `camera(x, y)` offsets every later draw call. Reset it with `camera()` before drawing the HUD.
+- `rectinv`/`ovalinv` are the inverse fills: the whole screen in `color` *except* the hole at `x, y, w, h`, so they are a mask with a hole — a spotlight, an iris transition. Alone among the shapes the **fill follows the camera** and always covers the viewport, while the hole stays in world space, so there is no camera to reset first. `ditherSpriteId` stipples the one-tile ring just outside the hole; `0` leaves a hard edge.
 
 ### Map
 
@@ -302,6 +304,15 @@ Three rules that make this hold up:
 - **Fetch in `Init()`.** Ctrl+S rebuilds the runtime data without a restart, and the rebuild makes *new* objects — so one cached from before the save is orphaned, not updated. Holding a `Mono8JsonObject` in a field is fine as long as `Init()` fetches it again. Calling `gjson` from `Update`/`Draw` is also fine when you want the live value: the lookup is two dictionary hits and allocates nothing.
 
 Shape checks when you need them: `Has(field)`, `TypeOf(field)` (`DataValueType`), `IsArray(field)`, `Count(field)`.
+
+#### Walking a group
+
+```csharp
+int  gjsoncount(string group)              // objects in the group; 0 when unknown
+string gjsonobj(string group, int index)   // that object's name, in file order; null past the end
+```
+
+For a group whose object names the game does not know in advance — a set of levels keyed on a field rather than on the object name, so renaming an object does not renumber the game. Feed the name back to `gjson`. Neither allocates, but it is `Init()` work: build the index once and keep it rather than scanning a group per frame.
 
 #### Writing back
 

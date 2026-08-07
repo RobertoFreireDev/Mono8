@@ -73,11 +73,15 @@ Use it for an on-screen FPS readout while tuning. Every other id is reserved and
 Adds a custom entry to the pause menu (opened with Enter / gamepad Start), between *Continue* and
 *Restart*.
 
+Enter / Start opens the menu and then confirms within it — it does not toggle, so the player leaves
+through *Continue* rather than by pressing it again. The selection starts on *Continue*, which is why
+a custom entry is never the thing a stray second press lands on.
+
 | Parameter | Meaning | Constraints |
 |---|---|---|
 | `index` | slot the entry occupies | `0`–`2`; anything else is ignored |
 | `label` | text shown | truncated to 16 chars; drawn upper-case |
-| `callback` | run when the player confirms with **X** | the menu closes right after it runs |
+| `callback` | run when the player confirms with **X** or **Start/Enter** | the menu closes right after it runs |
 
 Use it for "restart level", "toggle sound", "back to title". Register in `Init()` — items survive
 across frames but `Init()` runs again on Restart, so re-registering there keeps it consistent.
