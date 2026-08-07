@@ -55,10 +55,15 @@ internal static class Menu
 
     public static void Update()
     {
-        if (StartInputBinding.JustPressed(PlayerIndex.One) || StartInputBinding.JustPressed(PlayerIndex.Two))
+        bool start = StartInputBinding.JustPressed(PlayerIndex.One) || StartInputBinding.JustPressed(PlayerIndex.Two);
+        bool wasPaused = Paused;
+
+        // Start only opens the menu; once open it confirms the selection instead of closing, so the
+        // same key that entered the menu is also the one that answers it.
+        if (start && !wasPaused)
         {
-            Paused = !Paused;
-            if (Paused) _selectedIndex = 0;
+            Paused = true;
+            _selectedIndex = 0;
         }
 
         if (_continueCountdown > 0)
@@ -82,7 +87,7 @@ internal static class Menu
         if (ButtonInput.JustPressed(2)) // Up
             _selectedIndex = Math.Max(_selectedIndex - 1, 0);
 
-        if (ButtonInput.JustPressed(5)) // B(X) — confirm
+        if (ButtonInput.JustPressed(5) || (start && wasPaused)) // B(X) or Start/Enter — confirm
         {
             var entry = items[_selectedIndex];
 
