@@ -7,7 +7,10 @@ namespace mono8.game;
 /// named "N" under ROOMS, so what the developer has authored is what can be picked — a number with
 /// no room behind it is not drawn at all, which is how a grid laid out for twenty shows five.
 ///
-/// Picked with the mouse: the number under the pointer is green, every other one white.
+/// Driven by the d-pad: the number the cursor is on is green and stands a pixel higher than the rest,
+/// every other one white and in line. The cursor clamps at the edges of the grid rather than wrapping,
+/// and steps over the numbers no room stands behind — they are not drawn, so a cursor sitting on one
+/// would be a cursor that vanished.
 ///
 /// Screen pixels throughout — the menu has no room, and no camera to be offset by.
 ///
@@ -21,16 +24,18 @@ internal static class LevelSelect
     private const string FieldCols = "COLS";
     private const string FieldRows = "ROWS";
     private const string FieldCell = "CELL";
-    private const string FieldPad = "PAD";
     private const string FieldTitle = "TITLE";
 
     // MENU/GRID is not authored yet, so everything it holds has a default here: the 5x4 of twenty
-    // levels the game asks for, in cells wide enough for two digits and the hover box around them.
+    // levels the game asks for, in cells wide enough for two digits and the space around them.
     private const int DefaultCols = 5;
     private const int DefaultRows = 4;
     private const int DefaultCellW = 32;
     private const int DefaultCellH = 20;
-    private const int DefaultPad = 3;
+
+    // Pixels the number under the cursor is lifted. One is enough to read as picked out of a row —
+    // it breaks the line the others sit on.
+    private const int CursorLift = 1;
 
     // A group holds at most 64 objects, so no grid can offer more levels than that.
     private const int MaxLevels = 64;
@@ -45,14 +50,17 @@ internal static class LevelSelect
     private static readonly int[] TextX = new int[MaxLevels];
     private static readonly int[] TextY = new int[MaxLevels];
 
+    private static int Cols;
+    private static int Rows;
     private static int Count;
-    private static int Pad;
 
     private static string Title;
     private static int TitleX;
     private static int TitleY;
 
-    private static int Hover;
+    // Where the d-pad has walked to, as an index into the grid. -1 when no level is authored at all,
+    // which is the one case there is nothing to put a cursor on.
+    private static int Cursor;
 
     /// <summary>The menu is up: nothing in the room runs while it is.</summary>
     public static bool Active { get; private set; }
@@ -66,15 +74,20 @@ internal static class LevelSelect
         Show();
     }
 
-    /// <summary>Puts the menu up. Also the pause-menu entry's callback.</summary>
+    /// <summary>
+    /// Puts the menu up. Also the pause-menu entry's callback. The cursor is left where it was, so
+    /// coming back from a level lands on the level you came back from.
+    /// </summary>
     public static void Show()
     {
         Active = true;
         Picked = null;
-        Hover = -1;
 
-        // Nothing to go back to while the menu is what is on screen.
+        // The pause menu is down to Continue and Exit while the menu is what is on screen: nothing to
+        // go back to, nothing to debug, and Restart only re-runs Init, which lands right back here.
         YourGame.API.menuitem(MenuIndex);
+        YourGame.API.menurestart(false);
+        Debug.Hide();
     }
 
     /// <summary>Takes the menu down, once <see cref="Picked"/> has been read.</summary>
@@ -82,29 +95,41 @@ internal static class LevelSelect
     {
         Active = false;
         YourGame.API.menuitem(MenuIndex, MenuLabel, Show);
+        YourGame.API.menurestart(true);
+        Debug.Show();
     }
 
     public static void Update()
     {
         var api = YourGame.API;
 
-        Hover = -1;
-
-        var (mx, my) = api.mousexy();
-        for (int i = 0; i < Count; i++)
+        // One cell per press, no repeat: a menu of twenty is small enough that held-key repeat would
+        // overshoot more often than it would help.
+        if (api.btnp(Btn.Left))
         {
-            if (Authored[i] && Over(i, mx, my))
-            {
-                Hover = i;
-                break;
-            }
+            Move(-1, 0);
         }
 
-        // On the press, not the release: the menu is gone before the button comes back up, and the
-        // release would land in the room it opened.
-        if (Hover >= 0 && api.mouselp())
+        if (api.btnp(Btn.Right))
         {
-            Picked = Names[Hover];
+            Move(1, 0);
+        }
+
+        if (api.btnp(Btn.Up))
+        {
+            Move(0, -1);
+        }
+
+        if (api.btnp(Btn.Down))
+        {
+            Move(0, 1);
+        }
+
+        // btnp, not btn: the room this opens reads Jump with btnp too, so the press that picked a
+        // level cannot go on to be the jump its first frame sees.
+        if (Cursor >= 0 && (api.btnp(Btn.Jump) || api.btnp(Btn.Swing)))
+        {
+            Picked = Names[Cursor];
         }
     }
 
@@ -127,31 +152,71 @@ internal static class LevelSelect
                 continue;
             }
 
-            Font.PrintOutlined(Names[i], TextX[i], TextY[i],
-                i == Hover ? Constants.Colors.Green : Constants.Colors.White);
+            bool on = i == Cursor;
+
+            // Lifted as well as green: with no pointer on screen, the row breaking out of line is what
+            // finds the cursor at a glance, and colour alone is a difference you have to look for.
+            Font.PrintOutlined(Names[i], TextX[i], on ? TextY[i] - CursorLift : TextY[i],
+                on ? Constants.Colors.Green : Constants.Colors.White);
         }
     }
 
-    // The grid is measured once, on Init: which level a number stands for, where it prints and the
-    // box the pointer has to be inside are all fixed for as long as the menu is up.
+    // One step in the direction pressed, and on past every number no room stands behind. Clamped, not
+    // wrapped: run out of grid — or out of authored levels — before finding one and the cursor has
+    // not moved at all.
+    private static void Move(int dx, int dy)
+    {
+        if (Cursor < 0)
+        {
+            return;
+        }
+
+        int col = Cursor % Cols;
+        int row = Cursor / Cols;
+
+        while (true)
+        {
+            col += dx;
+            row += dy;
+
+            if (col < 0 || col >= Cols || row < 0 || row >= Rows)
+            {
+                return;
+            }
+
+            // The last row is short when cols * rows overran the 64 a group holds.
+            int i = row * Cols + col;
+            if (i >= Count)
+            {
+                return;
+            }
+
+            if (Authored[i])
+            {
+                Cursor = i;
+                return;
+            }
+        }
+    }
+
+    // The grid is measured once, on Init: which level a number stands for, where it prints and where
+    // the cursor can walk are all fixed for as long as the menu is up.
     private static void Layout()
     {
         var api = YourGame.API;
 
-        int cols = DefaultCols;
-        int rows = DefaultRows;
+        Cols = DefaultCols;
+        Rows = DefaultRows;
         int cellW = DefaultCellW;
         int cellH = DefaultCellH;
-        Pad = DefaultPad;
         Title = string.Empty;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var grid = api.gjson(JsonGroup, JsonObject);
         if (grid != null)
         {
-            cols = grid.GetInt(FieldCols, 0, DefaultCols);
-            rows = grid.GetInt(FieldRows, 0, DefaultRows);
-            Pad = grid.GetInt(FieldPad, 0, DefaultPad);
+            Cols = grid.GetInt(FieldCols, 0, DefaultCols);
+            Rows = grid.GetInt(FieldRows, 0, DefaultRows);
             Title = grid.GetStr(FieldTitle);
 
             // (0, 0) would stack every number on one spot, so an unauthored cell keeps the default.
@@ -161,15 +226,16 @@ internal static class LevelSelect
             }
         }
 
-        cols = (int)api.mid(1, cols, MaxLevels);
-        rows = (int)api.mid(1, rows, MaxLevels);
+        Cols = (int)api.mid(1, Cols, MaxLevels);
+        Rows = (int)api.mid(1, Rows, MaxLevels);
         cellW = (int)api.mid(1, cellW, Constants.Screen.ResolutionX);
         cellH = (int)api.mid(1, cellH, Constants.Screen.ResolutionY);
-        Pad = (int)api.mid(0, Pad, Constants.Screen.ResolutionY);
-        Count = (int)api.mid(1, cols * rows, MaxLevels);
+        Count = (int)api.mid(1, Cols * Rows, MaxLevels);
 
-        int originX = (Constants.Screen.ResolutionX - cols * cellW) / 2;
-        int originY = (Constants.Screen.ResolutionY - rows * cellH) / 2;
+        int originX = (Constants.Screen.ResolutionX - Cols * cellW) / 2;
+        int originY = (Constants.Screen.ResolutionY - Rows * cellH) / 2;
+
+        Cursor = -1;
 
         for (int i = 0; i < Count; i++)
         {
@@ -178,8 +244,15 @@ internal static class LevelSelect
             Names[i] = (i + 1).ToString();
             Authored[i] = Room.Exists(Names[i]);
 
-            int col = i % cols;
-            int row = i / cols;
+            // The cursor opens on the lowest level there is a room for — level 1 in a finished game,
+            // and whatever is authored so far in this one.
+            if (Cursor < 0 && Authored[i])
+            {
+                Cursor = i;
+            }
+
+            int col = i % Cols;
+            int row = i / Cols;
             TextX[i] = originX + col * cellW + (cellW - Font.Width(Names[i])) / 2;
             TextY[i] = originY + row * cellH + (cellH - Font.Height) / 2;
         }
@@ -188,16 +261,5 @@ internal static class LevelSelect
         // needing a place of its own.
         TitleX = (Constants.Screen.ResolutionX - Font.Width(Title)) / 2;
         TitleY = (int)api.mid(1, (originY - Font.Height) / 2, originY);
-    }
-
-    // The number itself, not the cell around it — with Pad on every side, so a one-digit level is no
-    // harder to land on than a two-digit one.
-    private static bool Over(int level, int x, int y)
-    {
-        int x0 = TextX[level] - Pad;
-        int y0 = TextY[level] - Pad;
-
-        return x >= x0 && x < x0 + Font.Width(Names[level]) + Pad * 2
-            && y >= y0 && y < y0 + Font.Height + Pad * 2;
     }
 }

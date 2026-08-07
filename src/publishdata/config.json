@@ -2,10 +2,10 @@
   "ANIM": { "FRAMES": [68, 69, 70, -1, -1, -1, -1, -1], "SCALE": 0, "SPEED": 3, "LOOP": 0 },
   "DITHER": { "SLOTS": [-1, 114, 17, -1, -1, -1, -1, -1], "ACTIVE": 2 },
   "CANVAS": { "ZOOM": 0, "TOOL": 0, "COLOR": 17, "GUIDE": false },
-  "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 0, "CAMY": 0, "ZOOM": 0 },
+  "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, false, false, false], "CAMX": 0, "CAMY": 0, "ZOOM": 0 },
   "SFX": { "INDEX": 4 },
   "MUSIC": { "PATTERN": 0 },
-  "JSON": { "GROUP": "PLAYER", "OBJECT": "STATS" },
+  "JSON": { "GROUP": "ROOMS", "OBJECT": "2" },
   "ONION": [
     { "SPR": 9, "REF": 8, "ORDER": 0, "TINT": 1, "OPACITY": 1 },
     { "SPR": 10, "REF": 8, "ORDER": 1, "TINT": 2, "OPACITY": 1 },

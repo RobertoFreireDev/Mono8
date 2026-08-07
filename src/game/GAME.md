@@ -16,7 +16,7 @@ A side-on golf platformer on one screen. The player walks, jumps and climbs stai
 out of the map sheet, walks up to the ball, addresses it, swings, and tries to sink it in the cup the
 flag marks. A shot counter in the corner counts every stroke that actually sent the ball.
 
-The game opens on the **level select** — a grid of numbers, one per room, picked with the mouse.
+The game opens on the **level select** — a grid of numbers, one per room, walked with the d-pad.
 
 Controls:
 
@@ -29,10 +29,16 @@ Controls:
 | 6 | C | Back out of a swing that has not been taken yet |
 | 7 | V | Next club |
 
-The level select is mouse only: the number under the pointer turns green, and the left button picks it.
+The level select takes no mouse: ← → ↑ ↓ walk the cursor around the grid and Z picks the level it is
+on.
 
 Pause menu (Enter) carries the `DEBUG: ON/OFF` toggle, persisted in `dget`/`dset` slot 0, and
 `LEVELS`, which goes back to the level select. Restart also lands there, since it re-runs `Init`.
+
+All three are room entries. On the level select the pause menu is down to *Continue* and *Exit*:
+there is no room to debug or go back to, and Restart would only re-run `Init` onto the screen already
+showing. `LevelSelect.Show`/`Close` put the three up and take them down together — `menuitem` for the
+two custom ones, `menurestart(false)` for the engine's built-in Restart.
 
 ---
 
@@ -46,7 +52,7 @@ Init()   Debug.Init()
          LevelSelect.Init()   MENU/GRID lays the grid out, ROOMS says which numbers are levels
 
 Update() menu up:
-         LevelSelect.Update   hover, and the click that picks
+         LevelSelect.Update   the d-pad walks the cursor, and the Z that picks
          a pick  →  Room.Enter(name)
                       Room.Load(name)      read ROOMS/<name>
                       Club.Init()          the bag first — the ball leaves the club face
@@ -91,7 +97,7 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 | File | Owns |
 |---|---|
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, and enters the room a pick names. |
-| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, which one the pointer is on, and the pause-menu entry that comes back to it. Static. |
+| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Static. |
 | [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. Owns the room's edges, and restarts the level when a body leaves them. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
@@ -129,17 +135,26 @@ twenty the game asks for. **Level N is the room authored as the object named `N`
 there is no list of levels anywhere else, so authoring `ROOMS/7` is what makes level 7 exist. A number
 with no room behind it is not drawn at all: the gap in the grid is the disabled state.
 
-Each number prints through `Font.PrintOutlined` — white with a one-pixel black outline, green while the
-pointer is on it. The hover box is the number itself grown by `PAD` on every side, not the whole cell,
-so the numbers stay separately pickable however wide the cells are. The pick is taken on the mouse
-*press*: the menu is gone before the button comes back up, and the release would otherwise land in the
-room it just opened.
+Each number prints through `Font.PrintOutlined` — white with a one-pixel black outline. The one the
+cursor is on is green **and drawn one pixel higher**: breaking the line the rest of the row sits on is
+what finds the cursor at a glance, with colour as the second signal rather than the only one.
+
+← → ↑ ↓ walk the cursor one cell per press, no key repeat. It **clamps** rather than wraps: at the edge
+of the grid the press does nothing. Numbers with no room behind them are stepped over — the cursor
+keeps going in the direction pressed until it finds an authored one, and stays put if it does not,
+since a cursor on an undrawn number would be a cursor that vanished. It opens on the lowest authored
+level and is left where it was when the pause menu comes back here, so returning from a level lands on
+that level.
+
+`Z` (`Btn.Jump`) picks. `btnp`, not `btn`, and the player reads jump with `btnp` too — so the press that
+picked cannot go on to be the jump the room's first frame sees.
 
 The whole grid — the level each number stands for, whether it is authored, where it prints — is
 measured once in `Init`, so a frame of the menu allocates nothing and asks json nothing.
 
-The menu is where the game starts and where the pause menu's `LEVELS` entry goes back to. That entry
-is registered only while a room is running, and the menu clears it while it is up.
+The menu is where the game starts and where the pause menu's `LEVELS` entry goes back to. That entry,
+the `DEBUG` toggle and the built-in *Restart* are registered only while a room is running, and the
+menu clears all three while it is up.
 
 `GAME/START` is no longer read: the level select replaced the fixed opening room, so the object can be
 deleted or repurposed.
@@ -273,8 +288,10 @@ an authoring error rather than a crash, and it shows as one.
 
 ## The debug overlay
 
-`Debug.Enabled` is off by default and toggled from the pause menu. It persists in `dget`/`dset` slot 0
-offset by one — `1` off, `2` on — so a fresh save reading `0` lands on off rather than on.
+`Debug.Enabled` is off by default and toggled from the pause menu, from the entry `LevelSelect` puts
+up with the room (`Debug.Show`/`Hide`; `Debug.Init` only reads the saved value). It persists in
+`dget`/`dset` slot 0 offset by one — `1` off, `2` on — so a fresh save reading `0` lands on off
+rather than on.
 
 `Debug.Draw` itself only puts FPS, `Swing.State` and the power reading in the top-left corner. Every
 box is drawn by whoever owns it, each guarded against an unauthored size that `rect` would draw
@@ -292,7 +309,7 @@ inverted:
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `PAD` (hover box margin, default 3), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it** |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel lift now |
 | `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room). The object name is the level number the menu shows |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |

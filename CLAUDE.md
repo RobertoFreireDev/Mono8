@@ -329,6 +329,7 @@ int dget(index)   void dset(index, value)      // 0-63, dset writes to disk imme
 double time()     int stat(id)                 // stat(7) = FPS, everything else 0
 void menuitem(index, label, callback)          // index 0-2, label ≤ 16 chars
 void menuitem(index)                           // remove
+void menurestart(visible)                      // show/hide the built-in Restart entry
 ```
 
 ---

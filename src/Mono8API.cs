@@ -464,4 +464,7 @@ internal class Mono8API : IEditorAPI
 
     public void menuitem(int index)
         => Menu.ClearItem(index);
+
+    public void menurestart(bool visible)
+        => Menu.SetRestartVisible(visible);
 }

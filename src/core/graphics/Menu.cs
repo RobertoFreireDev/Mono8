@@ -17,10 +17,17 @@ internal static class Menu
     private static readonly List<MenuEntry> _items = new();
 
     private static bool Paused = false;
+    private static bool _restartVisible = true;
     private static int _selectedIndex = 0;
     private static int _continueCountdown = 0;
 
     public static bool IsPaused() => Paused;
+
+    /// <summary>
+    /// Shows or hides the built-in Restart entry. For screens a re-run of Init is meaningless on —
+    /// a title or a level select, which Init lands on anyway.
+    /// </summary>
+    public static void SetRestartVisible(bool visible) => _restartVisible = visible;
 
     public static void SetItem(int index, string label, Action callback)
     {
@@ -41,7 +48,7 @@ internal static class Menu
         _items.Add(new MenuEntry("Continue", null, Builtin.Continue));
         foreach (var item in _customItems)
             if (item.HasValue) _items.Add(new MenuEntry(item.Value.Label, item.Value.Callback, Builtin.Custom));
-        _items.Add(new MenuEntry("Restart", null, Builtin.Restart));
+        if (_restartVisible) _items.Add(new MenuEntry("Restart", null, Builtin.Restart));
         _items.Add(new MenuEntry("Exit", null, Builtin.Exit));
         return _items;
     }
@@ -65,6 +72,9 @@ internal static class Menu
         if (!Paused) return;
 
         var items = BuildMenu();
+
+        // The entry count is the game's to change, so the selection can outlive the row it was on.
+        _selectedIndex = Math.Min(_selectedIndex, items.Count - 1);
 
         if (ButtonInput.JustPressed(3)) // Down
             _selectedIndex = Math.Min(_selectedIndex + 1, items.Count - 1);

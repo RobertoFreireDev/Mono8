@@ -18,8 +18,9 @@ internal static class Debug
 
     public static void Init()
     {
+        // The entry itself is not registered here: Init lands on the level select, which puts it up
+        // and takes it down with the room.
         Enabled = YourGame.API.dget(SaveSlot) == SavedOn;
-        Register();
     }
 
     /// <summary>
@@ -34,6 +35,14 @@ internal static class Debug
             YourGame.API.print($"PWR {(int)(Swing.Power * 100)}", 1, 17, Constants.Colors.White);
         }
     }
+
+    /// <summary>
+    /// The entry is a room's, not the level select's — there is nothing to overlay on a menu. Both
+    /// called by <see cref="LevelSelect"/>, which is what knows which of the two is on screen.
+    /// </summary>
+    public static void Show() => Register();
+
+    public static void Hide() => YourGame.API.menuitem(MenuIndex);
 
     private static void Toggle()
     {

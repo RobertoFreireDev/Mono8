@@ -25,7 +25,7 @@ Two conventions that catch people out:
 
 ## Table of contents
 
-- [System](#system) — `time` `stat` `menuitem`
+- [System](#system) — `time` `stat` `menuitem` `menurestart`
 - [Graphics](#graphics) — `cls` `pixel` `line` `rect` `rectfill` `circ` `circfill` `oval` `ovalfill` `rectinv` `ovalinv` `spr` `sspr` `sprr` `ssprr` `print` `icon` `camera` `pal` `palt`
 - [Map](#map) — `mget` `mset` `map`
 - [Tile collision](#tile-collision) — `mcol`
@@ -86,6 +86,19 @@ across frames but `Init()` runs again on Restart, so re-registering there keeps 
 
 Removes the custom entry at `index`. Out-of-range indices are ignored. Use it when an option stops
 being valid (e.g. a "continue run" item after the run ends).
+
+### `void menurestart(bool visible)`
+
+Shows or hides the pause menu's built-in *Restart* entry. Visible until you say otherwise.
+
+| Parameter | Meaning | Constraints |
+|---|---|---|
+| `visible` | whether *Restart* is listed | `false` leaves only *Continue*, the custom entries and *Exit* |
+
+Restart re-runs `Init()`, so hide it on the screen `Init()` itself lands on — a title or a level
+select, where the entry does nothing visible. The setting is engine state, not game state: it
+survives `Init()` exactly as `menuitem` does, so set it from wherever the screen changes rather than
+assuming a restart put it back.
 
 ---
 
