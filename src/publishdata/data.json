@@ -20,7 +20,7 @@
       "PLYRPOS:p": [30, 96],
       "BALLPOS:p": [46, 96],
       "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5
+      "HITMAX:i": 4
     },
     "2": {
       "CELLPOS:p": [32, 0],

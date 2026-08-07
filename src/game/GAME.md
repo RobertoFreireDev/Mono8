@@ -14,7 +14,8 @@ author rather than hardcoding it.
 
 A side-on golf platformer on one screen. The player walks, jumps and climbs stairs around a room cut
 out of the map sheet, walks up to the ball, addresses it, swings, and tries to sink it in the cup the
-flag marks. A shot counter in the corner counts every stroke that actually sent the ball.
+flag marks. A counter in the corner holds the strokes the room allows and counts them off — every
+stroke that actually sent the ball takes one, and running out restarts the level.
 
 Sinking the ball ends the hole: the controls go dead, an iris closes onto the player, and the next
 level comes up behind it. Run out of levels and it puts you back on the menu.
@@ -65,7 +66,7 @@ Update() menu up:
                         Ball.Init(room)    before the player: the swing reads it frame 1
                         Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
                         Flag.Init(room)
-                        Hud.Init()
+                        Hud.Init(HITMAX)   the room's strokes, counted down
 
          menu down:
          Player.Update      walk / climb / gravity, then Dust, Steps, Swing (→ Meter)
@@ -130,7 +131,7 @@ four fields together.
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
 | [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
 | [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
-| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges, and restarts the level when a body leaves them. `Exists` is what the level select asks. |
+| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges and its `HITMAX`, and restarts the level when a body leaves the edges or the strokes run out. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
 | [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
@@ -138,7 +139,7 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Hud.cs](Hud.cs) | Shot counter. Static. |
+| [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX`. `OutOfShots` is what loses the level. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
 | [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. Instance. |
@@ -343,11 +344,36 @@ restarting a level nobody is going to see again would only undo the level about 
 
 ---
 
+## Strokes
+
+`ROOMS/<name>.HITMAX` is how many strokes the room allows. `Hud` takes it at `Room.Enter`, prints it
+top-right through `Font.PrintOutlined`, and counts it down — `Swing.Launch` calls `CountHit` only for a
+stroke that actually sent the ball, so a whiff is free. The caption is rebuilt only when the number
+moves, and the count is floored at zero.
+
+The last strokes are called out in colour, since a number in the corner is easy to miss while lining up
+a shot: **two left is yellow, one is red**, and zero stays red — the frames before the room restarts
+are the most urgent the count ever is, not the least. Anything above two is white.
+
+Spent strokes lose the level, but not on the stroke itself: the count runs out as the last ball leaves
+the club, and that shot is still the one that can drop in. `Room.Update` waits for `Ball.AtRest` — down,
+stopped and still in play — and then re-enters the room. A ball that is sinking is not at rest, so a
+final putt that goes in wins the hole instead.
+
+`Ball.AtRest` reads the ground contact and the roll (`VelX == 0f`, which `Rolled` and `Bounced` both
+settle to exactly), not both velocities: gravity puts a little back into `VelY` every frame the ball is
+standing there, and only a step that meets the ground takes it away again.
+
+A room that authors no `HITMAX` gets `Room.DefaultHitMax` (5), and a `HITMAX` of 0 or less is read as
+unlimited rather than as a level lost on its first frame.
+
+---
+
 ## Out of bounds
 
 A room is one screen and there is nothing outside it, so a body that leaves is never coming back —
 the hole is unplayable from there. `Room.Update` asks last, on the positions the frame settled on,
-and a loss re-enters the room: same level, everything back at its spawn, the shot counter at zero.
+and a loss re-enters the room: same level, everything back at its spawn, the strokes back at `HITMAX`.
 
 - **Left, right and bottom** lose a body. The **top is open**: a lofted shot arcs over the screen and
   gravity brings it back, and that is the shot the game is about.
@@ -388,7 +414,7 @@ inverted:
 | Group / object | Read by | Holds |
 |---|---|---|
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel lift now |
-| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out). The object name is the level number the menu shows, and the next number up with an object is the level sinking this one advances to |
+| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5). The object name is the level number the menu shows, and the next number up with an object is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
@@ -397,7 +423,7 @@ inverted:
 | `CLUBS/ORDER` | `Club` | `LIST` — the club objects in swap order; `SFX` — the swap sounds to pick from |
 | `CLUBS/<name>` | `Club` | `NAME`, `ANGLE` (degrees), `DIST`, `GNDPWR` |
 | `HUD/METER` | `Meter` | `MARGIN` `BARW` `BARH` `BORDER` |
-| `HUD/HITS` | `Hud` | `LABEL` `MARGIN` |
+| `HUD/HITS` | `Hud` | `LABEL` `MARGIN` — the count itself is the room's `HITMAX` |
 | `HUD/CLUB` | `Club` | `GAP` `SWAPSEC` `SWAPX` `SWAPY` |
 | `ANIM/<name>` | `Anim` | `ID` (sprite ids as Text), `SPEED` (fps), `MODE` — `FW` / `BW` / `RV` / `PP` |
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
@@ -426,7 +452,7 @@ rather than loading it.
 - **Guard the degenerate draw.** An unauthored `SIZE`/`HITSIZE`/`BARW` is 0, and `rect` with an empty
   extent draws inverted — every debug and HUD rect checks first.
 - **No per-frame allocation.** Fixed pools (`Dust`, `Club`, `SfxList`), captions rebuilt only when the
-  number moves (`Hud.SetHits`), `Swing.State` returns literals.
+  number moves (`Hud.SetLeft`), `Swing.State` returns literals.
 - **One home per shared number.** The cell size is `Terrain.TileSize`, the font metrics are `Font`,
   the button indices are `Btn` — a literal `8`, `4` or `5` in game code is a bug waiting to drift.
 - **Comments say why, not what.** The density here is deliberate: the tricky invariants (the one-pixel
@@ -441,7 +467,9 @@ rather than loading it.
   screen, and nothing at the end of the run but the level select coming back up.
 - Two rooms authored. The level select can open any of the twenty, but eighteen of the numbers have no
   `ROOMS` object behind them and so are not drawn.
-- Nothing carries between levels: the shot counter starts again at every `Room.Enter`, and no level
+- Nothing carries between levels: the strokes reset to `HITMAX` at every `Room.Enter`, and no level
   is recorded as cleared — so the menu will not show which holes have been played.
+- Running out of strokes restarts the room with no notice of any kind: no "out of shots" caption, no
+  pause, no sound — the level is simply back at its spawns the frame the ball stops.
 - `GAME/WIPE` is not authored. The wipe runs on its code defaults until it is, and `GAME/START` is
   still the dead object the level select replaced.

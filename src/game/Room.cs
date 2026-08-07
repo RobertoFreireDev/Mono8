@@ -22,12 +22,17 @@ internal class Room
     private const int DefaultBackX = 256;
     private const int DefaultBackY = 0;
 
+    // What a room that authors no HITMAX allows. Enough to finish a hole rather than 0, which the HUD
+    // would otherwise have to read as a level lost before it starts.
+    private const int DefaultHitMax = 5;
+
     private const string JsonGroup = "ROOMS";
     private const string FieldCell = "CELLPOS";
     private const string FieldBack = "BACKPOS";
     private const string FieldPlayer = "PLYRPOS";
     private const string FieldFlag = "FLAGPOS";
     private const string FieldBall = "BALLPOS";
+    private const string FieldHitMax = "HITMAX";
 
     public string Name { get; private set; }
     public int CellX { get; private set; }
@@ -45,6 +50,9 @@ internal class Room
 
     public int BallX { get; private set; }
     public int BallY { get; private set; }
+
+    /// <summary>Strokes the room allows, which the <see cref="Hud"/> counts down.</summary>
+    public int HitMax { get; private set; }
 
     /// <summary>
     /// The room's top-left corner in map-sheet pixels — CELLPOS in cells, so times the tile size.
@@ -85,7 +93,7 @@ internal class Room
         Ball.Init(this);
         Player.Init(this);
         Flag.Init(this);
-        Hud.Init();
+        Hud.Init(HitMax);
     }
 
     public void Update(float elapsedSeconds)
@@ -101,12 +109,16 @@ internal class Room
         // coming back — there is nothing outside one screen — so the hole is unplayable and the
         // level starts over. A ball on its way into the cup is excluded: it is leaving on purpose.
         //
+        // Spent strokes end it the same way, but only once the ball has stopped: the count runs out
+        // as the last shot leaves the club, and that shot is still the one that can drop in.
+        //
         // Not while the wipe is up. The hole is already won by then, and a player left in mid-air
         // when the ball dropped is falling out of a room that is on its way out anyway — restarting
         // it under the mask would only reset a level nobody is going to see again.
         if (!Wipe.Active
             && (Escaped(Player.X, Player.Y, Player.SprSize)
-                || (Ball.InPlay && Escaped(Ball.X, Ball.Y, Ball.Size))))
+                || (Ball.InPlay && Escaped(Ball.X, Ball.Y, Ball.Size))
+                || (Hud.OutOfShots && Ball.AtRest)))
         {
             Enter(Name);
         }
@@ -166,6 +178,7 @@ internal class Room
         CellY = 0;
         BackCellX = DefaultBackX;
         BackCellY = DefaultBackY;
+        HitMax = DefaultHitMax;
 
         // Re-read every load: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var data = string.IsNullOrEmpty(name) ? null : YourGame.API.gjson(JsonGroup, name);
@@ -186,6 +199,8 @@ internal class Room
             {
                 (BackCellX, BackCellY) = data.GetXY(FieldBack);
             }
+
+            HitMax = data.GetInt(FieldHitMax, 0, DefaultHitMax);
         }
 
         // Whatever the room does not place goes in its own top-left corner rather than the sheet's,

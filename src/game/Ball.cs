@@ -68,6 +68,14 @@ internal static class Ball
     /// <summary>Whether the ball can still be addressed and struck — not once it is going down.</summary>
     public static bool InPlay => Present && !Sinking;
 
+    /// <summary>
+    /// Whether a shot has played itself out — the ball is down, stopped and still in play, which is
+    /// when a room with no strokes left is finally lost. Read off the roll rather than both
+    /// velocities: gravity puts a little back into VelY every frame the ball is standing there, and
+    /// only a step that meets the ground takes it away again, so vertical rest is the ground contact.
+    /// </summary>
+    public static bool AtRest => InPlay && OnGround && VelX == 0f;
+
     public static void Init(Room room)
     {
         LoadStats();
