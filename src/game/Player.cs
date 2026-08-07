@@ -37,8 +37,9 @@ internal static class Player
 
     private static int Spr;
 
-    // Side of the player sprite in pixels, which is what the facing flip mirrors about.
-    private static int SprSize;
+    /// <summary>Side of the player sprite in pixels, which is what the facing flip mirrors
+    /// about — and the extent the <see cref="Room"/> measures a fall out of it against.</summary>
+    public static int SprSize;
 
     private static int HitX;
     private static int HitY;

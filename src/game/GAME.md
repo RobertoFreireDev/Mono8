@@ -60,6 +60,7 @@ Update() menu up:
          Ball.Update        gravity, bounce, roll, drop into the cup
          Flag.Update        wave clip
          Club.Update        club swap — after the player, so the swing state it checks is this frame's
+         out of bounds?     player or ball off the room  →  Room.Enter(Name), the level over again
 
 Draw()   menu up:
          LevelSelect.Draw   cls, the title, the numbers
@@ -91,7 +92,7 @@ pixels and screen pixels are the same thing. Everything except the HUD works in 
 |---|---|
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, and enters the room a pick names. |
 | [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, which one the pointer is on, and the pause-menu entry that comes back to it. Static. |
-| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. `Exists` is what the level select asks. |
+| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. Owns the room's edges, and restarts the level when a body leaves them. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
 | [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
@@ -248,6 +249,25 @@ and clears `Present` / sets `Holed`.
 
 `Holed` stays set until the room is re-entered. **Nothing currently reacts to it** — there is no
 next-room, win screen or score tally yet.
+
+---
+
+## Out of bounds
+
+A room is one screen and there is nothing outside it, so a body that leaves is never coming back —
+the hole is unplayable from there. `Room.Update` asks last, on the positions the frame settled on,
+and a loss re-enters the room: same level, everything back at its spawn, the shot counter at zero.
+
+- **Left, right and bottom** lose a body. The **top is open**: a lofted shot arcs over the screen and
+  gravity brings it back, and that is the shot the game is about.
+- The test is *every* pixel past one edge, so clipping a corner on the way past is not a loss.
+- The player is measured by `SPRSIZE`, the ball by `SIZE`; an unauthored one reads as 1 rather than
+  0, which would take a body flush against the left edge as already gone.
+- A ball dropping into the cup is exempt (`Ball.InPlay`) — it is leaving on purpose, and a cup at the
+  bottom of the screen could sink it past the edge.
+
+A room whose `PLYRPOS` or `BALLPOS` puts a body outside its own cells restarts every frame. That is
+an authoring error rather than a crash, and it shows as one.
 
 ---
 

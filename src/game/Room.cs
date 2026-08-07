@@ -45,6 +45,13 @@ internal class Room
     public int BallX { get; private set; }
     public int BallY { get; private set; }
 
+    // The room's edges in map-sheet pixels. A room is exactly one screen, so these are the screen
+    // edges too, and anything past them is off the map as far as the game is concerned.
+    private int Left => CellX * Terrain.TileSize;
+    private int Top => CellY * Terrain.TileSize;
+    private int Right => Left + CellW * Terrain.TileSize - 1;
+    private int Bottom => Top + CellH * Terrain.TileSize - 1;
+
     /// <summary>
     /// Whether a room is authored under ROOMS. A room that is not there is not a level, which is
     /// what the <see cref="LevelSelect"/> draws a number for.
@@ -81,6 +88,30 @@ internal class Room
 
         // After the player, so the swing state the toggle checks is this frame's.
         Club.Update(elapsedSeconds);
+
+        // Last, on the positions the frame settled on: a body that has left the room is never
+        // coming back — there is nothing outside one screen — so the hole is unplayable and the
+        // level starts over. A ball on its way into the cup is excluded: it is leaving on purpose.
+        if (Escaped(Player.X, Player.Y, Player.SprSize)
+            || (Ball.InPlay && Escaped(Ball.X, Ball.Y, Ball.Size)))
+        {
+            Enter(Name);
+        }
+    }
+
+    /// <summary>
+    /// Whether a body has left the room entirely — every pixel of it past one edge, so clipping a
+    /// corner on the way past is not a loss. The top is deliberately open: a lofted shot arcs over
+    /// the screen and gravity brings it back, and losing the ball for that would be the shot the
+    /// game is about.
+    /// </summary>
+    private bool Escaped(int x, int y, int size)
+    {
+        // An unauthored SPRSIZE / SIZE is 0, which would read a body flush against the left edge as
+        // already gone and restart the room every frame.
+        int right = x + (size > 0 ? size : 1) - 1;
+
+        return right < Left || x > Right || y > Bottom;
     }
 
     public void Draw()
