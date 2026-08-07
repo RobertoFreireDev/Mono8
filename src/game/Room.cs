@@ -7,8 +7,9 @@ namespace mono8.game;
 /// A room is exactly one screen cut out of the map sheet at <see cref="CellX"/>,
 /// <see cref="CellY"/>, which the room authors itself as CELLPOS.
 ///
-/// The authored positions (PLYRPOS, FLAGPOS, BALLPOS) are in pixels *within* the room; this class
-/// turns them into map-sheet pixels once, on entry, so everything downstream works in one space.
+/// The authored positions (PLYRPOS, FLAGPOS, BALLPOS) are map-sheet pixels, the same space
+/// everything downstream works in — so a room laid out in the map editor is authored with the
+/// coordinates that editor shows, not with an offset from the room's own corner.
 /// </summary>
 internal class Room
 {
@@ -187,12 +188,11 @@ internal class Room
             }
         }
 
-        // CELLPOS is in cells, so the origin the authored positions are measured from is it times
-        // the tile size. Read once here rather than per field — CellX and CellY are settled above.
+        // Whatever the room does not place goes in its own top-left corner rather than the sheet's,
+        // so an unauthored body is at least somewhere inside the room it belongs to.
         int originX = OriginX;
         int originY = OriginY;
 
-        // Whatever the room does not place goes in its top-left corner.
         PlayerX = originX;
         PlayerY = originY;
         HasFlag = false;
@@ -206,26 +206,22 @@ internal class Room
             return;
         }
 
+        // Taken as authored: these are map-sheet pixels, so CELLPOS is the room's cut of the sheet
+        // and nothing more — it does not shift what is standing on it.
         if (data.Has(FieldPlayer))
         {
-            var (px, py) = data.GetXY(FieldPlayer);
-            PlayerX = originX + px;
-            PlayerY = originY + py;
+            (PlayerX, PlayerY) = data.GetXY(FieldPlayer);
         }
 
         if (data.Has(FieldFlag))
         {
-            var (fx, fy) = data.GetXY(FieldFlag);
-            FlagX = originX + fx;
-            FlagY = originY + fy;
+            (FlagX, FlagY) = data.GetXY(FieldFlag);
             HasFlag = true;
         }
 
         if (data.Has(FieldBall))
         {
-            var (bx, by) = data.GetXY(FieldBall);
-            BallX = originX + bx;
-            BallY = originY + by;
+            (BallX, BallY) = data.GetXY(FieldBall);
         }
     }
 }

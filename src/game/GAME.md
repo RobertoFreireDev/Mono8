@@ -116,8 +116,10 @@ anywhere on the sheet lands on the screen the same way. `Room.OriginX` / `Origin
 and world minus origin is screen — the one conversion anything outside a room needs, which is how
 `YourGame` hands the player's position to the `Wipe`.
 
-The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are pixels *within* the room, so the origin is
-added to them once, in `Room.Load`. Nothing downstream knows a room has an origin at all.
+The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are map-sheet pixels too, taken exactly as
+written — `CELLPOS` says which screenful of the sheet the room is, and nothing more. So a spawn is
+authored with the coordinate the map editor shows for that tile, and moving a room means moving all
+four fields together.
 
 ---
 
@@ -128,7 +130,7 @@ added to them once, in `Room.Load`. Nothing downstream knows a room has an origi
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
 | [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
 | [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
-| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Turns room-relative authored positions into map-sheet pixels once, on entry. Owns the room's edges, and restarts the level when a body leaves them. `Exists` is what the level select asks. |
+| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges, and restarts the level when a body leaves them. `Exists` is what the level select asks. |
 | [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Static. |
 | [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
 | [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
@@ -386,7 +388,7 @@ inverted:
 | Group / object | Read by | Holds |
 |---|---|---|
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default) — **not authored yet; the defaults run without it**. `PAD` is no longer read: it sized the mouse hover box, and the cursor is a one-pixel lift now |
-| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (pixels within the room). The object name is the level number the menu shows, and the next number up with an object is the level sinking this one advances to |
+| `ROOMS/<name>` | `Room`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out). The object name is the level number the menu shows, and the next number up with an object is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
