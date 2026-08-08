@@ -1,14 +1,16 @@
 namespace mono8.game;
 
 /// <summary>
-/// The night: the moon, and the wash of dark it comes out in. The other half of the clock the
-/// <see cref="Sun"/> is hung by, and the moon crosses the same sky — <see cref="Sun.Margin"/> down
-/// from the top, <see cref="Sun.Span"/> across — but on the month rather than the hour, so it moves
-/// a little every night instead of over an evening.
+/// The moon. The other half of the clock the <see cref="Sun"/> is hung by, and it crosses the same
+/// sky — <see cref="Sun.Margin"/> down from the top, <see cref="Sun.Span"/> across — but on the month
+/// rather than the hour, so it moves a little every night instead of over an evening.
 ///
-/// Drawn over everything the game puts down, so the level select falls dark with a room: both are
-/// the same outdoors. Nothing else reads it, and it reads nothing but the clock and its own object
-/// under DAYCYCLE / NIGHT — no room, no state.
+/// Out only while there is a <see cref="Night"/> for it to be out in, which is the one thing it asks
+/// anything else. It draws the sprite and nothing more: the dark it comes out in is the
+/// <see cref="Night"/>'s, and goes on after it — and after the <see cref="Clouds"/> that pass in
+/// front of it — so the moon is under the same dim as everything else rather than a hole in it.
+///
+/// Its half of DAYCYCLE / NIGHT is SPR and MONTHDAY. No room, no state.
 /// </summary>
 internal static class Moon
 {
@@ -17,12 +19,6 @@ internal static class Moon
 
     private const string FieldSpr = "SPR";
     private const string FieldMonthDays = "MONTHDAY";
-    private const string FieldDeepFrom = "DEEPFROM";
-    private const string FieldDeepTo = "DEEPTO";
-    private const string FieldDuskFrom = "DUSKFROM";
-    private const string FieldDawnTo = "DAWNTO";
-    private const string FieldDeepOpacity = "DEEPOPA";
-    private const string FieldTwilightOpacity = "TWILOPA";
 
     private const int DefaultSpr = 129;
 
@@ -30,28 +26,11 @@ internal static class Moon
     // one against the right. A short month simply stops before it gets there.
     private const int DefaultMonthDays = 31;
 
-    // Deep night wraps midnight, so it is the one band read as two halves; the twilights either side
-    // of it are dimmed half as far. Every other hour is daylight — no dark, and no moon.
-    private const int DefaultDeepFromHour = 22;
-    private const int DefaultDeepToHour = 2;
-    private const int DefaultDuskFromHour = 18;
-    private const int DefaultDawnToHour = 6;
-
-    private const float DefaultDeepOpacity = 0.4f;
-    private const float DefaultTwilightOpacity = 0.2f;
-
-    // The same wall clock the sun is placed by: 3 is the day of the month, 4 the hour.
+    // The same wall clock the sun is placed by: 3 is the day of the month.
     private const int StatDay = 3;
-    private const int StatHour = 4;
 
     private static int Spr;
     private static int MonthDays;
-    private static int DeepFromHour;
-    private static int DeepToHour;
-    private static int DuskFromHour;
-    private static int DawnToHour;
-    private static float DeepOpacity;
-    private static float TwilightOpacity;
 
     /// <summary>
     /// The size of the sky is the <see cref="Sun"/>'s, since <see cref="Sun.Span"/> is measured off
@@ -63,12 +42,6 @@ internal static class Moon
     {
         Spr = DefaultSpr;
         MonthDays = DefaultMonthDays;
-        DeepFromHour = DefaultDeepFromHour;
-        DeepToHour = DefaultDeepToHour;
-        DuskFromHour = DefaultDuskFromHour;
-        DawnToHour = DefaultDawnToHour;
-        DeepOpacity = DefaultDeepOpacity;
-        TwilightOpacity = DefaultTwilightOpacity;
 
         // Re-read every Init: Ctrl+S in the JSON editor rebuilds the data without a restart.
         var data = YourGame.API.gjson(JsonGroup, JsonObject);
@@ -79,38 +52,20 @@ internal static class Moon
 
         Spr = data.GetInt(FieldSpr, 0, DefaultSpr);
         MonthDays = data.GetInt(FieldMonthDays, 0, DefaultMonthDays);
-        DeepFromHour = data.GetInt(FieldDeepFrom, 0, DefaultDeepFromHour);
-        DeepToHour = data.GetInt(FieldDeepTo, 0, DefaultDeepToHour);
-        DuskFromHour = data.GetInt(FieldDuskFrom, 0, DefaultDuskFromHour);
-        DawnToHour = data.GetInt(FieldDawnTo, 0, DefaultDawnToHour);
-        DeepOpacity = (float)data.GetDec(FieldDeepOpacity, 0, DefaultDeepOpacity);
-        TwilightOpacity = (float)data.GetDec(FieldTwilightOpacity, 0, DefaultTwilightOpacity);
     }
 
-    /// <summary>
-    /// The clock is read here rather than cached: it costs two <c>stat</c> calls, and a player who
-    /// stays on a hole past the turn of an hour watches it fall dark.
-    /// </summary>
     public static void Draw()
     {
-        int hour = YourGame.API.stat(StatHour);
-
-        float dim;
-        if (hour >= DeepFromHour || hour < DeepToHour)
-        {
-            dim = DeepOpacity;
-        }
-        else if ((hour >= DuskFromHour && hour < DeepFromHour) || (hour >= DeepToHour && hour < DawnToHour))
-        {
-            dim = TwilightOpacity;
-        }
-        else
+        // No dark to come out in, no moon. Read through the night rather than off a clock of its own,
+        // so the two can never disagree about whether it is night.
+        if (Night.Dim <= 0f)
         {
             return;
         }
 
-        // Screen pixels, both of them: the camera is back at the origin by the time anything gets
-        // here, so the sky is measured from the screen's own corner rather than the room's.
+        // Screen pixels, measured from the screen's own corner rather than the room's — see the
+        // known mismatch in GAME.md: the call site still has the room's camera up, so this only
+        // lands where it is meant to on a room whose CELLPOS is (0, 0).
         //
         // A month of one day or less has nowhere to move the moon along, so it hangs at the margin
         // rather than dividing by zero.
@@ -119,10 +74,5 @@ internal static class Moon
         int acrossSky = lastDay > 0 ? Sun.Span * daysIn / lastDay : 0;
 
         YourGame.API.spr(Spr, Sun.Margin + acrossSky, Sun.Margin, Tiles, Tiles);
-
-        // Over the moon, so it is behind the same dark as everything else rather than a hole in it.
-        // rectfill takes the far corner rather than a size.
-        YourGame.API.rectfill(0, 0, Constants.Screen.ResolutionX - 1, Constants.Screen.ResolutionY - 1,
-            Constants.Colors.Black, dim);
     }
 }

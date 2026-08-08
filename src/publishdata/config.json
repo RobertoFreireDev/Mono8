@@ -5,7 +5,7 @@
   "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 8, "CAMY": 0, "ZOOM": 0 },
   "SFX": { "INDEX": 4 },
   "MUSIC": { "PATTERN": 0 },
-  "JSON": { "GROUP": "CLOUDS", "OBJECT": "CONFIG", "COLLAPSED": ["GAME", "MENU", "ROOMS", "PLAYER", "CLUBS", "BALL", "SWING", "HUD", "ANIM", "DAYCYCLE"] },
+  "JSON": { "GROUP": "DAYCYCLE", "OBJECT": "NIGHT", "COLLAPSED": ["GAME", "MENU", "ROOMS", "PLAYER", "CLUBS", "BALL", "SWING", "HUD", "ANIM", "CLOUDS"] },
   "ONION": [
     { "SPR": 9, "REF": 8, "ORDER": 0, "TINT": 1, "OPACITY": 1 },
     { "SPR": 10, "REF": 8, "ORDER": 1, "TINT": 2, "OPACITY": 1 },

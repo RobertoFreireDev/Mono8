@@ -99,8 +99,11 @@ internal class Room
         // The room only gives it the corner to hang off — what puts it there is the hour of the day.
         Sun.Init(this);
 
-        // After the sun, never before: the night hangs off the sky the sun's object authors.
+        // After the sun, never before: the moon hangs off the sky the sun's object authors.
         Moon.Init();
+
+        // The dark the moon comes out in, which is only the hours — nothing else hangs off it.
+        Night.Init();
 
         // The sky is filled fresh on every entry, so a level is never re-entered under the same
         // clouds. Like the sun it takes only the room's corner.
@@ -187,11 +190,13 @@ internal class Room
 
         // Last, so two pixels are never lost behind the body the swing lines them up against.
         Ball.Draw();
-        Moon.Draw();
 
-        // After both bodies of the sky and before the HUD, so the clouds pass in front of the room
-        // rather than behind it — they are the nearest thing in the sky, not the furthest.
+        // The sky over the room, in the order it stacks: the moon, then the clouds passing in front
+        // of it — they are the nearest thing up there, not the furthest — and the night's dark over
+        // both, so a cloud at midnight is as dark as the ground it drifts over rather than lit.
+        Moon.Draw();
         Clouds.Draw();
+        Night.Draw();
 
         // HUD, over the room and back in screen pixels.
         api.camera();

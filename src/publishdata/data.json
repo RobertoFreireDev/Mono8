@@ -338,8 +338,8 @@
       "DEEPTO:i": 2,
       "DUSKFROM:i": 18,
       "DAWNTO:i": 6,
-      "DEEPOPA:d": 0.4,
-      "TWILOPA:d": 0.2
+      "DEEPOPA:d": 0.6,
+      "TWILOPA:d": 0.4
     }
   },
   "CLOUDS": {

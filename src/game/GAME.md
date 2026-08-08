@@ -84,7 +84,8 @@ Update() menu up:
                         Club.Init()        the bag first — the ball leaves the club face
                         Sun.Init(room)     before the player: the shadow only falls where there is a sun
                                            the hour places it; the room only lends its corner
-                        Moon.Init()        after the sun: the night hangs off the sky the sun authors
+                        Moon.Init()        after the sun: the moon hangs off the sky the sun authors
+                        Night.Init()       the dark the moon comes out in — the hours, nothing else
                         Clouds.Init(room)  a sky filled fresh — the room lends only its corner
                         Ball.Init(room)    before the player: the swing reads it frame 1
                         Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
@@ -115,8 +116,9 @@ Draw()   menu up:
          Ball.DrawHoleDebug over the flag it is measured from
          Player.Draw        shadow, Dust under the body, body, club sprite over it, miss text
          Ball.Draw
-         Moon.Draw          the moon, then the hour's dim — inside the room, so under the HUD
+         Moon.Draw          the moon alone — inside the room, so under the HUD
          Clouds.Draw        the sky's nearest layer: over the room, over both bodies, under the HUD
+         Night.Draw         the hour's dim, over the clouds too — still under the HUD
          camera()
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
 
@@ -167,9 +169,10 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Moon.cs](Moon.cs) | The night: the moon placed across the sky by the day of the month, and the hour's dim over it, both authored under `DAYCYCLE/NIGHT`. Drawn from inside the room, after the ball and before the HUD. Reads the clock and its own object and nothing else — no room, which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
+| [Moon.cs](Moon.cs) | The moon, placed across the sky by the day of the month — `SPR` and `MONTHDAY` under `DAYCYCLE/NIGHT`. The sprite and nothing else: it is out only while `Night.Dim` says there is a night, and the dark that follows is the `Night`'s. Drawn from inside the room, after the ball and before the clouds. Reads the clock and its own object and nothing else — no room, which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
+| [Night.cs](Night.cs) | The dark: which hours are night, how dark each band is, and the one full-screen `rectfill` that lays it on. The bands and opacities under `DAYCYCLE/NIGHT`. Drawn last of the room's layers, over the clouds as well as the ground, so nothing in the sky stays lit at midnight. `Dim` is public and read off the clock on every call — the moon asks it whether it is out. Static. |
 | [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — drawn between the backdrop and the room's cells, and none at all outside daylight. Owns `DAYCYCLE/SUN`, which is the sky itself: `Margin`, `Tiles` and the `Span` derived from them are public because the moon crosses the same line. `Present` is also what says whether the player casts a shadow. Static. |
-| [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky. Each object under `CLOUDS` bar `CONFIG` is a *kind* of cloud; `CONFIG` says how many fly at once, where they start, how fast they drift and how much air they keep between them. Drawn after the sun and the moon and before the HUD. Static. |
+| [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky. Each object under `CLOUDS` bar `CONFIG` is a *kind* of cloud; `CONFIG` says how many fly at once, where they start, how fast they drift and how much air they keep between them. Drawn after the sun and the moon and before the night's dim, so they are the nearest layer of the sky and still fall dark with it. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
@@ -459,8 +462,19 @@ The level select's preview draws neither sun nor moon — it reads only `CELLPOS
 
 ### The moon and the night
 
-The other half of the same clock. `Moon.Draw` is both halves of the night in one pass: the moon, then
-the dark over it.
+The other half of the same clock, and **two classes over one object**: `Moon` is the body in the sky,
+`Night` is the dark it comes out in. They split `DAYCYCLE/NIGHT` between them — `SPR` and `MONTHDAY`
+are the moon's, the bands and their opacities are the night's — and each loads its own half in its
+own `Init`, so neither reads a field the other owns.
+
+The one thing that crosses between them is `Night.Dim`, the opacity this hour asks for and `0` for an
+hour that is not night at all. `Moon.Draw` opens by asking it: no dark, no moon. So the hours are
+decided in one place and the two can never disagree about whether it is night.
+
+They are split because they draw at **different depths**, with the clouds between them —
+`Moon.Draw`, `Clouds.Draw`, `Night.Draw`. The moon is a body in the sky and the clouds pass in front
+of it; the dark is not a layer of the sky at all but a wash over the whole frame, so it goes on last
+and everything in front of it — terrain, bodies, clouds, moon included — falls dark together.
 
 The dim is the hour's, and the bands are `DAYCYCLE/NIGHT`'s:
 
@@ -486,24 +500,29 @@ against the right and it shifts a little each night instead of tracking across a
 month simply stops before the right margin, and a `MONTHDAY` of 1 or less pins it at the left one
 rather than dividing by zero.
 
-Both go on **inside the room**, called from `Room.Draw` between `Ball.Draw` and the `camera()` reset
-that starts the HUD. So the moon is in front of the terrain and the ball where the sun is behind the
-room's own cells, and the dim falls over all of that — but under the HUD, under the `Wipe` and under
-the debug readout, which all draw after it. The level select does **not** call it, so the menu never
-falls dark even though its preview is the same outdoors.
+All three go on **inside the room**, called from `Room.Draw` between `Ball.Draw` and the `camera()`
+reset that starts the HUD. So the moon is in front of the terrain and the ball where the sun is
+behind the room's own cells, and the dim falls over all of that — but under the HUD, under the `Wipe`
+and under the debug readout, which all draw after it. The level select calls **neither**, so the menu
+never falls dark even though its preview is the same outdoors.
 
-Unlike the sun's hour, the clock is read every frame rather than at `Init`: it is two `stat` calls
-and nothing else, so the night can fall under a player who stays on one hole. `Moon.Init` exists only
-to read the object — the tuning is taken on `Room.Enter` like everything else's, and it is called
-after `Sun.Init` because the sky it measures itself against is the sun's.
+Unlike the sun's hour, the clock is read every frame rather than at `Init`: `Night.Dim` is one `stat`
+call, so the night can fall under a player who stays on one hole. It is read twice a frame — once by
+the moon's gate, once by the night's own draw — which is two dictionary-free `stat` calls and cheaper
+than a cached value that could go stale mid-hole. Both `Init`s exist only to read the object; the
+tuning is taken on `Room.Enter` like everything else's, and `Moon.Init` is called after `Sun.Init`
+because the sky it measures itself against is the sun's. `Night.Init` hangs off nothing and its order
+is free.
 
-> **Known mismatch.** `Moon.Draw` measures both the sprite and the dim in **screen** pixels —
-> `Sun.Margin`/`Sun.Span` across, and `rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` — but its
-> call site has the camera at the room's origin, which is world space. The two only agree for a room
-> whose `CELLPOS` is `(0, 0)`. On every other room the whole night is offset by the origin and lands
-> off screen: level 1 dims, levels 2 and up do not. Either the call moves after `camera()` (which
-> also puts the dim back over the HUD) or the two coordinates take the room's origin the way the sun
-> does — the sun's `Init` already adds `room.OriginX`/`OriginY` for exactly this reason.
+> **Known mismatch.** Both classes measure themselves in **screen** pixels — the moon at
+> `Sun.Margin`/`Sun.Span` across, the dark at `rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` —
+> but their call site has the camera at the room's origin, which is world space. The two only agree
+> for a room whose `CELLPOS` is `(0, 0)`. On every other room both are offset by the origin and land
+> off screen: level 1 dims, levels 2 and up do not. Either the calls move after `camera()` (which
+> also puts the dim back over the HUD) or the coordinates take the room's origin the way the sun and
+> the clouds do — `Sun.Init` and `Clouds.Init` both add `room.OriginX`/`OriginY` for exactly this
+> reason. Splitting the two did not fix it and was not meant to; it only made the dark a call of its
+> own that can be moved on its own.
 
 ---
 
@@ -531,7 +550,7 @@ cloud.
 
 Positions are **screen pixels off the room's corner**, the way the `Sun`'s are — `Clouds.Draw` runs
 with the room's camera up, so `Room.OriginX`/`OriginY` is what puts them in map-sheet space. This is
-the fix the `Moon` still needs.
+the fix the `Moon` and the `Night` still need.
 
 **The clearance is a box, not a radius**: two clouds are crowded only when they are inside `MINDISTX`
 *and* `MINDISTY` of each other, so two on the same row with a screen between them are fine and so are
@@ -543,9 +562,9 @@ construction and drifts in as the ones ahead move on. So a tight `CONFIG` thins 
 stacking it or hanging the search.
 
 They draw **after the sun, the moon and the room itself** and before the HUD — the nearest layer of
-the sky, in front of the terrain rather than behind it. One consequence worth knowing: `Moon.Draw`
-ends with the night's dim, so a cloud drawn after it stays bright at night. Moving `Clouds.Draw`
-above `Moon.Draw` is the one-line fix if that reads wrong once the night is looked at.
+the sky, in front of the terrain rather than behind it — and **before `Night.Draw`**, so the dim
+falls over them like everything else. That ordering is why the night is split from the moon at all:
+the clouds sit between the two, in front of the body and under the dark.
 
 Degenerate authoring is read rather than thrown on: a band authored backwards is swapped, a `TILESX`
 under 1 is taken as 1, a kind with no `SPRIDX` is dropped rather than flown invisibly, a `SPEED` of 0
@@ -731,7 +750,7 @@ inverted:
 | `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `DAYCYCLE/SUN` | `Sun`, and `Moon` for the sky | `SPR` `TILES` (the body, in 8×8 tiles), `MARGIN` (clearance at the left, right and top, in screen pixels), `DAWNHR` `DUSKHR` (whole hours; outside them, no sun), `GLOWRAD` `GLOWCOL` (the halo discs, read as a pair by index, widest last), `GLOWOPA`. **`TILES` and `MARGIN` are the sky's, not the sun's** — `Sun.Span` is measured off them and the moon crosses the same line |
-| `DAYCYCLE/NIGHT` | `Moon` | `SPR`, `MONTHDAY` (days the moon crosses the sky over), `DEEPFROM` `DEEPTO` (deep night, wrapping midnight) `DEEPOPA`, `DUSKFROM` `DAWNTO` (the twilights either side) `TWILOPA`. No size or margin of its own — those are `DAYCYCLE/SUN`'s |
+| `DAYCYCLE/NIGHT` | `Moon` and `Night`, a half each | **`Moon`:** `SPR`, `MONTHDAY` (days the moon crosses the sky over). **`Night`:** `DEEPFROM` `DEEPTO` (deep night, wrapping midnight) `DEEPOPA`, `DUSKFROM` `DAWNTO` (the twilights either side) `TWILOPA`. No size or margin of its own — those are `DAYCYCLE/SUN`'s |
 | `CLOUDS/<name>` | `Clouds` | One kind of cloud: `SPRIDX`, `TILESX`, `TILESY`. Every object in the group except `CONFIG` is one |
 | `CLOUDS/CONFIG` | `Clouds` | `MINCLOUD` `MAXCLOUD` (how many fly at once), `STRTPOSX` `STRTPOSY` (the start bands, `[min, max]`), `SPEED` (drift speeds to pick from, px/s), `MINDISTX` `MINDISTY` (clearance between clouds). **`MINCLOUD`, `MAXCLOUD`, `MINDISTX` and `MINDISTY` are not authored yet** — the code defaults (`3`/`6`, `16`/`8`) run until they are |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
@@ -792,8 +811,9 @@ rather than loading it.
 - Twenty rooms authored but only five drawn: `06`-`20` all carry `02`'s `CELLPOS`, so the grid is
   full and fifteen of its numbers open the same room. They are placeholders waiting for a map.
 - The night is drawn in the wrong space for every room but the first — see
-  [The moon and the night](#the-moon-and-the-night). `Moon.Draw` is called with the room's camera up
-  and measures itself in screen pixels, so levels `2` and above get neither moon nor dim.
+  [The moon and the night](#the-moon-and-the-night). `Moon.Draw` and `Night.Draw` are both called
+  with the room's camera up and both measure themselves in screen pixels, so levels `2` and above get
+  neither moon nor dim.
 - The level select shows *whether* a hole is done, not **what it was done in**: `Save` holds the
   stroke count and nothing draws it, so there is still no scorecard and no par. The strokes themselves
   reset to `HITMAX` at every `Room.Enter`.
@@ -801,11 +821,9 @@ rather than loading it.
   pause, no sound — the level is simply back at its spawns the frame the ball stops.
 - `GAME/WIPE` is not authored. The wipe runs on its code defaults until it is, and `GAME/START` is
   still the dead object the level select replaced.
-- `DAYCYCLE/SUN` and `DAYCYCLE/NIGHT` are not authored either. Both run on the code defaults, which
-  are exactly the numbers that used to be `const` in the two files, so nothing about the sky has
-  changed until the group is pasted in.
+- `DAYCYCLE/SUN` and `DAYCYCLE/NIGHT` are authored, and the values in them are the numbers that used
+  to be `const` in the files — bar `DUSKHR`, retuned to `15`. The defaults still stand behind them
+  for a field that goes missing.
 - `CLOUDS/CONFIG` is half authored: `STRTPOSX`, `STRTPOSY` and `SPEED` are there, but `MINCLOUD`,
   `MAXCLOUD`, `MINDISTX` and `MINDISTY` are not, so the number of clouds and the air between them are
   the code's (`3`-`6` clouds, `16`×`8` clearance) until the four are added.
-- The clouds draw after `Moon.Draw`, so they are not covered by the night's dim — see
-  [The clouds](#the-clouds).
