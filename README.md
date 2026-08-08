@@ -519,6 +519,33 @@ A block only behaves as an autotile once you mark it as such, which you do with 
 
 Terrain collides through [`mcol`](#tile-collision) like anything else on the map, so set a [sprite flag](#sprite-flags) on the block's forty-seven pieces — all of them, since the brush is free to swap any cell for any other as its neighbours change — and leave it off the block's empty tile. The Sprite Editor's flag buttons are per-sprite, so it is a pass over the block once, after which the whole terrain answers.
 
+## Copying Values Between Editors
+
+Authoring `data.json` means typing numbers you read off another editor — the sprite id of a chest, the pixel position of a spawn point, a colour index for a palette swap. Right-clicking where that number is shown **copies it as text**, and `Ctrl+V` in the [JSON Editor](#json-editor) drops it into a value.
+
+| Right-click | Copies |
+|---|---|
+| A sprite in the **Sprite Editor**'s navigator | That sprite's index — `137`. |
+| A swatch in the **Sprite Editor**'s palette | That colour's index — `12`. The swatch under the cursor, not the selected one, so copying a colour never changes the one you are painting with. |
+| A sprite in the **Map Editor**'s navigator | That sprite's index — `137`. |
+| A cell in the **Map Editor**'s map | The map-sheet **pixel** position — `320,88`. A second right-click on the same cell within about half a second replaces it with the **tile** position — `40,11`. |
+
+Every copy confirms with `COPIED: nnn` on the bottom bar, so what was taken is never a guess. The two map readings are exactly the ones the bottom bar already shows while you hover — pixels in the hover text on the left, tiles in the `X:nnn Y:nnn` on the right — and both include the enabled layer's quarter offset, so they are positions on the whole map sheet rather than within the layer.
+
+This is a **separate clipboard** from the `Ctrl+C` / `Ctrl+V` that copies sprite pixels and map tiles. Those hold a region of the sheet; this holds one number. Neither can overwrite the other, so a copied region survives any number of value copies.
+
+### Pasting
+
+`Ctrl+V` in the JSON Editor writes the copied text into the selected value — either with the value's inline editor open, or with the key simply selected in the inspector. It only lands in the three types a copy can mean something for:
+
+| Field type | Takes |
+|---|---|
+| `Int` | A sprite or colour index. A copied position is refused (`BAD VAL`). |
+| `PosXY` | A copied position. |
+| `Text` | Either, as the string it is. |
+
+Anything else answers `CANT PASTE` rather than converting — a sprite index is not `137.00`. An empty clipboard says `NOTHING COPIED`, and a successful paste confirms with `PASTED: nnn`.
+
 ## Sprite Editor
 
 Edits sprites in the sprite sheet, plus per-sprite flags and an 8-frame animation preview.
@@ -572,7 +599,9 @@ The guide is laid out from the canvas's top-left tile, which holds the selected 
 
 ### Palette & Navigator
 
-Click a color swatch in the palette (top-right) to select the draw color. Left-click a sprite in the bottom navigator to select it for editing, right-click a sprite to make it the reference sprite of the one being edited, or click a page button to switch sprite-sheet pages. Mouse wheel up/down over the canvas zooms it in/out (`x1`-`x8`).
+Click a color swatch in the palette (top-right) to select the draw color. Left-click a sprite in the bottom navigator to select it for editing, or click a page button to switch sprite-sheet pages. Mouse wheel up/down over the canvas zooms it in/out (`x1`-`x8`).
+
+Right-clicking a sprite in the navigator or a swatch in the palette **copies its index** for pasting into `data.json` — see [Copying Values Between Editors](#copying-values-between-editors). To make a sprite the reference of the one being edited, hover it and press `O`.
 
 ### Sprite Flags
 
@@ -600,7 +629,9 @@ A column of four buttons to the right of the sprite canvas lets you ghost-draw a
 | Visualization | Left-click cycles forward, right-click cycles backward through `ORG` (original colors) → `RED` → `GRN` → `BLU`, recoloring the reference sprite via `pal`. |
 | Opacity | Left-click cycles forward, right-click cycles backward through `20`/`40`/`60`/`80`/`100` (percent). |
 
-Instead of typing a number, you can **right-click any sprite in the bottom navigator** to make it the reference of the sprite you are editing. This overwrites whatever reference was already set, or sets one if there was none. Right-clicking sprite `0` (the empty sprite) or the sprite currently being edited clears the reference back to `--`, since neither is a meaningful onion skin.
+Instead of typing a number, you can **hover any sprite in the bottom navigator and press `O`** to make it the reference of the sprite you are editing. This overwrites whatever reference was already set, or sets one if there was none, and the bottom bar confirms with `ONION nnn`. Picking sprite `0` (the empty sprite) or the sprite currently being edited clears the reference back to `--` (`ONION --`), since neither is a meaningful onion skin.
+
+`O` is ignored while the **Number** button is open for typing, so a pick can never land mid-entry and leave the box showing a number that is no longer the reference. It is the pick's only binding — the navigator's right-click now [copies the sprite index](#copying-values-between-editors) instead.
 
 ### Sprite Editor Hotkeys
 
@@ -617,6 +648,7 @@ Instead of typing a number, you can **right-click any sprite in the bottom navig
 | `F` | Flips the current sprite horizontally. |
 | `V` | Flips the current sprite vertically. |
 | `R` | Rotates the current sprite 90° clockwise. |
+| `O` | Makes the sprite under the cursor in the navigator the [reference sprite](#reference-sprite-onion-skinning) of the one being edited. Only while the cursor is over the navigator, no modifier keys are held, and the reference Number button is not open for typing. |
 | `1`-`8` | Toggles the current sprite into/out of the corresponding animation frame slot (only when no modifier keys are held). |
 | `9` | Clears all animation frame slots (only when no modifier keys are held). |
 
@@ -677,11 +709,15 @@ Selected via the tool row (left of the layer buttons). The selected sprite's num
 | Select | Drag from one cell to another to mark an area. The area stays highlighted with an animated marching-ants border until you right-click to cancel, pick another tool, or leave the editor. With a selection active: `Del` clears it, `Ctrl+C` copies it, `Ctrl+X` cuts it (copy then clear, as a single undo step), and `Ctrl+V` pastes the copied tiles at the selection's top-left. |
 | Hand | Drag to pan the map viewport with the mouse. |
 
+Right-clicking the map [copies the position under the cursor](#copying-values-between-editors), whichever tool is selected — except while a **Select** selection or a drag is up, where the right button cancels it first, as above. So the click that cancels never also copies, and the next one does.
+
 Map edits support undo/redo with `Ctrl+Z` / `Ctrl+Shift+Z`, up to 50 steps.
 
 ### Sprite Navigator
 
 Click a sprite in the bottom navigator panel to select it for painting; click a page button to switch between sprite-sheet pages. The toggle in the top-left menu bar (only shown while the Map Editor is active) switches to a full-screen map view, hiding the tool row (including the layer buttons) and sprite navigator.
+
+Hovering a sprite shows its index as `SPR:nnn` on the right edge of the bottom bar, in the slot the map's cell coordinates use while the cursor is over the map. Right-clicking it [copies that index](#copying-values-between-editors).
 
 ### Zoom
 
@@ -781,6 +817,7 @@ Groups and objects are **not indented** — they are told apart by the fold mark
 One row block per field: the key name, a one-character type badge, and the value. Everything fits on the key's line except a `Text` value, which wraps at 39 characters into as many extra lines as it needs and pushes the fields below it down.
 
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
+- **Paste a value** copied from another editor with `Ctrl+V` — into an `Int`, a `PosXY` or a `Text`, with the value's editor open or the key just selected. See [Copying Values Between Editors](#copying-values-between-editors).
 - **Case** is kept for a `Text` value and nowhere else: it is drawn as it is stored, both while you type it and after it commits, so the edit never appears to change it. `Shift` and `Caps Lock` both work, and together they give lower case, as everywhere else on the machine. Names, numbers, positions and bools have no case to keep — a name is folded to upper case as you type it, for the reason in [data.json](#datajson).
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
 - **Hover the badge** to read the type out in full on the bottom bar — `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. `Text` also carries its cap (`TEXT MAX 256`), and a `PosXY` badge shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
@@ -801,6 +838,7 @@ Both panels scroll with the mouse wheel and with their own scrollbars, and the s
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project, unless a value is invalid (`ERROR ON GROUP/OBJECT/KEY`). |
+| `Ctrl+V` | Pastes the [value copied](#copying-values-between-editors) from another editor into the selected `Int`, `PosXY` or `Text` value — with its editor open or just selected. |
 | `Tab` | Moves focus between the tree and the inspector; while editing, commits and moves to the next row. |
 | `Up`/`Down` | Moves the selection within the focused panel. |
 | `Left`/`Right` | Collapses/expands the selected group. |

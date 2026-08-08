@@ -110,6 +110,29 @@ internal sealed class TextField
     public void SetBounds(Rectangle bounds) => _bounds = bounds;
 
     /// <summary>
+    /// Replaces the whole buffer, caret at its end — the one way text arrives other than a keystroke
+    /// at a time. It is gated the way typing is, character by character from empty, so a paste can
+    /// never leave the field holding something the keyboard could not have produced; one that fails
+    /// partway is refused whole rather than stored clipped. The case comes across untouched: it is
+    /// the copied text's own, not something the lock and Shift get a say in.
+    /// </summary>
+    public bool TrySetValue(string text)
+    {
+        if (!Active || text == null || text.Length > _maxLength) return false;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (!IsAllowedAt(text[i], text.Substring(0, i), i)) return false;
+        }
+
+        _text = text;
+        _caret = text.Length;
+        _window = 0;
+        _blink = 0;
+        return true;
+    }
+
+    /// <summary>
     /// Keeps drawing inside the band from <paramref name="top"/> to <paramref name="bottom"/>. A
     /// wrapped value can run taller than the panel showing it, and nothing in the project clips, so
     /// a line that does not fit entirely between the two is dropped rather than left to bleed over
@@ -426,6 +449,8 @@ internal sealed class TextField
         return KeybrdInput.IsShiftPressed() ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c);
     }
 
-    private bool IsAllowed(char c) =>
-        _isName ? JsonNames.IsValidNameChar(c) : DataValue.IsCharAllowed(_type, c, _text, _caret);
+    private bool IsAllowed(char c) => IsAllowedAt(c, _text, _caret);
+
+    private bool IsAllowedAt(char c, string current, int caret) =>
+        _isName ? JsonNames.IsValidNameChar(c) : DataValue.IsCharAllowed(_type, c, current, caret);
 }

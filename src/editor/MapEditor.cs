@@ -116,6 +116,19 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
     private int hoverCellX;
     private int hoverCellY;
 
+    // The sprite under the cursor while it rests on the sheet, -1 while it does not.
+    private int hoverSprite = -1;
+
+    // --- Right-click copy ---
+    // A second right-click on the same cell soon enough after the first copies that cell instead of
+    // the pixel it holds, so both of the readings the bottom bar shows come off the one button. The
+    // first copy still happens: replacing it reads as the pair it is, where holding it back until
+    // the window closed would put a wait on every single click.
+    private const float DoubleClickSeconds = 0.4f;
+    private float rightClickLeft;
+    private int rightClickCellX;
+    private int rightClickCellY;
+
     public MapEditor(IMono8API api)
     {
         _api = api;
@@ -303,6 +316,8 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
 
         ants.Update(elapsedSeconds);
 
+        if (rightClickLeft > 0f) rightClickLeft -= elapsedSeconds;
+
         if (KeybrdInput.IsSaveShortcutPressed())
         {
             Mono8Game.GameAPI.Save();
@@ -363,6 +378,7 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
 
         hoveringMap = mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse);
         hoveringAutotile = !FullMapView && autotileButton.Bounds.Contains(mouse.x, mouse.y);
+        hoverSprite = -1;
 
         if (hoveringMap)
         {
@@ -375,7 +391,10 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         }
         else if (!FullMapView && navigator.ViewerArea.Contains(mouse.x, mouse.y))
         {
+            hoverSprite = navigator.SpriteUnderMouse(mouse);
+
             if (_api.mousel()) navigator.SelectAt(mouse);
+            else if (_api.mouserp()) eventNotifier.AddEvent(ValueClipboard.CopyInt(hoverSprite));
         }
         else if (!FullMapView)
         {
@@ -625,6 +644,14 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
             return;
         }
 
+        // With nothing to cancel it copies the position instead. No tool below reads the right
+        // button, so there is nothing left for the click to reach.
+        if (_api.mouserp())
+        {
+            CopyPosition(mouse, mapArea, cellX, cellY);
+            return;
+        }
+
         if (selectedTool == Tool.Pixel)
         {
             if (!MapSheet.IsValidTile(navigator.SelectedSprite)) return;
@@ -681,6 +708,34 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         }
     }
 
+    /// <summary>
+    /// Takes the hovered position, in the same map-sheet space the bottom bar reports it in: the
+    /// pixel on a single right-click, the cell on a second one that lands on the same cell soon
+    /// enough. The cell is asked for the rarer of the two, since a spawn point or a hit box is
+    /// written in pixels and only a room origin is written in tiles.
+    /// </summary>
+    private void CopyPosition((int x, int y) mouse, Rectangle mapArea, int cellX, int cellY)
+    {
+        if (!InQuarter(cellX, cellY)) return;
+
+        bool again = rightClickLeft > 0f && cellX == rightClickCellX && cellY == rightClickCellY;
+
+        // Either way this click is what the next one is measured against, so a third starts a fresh
+        // pair rather than copying the cell again.
+        rightClickLeft = again ? 0f : DoubleClickSeconds;
+        rightClickCellX = cellX;
+        rightClickCellY = cellY;
+
+        if (again)
+        {
+            eventNotifier.AddEvent(ValueClipboard.CopyPos(cellX + EnabledOffX, cellY + EnabledOffY));
+            return;
+        }
+
+        var (pixelX, pixelY) = PixelUnderMouse(mouse, mapArea);
+        eventNotifier.AddEvent(ValueClipboard.CopyPos(pixelX, pixelY));
+    }
+
     private void CommitSelection(int x0, int y0, int x1, int y1)
     {
         // Selections stay in quarter-local cells; they are offset into the enabled layer at edit time.
@@ -731,6 +786,16 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
             // Map-sheet coordinates, i.e. the hovered cell offset into the enabled layer's quarter.
             _api.print($"X:{hoverCellX + EnabledOffX:D3} Y:{hoverCellY + EnabledOffY:D3}",
                 hoverTextX, bottomBarY + 1, Constants.Colors.Indigo);
+        }
+        else if (hoverSprite >= 0)
+        {
+            // The sheet's own reading, in the slot the map's coordinates hold when the cursor is
+            // over the map. It is the shorter of the two, so it is right-aligned on the same margin
+            // rather than started at the reserved slot's left edge.
+            string sprText = $"SPR:{hoverSprite:D3}";
+            _api.print(sprText,
+                Constants.Screen.ResolutionX - rightMargin - sprText.Length * charAdvance,
+                bottomBarY + 1, Constants.Colors.Indigo);
         }
 
         if (!FullMapView)

@@ -567,7 +567,13 @@ internal class SpriteEditor : IEditor, IEditorConfig
 
         if (navigator.ViewerArea.Contains(mouse.x, mouse.y))
         {
-            hoverLabel = $"SPR:{navigator.SpriteUnderMouse(mouse):D3}";
+            int hovered = navigator.SpriteUnderMouse(mouse);
+            hoverLabel = $"SPR:{hovered:D3}";
+
+            // Onion picking is a key rather than a click because the right button now copies the
+            // number. It is still aimed with the cursor, so the gesture is the one it always was
+            // with the button swapped out - and it leaves both mouse buttons doing what they did.
+            if (PickOnionPressed()) PickOnion(hovered);
 
             if (_api.mousel())
             {
@@ -575,11 +581,7 @@ internal class SpriteEditor : IEditor, IEditorConfig
             }
             else if (_api.mouserp())
             {
-                int picked = navigator.SpriteUnderMouse(mouse);
-
-                // Sprite 0 is the empty sprite, and a sprite cannot reference itself.
-                int reference = (picked == 0 || picked == sprNmbr) ? -1 : picked;
-                Mono8API.SpriteSheet.SetReferenceSprite(sprNmbr, reference);
+                eventNotifier.AddEvent(ValueClipboard.CopyInt(hovered));
             }
         }
         else if (sprcnvsarea.Contains(mouse.x, mouse.y))
@@ -648,6 +650,12 @@ internal class SpriteEditor : IEditor, IEditorConfig
             if (_api.mousel())
             {
                 ColorSelected = ColorIndexAt(mouse);
+            }
+            else if (_api.mouserp())
+            {
+                // The swatch under the cursor, not the selected one: a colour can be copied without
+                // giving up the one being painted with.
+                eventNotifier.AddEvent(ValueClipboard.CopyInt(ColorIndexAt(mouse)));
             }
         }
         else
@@ -748,6 +756,27 @@ internal class SpriteEditor : IEditor, IEditorConfig
         {
             referenceOrders[sprNmbr] = referenceOrder == ReferenceOrder.Behind ? ReferenceOrder.Front : ReferenceOrder.Behind;
         }
+    }
+
+    /// <summary>
+    /// The onion pick's key: a bare <c>O</c>, held to the same rules the animation digits are. The
+    /// number box owns the keyboard while it is open, so a pick cannot land mid-entry and leave the
+    /// box showing a number that is no longer the reference.
+    /// </summary>
+    private bool PickOnionPressed() =>
+        KeybrdInput.NoModifiersPressed() && !editingReferenceNumber && KeybrdInput.JustPressed(Keys.O);
+
+    /// <summary>
+    /// Makes <paramref name="picked"/> the reference of the sprite being edited. Unlike the click it
+    /// replaced this says what it did: a key press has nothing under the cursor to show for itself,
+    /// and the number box it changes is four pixels of text on the far side of the screen.
+    /// </summary>
+    private void PickOnion(int picked)
+    {
+        // Sprite 0 is the empty sprite, and a sprite cannot reference itself.
+        int reference = (picked == 0 || picked == sprNmbr) ? -1 : picked;
+        Mono8API.SpriteSheet.SetReferenceSprite(sprNmbr, reference);
+        eventNotifier.AddEvent("ONION " + (reference < 0 ? "--" : reference.ToString("D3")));
     }
 
     private bool DitherSlotIsEmpty(int slot) => slot != DitherSolidSlot && ditherSprites[slot] < 0;

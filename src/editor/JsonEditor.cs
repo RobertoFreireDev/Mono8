@@ -241,6 +241,10 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
         // measured against where the value was a line ago.
         PositionValueField();
 
+        // A paste while the value is open lands in the buffer and not in the sheet, since the buffer
+        // is what the commit will write — anything else would be undone the moment the edit ended.
+        if (_editing == Editing.Value && KeybrdInput.IsPasteShortcutPressed()) PasteIntoField();
+
         if (!_field.Update(out string committed, out bool cancelled)) return;
 
         var mode = _editing;
@@ -495,6 +499,8 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
     private void UpdateInspectorKeys()
     {
         if (_inspected == null) return;
+
+        if (KeybrdInput.IsPasteShortcutPressed()) PasteValue();
 
         if (KeybrdInput.JustPressed(Keys.Up)) SelectBlock(SelectedBlock() - 1);
         if (KeybrdInput.JustPressed(Keys.Down)) SelectBlock(SelectedBlock() + 1);
@@ -870,6 +876,68 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
         RebuildBlocks();
         EnsureRowVisible();
         EnsureBlockVisible();
+    }
+
+    // ── Paste ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Ctrl+V on the selected value with no edit open. It writes straight to the sheet, so what was
+    /// copied has to read back as the field's own type — an Int has nowhere to put a position.
+    /// </summary>
+    private void PasteValue()
+    {
+        var field = SelectedField();
+        if (!PasteAllowed(field)) return;
+
+        if (!Sheet.TrySetValue(field, _selItem, ValueClipboard.Value))
+        {
+            _events.AddEvent("BAD VAL");
+            return;
+        }
+
+        _events.AddEvent(ValueClipboard.PasteLabel);
+        RebuildBlocks();
+    }
+
+    /// <summary>
+    /// The same while the value is open for editing. The field gates it exactly as it gates typing,
+    /// so a half-finished entry — a PosXY still missing its comma — is let in and refused on commit,
+    /// just as a typed one would be.
+    /// </summary>
+    private void PasteIntoField()
+    {
+        if (!PasteAllowed(SelectedField())) return;
+
+        if (_field.TrySetValue(ValueClipboard.Value)) _events.AddEvent(ValueClipboard.PasteLabel);
+        else _events.AddEvent("BAD VAL");
+    }
+
+    /// <summary>
+    /// Whether there is something to paste and a field that can take it, saying which is missing
+    /// when there is not. Only three types can: a sprite or a colour index reads back as an Int, a
+    /// map position as a PosXY, and a Text takes either as the string it is. A Decimal, a Money or a
+    /// Bool has no copy anywhere that means anything to it, so the paste is refused rather than
+    /// turning a sprite index into 137.00.
+    /// </summary>
+    private bool PasteAllowed(JsonField field)
+    {
+        if (field == null) return false;
+
+        if (!ValueClipboard.HasValue)
+        {
+            _events.AddEvent("NOTHING COPIED");
+            return false;
+        }
+
+        if (field.Type != DataValueType.Int
+            && field.Type != DataValueType.PosXY
+            && field.Type != DataValueType.Text)
+        {
+            _events.AddEvent("CANT PASTE");
+            return false;
+        }
+
+        return true;
     }
 
     // ── Text entry ────────────────────────────────────────────────────────────
