@@ -40,6 +40,8 @@ internal class Mono8API : IEditorAPI
     internal void Load()
     {
         var path = Path.Combine(Directory.GetCurrentDirectory(), _folder);
+        // First: it is what an error from any of the loads below would be drawn with.
+        Text.LoadFont(ReadLines(Constants.File.Extensions.Font, path));
         SfxSheet.LoadSfxs(ReadLines(Constants.File.Extensions.Sfx, path));
         MusicSheet.LoadMusic(ReadLines(Constants.File.Extensions.Music, path));
         IconSheet.LoadIcons(ReadLines(Constants.File.Extensions.IconSheet, path));

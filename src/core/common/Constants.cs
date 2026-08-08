@@ -51,6 +51,14 @@ public static class Constants
         public const int Music = 64;
         public const int IconSheetX = 256;
         public const int IconSheetY = 24;
+        public const int FontCharX = 5;
+        public const int FontCharY = 7;
+        public const int FontSheetColumns = 19;
+        // Only the first 92 cells are spelled out in Text's character list; the rest is room to grow.
+        public const int FontSheetRows = 20;
+        public const int FontSheetX = FontSheetColumns * FontCharX; // 95
+        public const int FontSheetY = FontSheetRows * FontCharY; // 140
+        public const int MaxFontIndex = FontSheetColumns * FontSheetRows - 1;
         public const int SpriteSheetX = 256;
         public const int SpriteSheetY = 48 * 5;
         public const int TileSize = 8;
@@ -92,6 +100,8 @@ public static class Constants
             public const string Autotile = "atl";
 
             public const string IconSheet = "icons";
+
+            public const string Font = "font";
 
             public const string Save = "save";
 

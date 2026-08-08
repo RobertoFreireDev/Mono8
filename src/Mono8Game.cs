@@ -72,7 +72,6 @@ public class Mono8Game : Game
             false,
             SurfaceFormat.Color,
             DepthFormat.None);
-        Text.GetCharacterTextures(GraphicsDevice);
         TextEntry.Attach(Window);
         LoadFiles();
     }
