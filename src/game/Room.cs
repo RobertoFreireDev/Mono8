@@ -99,6 +99,9 @@ internal class Room
         // The room only gives it the corner to hang off — what puts it there is the hour of the day.
         Sun.Init(this);
 
+        // After the sun, never before: the night hangs off the sky the sun's object authors.
+        Moon.Init();
+
         // The ball before the player: the swing reads it the frame it starts.
         Ball.Init(this);
         Player.Init(this);

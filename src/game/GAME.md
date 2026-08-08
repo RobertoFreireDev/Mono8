@@ -84,6 +84,7 @@ Update() menu up:
                         Club.Init()        the bag first — the ball leaves the club face
                         Sun.Init(room)     before the player: the shadow only falls where there is a sun
                                            the hour places it; the room only lends its corner
+                        Moon.Init()        after the sun: the night hangs off the sky the sun authors
                         Ball.Init(room)    before the player: the swing reads it frame 1
                         Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
                         Flag.Init(room)
@@ -163,8 +164,8 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Moon.cs](Moon.cs) | The night: sprite `129` placed across the sky by the day of the month, and the hour's dim over it. Drawn from inside the room, after the ball and before the HUD. Reads the clock and nothing else — no room, no state, no `Init` — which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
-| [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — a fixed 2×2 sprite drawn between the backdrop and the room's cells, and none at all outside daylight. `Present` is also what says whether the player casts a shadow. Static. |
+| [Moon.cs](Moon.cs) | The night: the moon placed across the sky by the day of the month, and the hour's dim over it, both authored under `DAYCYCLE/NIGHT`. Drawn from inside the room, after the ball and before the HUD. Reads the clock and its own object and nothing else — no room, which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
+| [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — drawn between the backdrop and the room's cells, and none at all outside daylight. Owns `DAYCYCLE/SUN`, which is the sky itself: `Margin`, `Tiles` and the `Span` derived from them are public because the moon crosses the same line. `Present` is also what says whether the player casts a shadow. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
@@ -383,26 +384,37 @@ and clears `Present` / sets `Holed`.
 ## The sun and the shadow
 
 The sun is hung by the clock, not by the room. `Sun.Init` reads the local hour off `stat(4)` and
-places it across the screen: two tiles of margin at the left, the right and the top, swept left to
-right over the daylight hours so `06:00` is against the left margin and `18:00` against the right.
-Outside `06:00`–`18:00` there is no sun at all, and that is an overcast hole — nothing else about it
-changes.
+places it across the screen: `MARGIN` pixels of clearance at the left, the right and the top, swept
+left to right over the daylight hours so `DAWNHR` is against the left margin and `DUSKHR` against the
+right. Outside those two hours there is no sun at all, and that is an overcast hole — nothing else
+about it changes. As authored that is two tiles of margin and `06:00`–`18:00`.
 
 The room contributes only its `CELLPOS` corner, as the offset that turns that screen position into
 the map-sheet pixels everything else in a room is measured in.
 
 The hour is sampled once per `Room.Enter`, so the sun moves between levels rather than during one.
+`DAYCYCLE/SUN` is re-read on the same call, so a Ctrl+S retune lands on the next room entry.
 
-The sprite is fixed in code — sprite `1`, drawn `2×2` — because every room's sun is the same sun.
-It draws **between the backdrop and the room's own cells**, so it sits in the sky the backdrop paints
-and the terrain passes in front of it rather than being lit through.
+The sprite is one block for every room — `SPR`, drawn `TILES` square, authored as sprite `1` at `2×2`
+— because every room's sun is the same sun. It draws **between the backdrop and the room's own
+cells**, so it sits in the sky the backdrop paints and the terrain passes in front of it rather than
+being lit through.
 
-Over the sprite go three translucent discs centred on it, widest last so they layer into a halo
-rather than one flat wash: `16`/`20`/`24` pixels in `BrightOrange`/`Orange`/`Yellow` at `0.2`. Those
-are the midday radii — they are scaled by how far into the day it is, `0` at `06:00` and `18:00` and
-`1` at `12:00`, so the glow opens up towards noon and is gone entirely at either end. A disc smaller
-than a tile is skipped rather than drawn: it would be lost inside the sprite anyway, and it keeps a
-negative radius — which `circfill` throws on — from ever reaching the call.
+Over the sprite go the translucent discs of `GLOWRAD`, centred on it and drawn in list order so the
+widest is last and they layer into a halo rather than one flat wash — as authored, `16`/`20`/`24`
+pixels in the matching `GLOWCOL` (`BrightOrange`/`Orange`/`Yellow`) at `GLOWOPA` `0.2`. `GLOWRAD` and
+`GLOWCOL` are read as a pair by index; a radius of 0 or less is dropped rather than loaded, and a
+radius with no colour beside it draws `Yellow`. Those are the midday radii — they are scaled by how
+far into the day it is, `0` at dawn and dusk and `1` at the hour midway between, so the glow opens up
+towards noon and is gone entirely at either end. A disc smaller than a tile is skipped rather than
+drawn: it would be lost inside the sprite anyway, and it keeps a negative radius — which `circfill`
+throws on — from ever reaching the call.
+
+The sky's own geometry is authored on the **sun** and nothing else: `Sun.Margin`, `Sun.Tiles` and the
+`Sun.Span` derived from the two (`ResolutionX - 2 × MARGIN - TILES × 8`, floored at 0) are the line
+the moon crosses as well. There is one sky, so it is authored once. Degenerate authoring is read
+rather than thrown on — a `TILES` under 1 is taken as 1, a `DUSKHR` at or before `DAWNHR` is a day
+with no hours in it and reads as overcast.
 
 `Sun.Present` is also the switch on the player's shadow: a black smear one pixel tall at
 `ShadowOpacity`, centred on the body, drawn first of everything `Player.Draw` puts down — under the
@@ -446,23 +458,29 @@ The level select's preview draws neither sun nor moon — it reads only `CELLPOS
 The other half of the same clock. `Moon.Draw` is both halves of the night in one pass: the moon, then
 the dark over it.
 
-The dim is the hour's:
+The dim is the hour's, and the bands are `DAYCYCLE/NIGHT`'s:
 
-| Hours | Dim |
-|---|---|
-| `22:00`–`02:00` | `0.4` |
-| `18:00`–`20:00`, `04:00`–`06:00` | `0.2` |
-| anything else | nothing drawn at all — no dark, and no moon |
+| Hours | Dim | Authored as |
+|---|---|---|
+| `DEEPFROM`–`DEEPTO` | `DEEPOPA` | `22:00`–`02:00` at `0.4` |
+| `DUSKFROM`–`DEEPFROM`, `DEEPTO`–`DAWNTO` | `TWILOPA` | `18:00`–`20:00`, `04:00`–`06:00` at `0.2` |
+| anything else | nothing drawn at all — no dark, and no moon |  |
 
 Deep night is the one band that runs past midnight, so it is read as two halves where the twilights
-are read as one. The hours between the bands — `20:00`–`22:00` and `02:00`–`04:00` — are undimmed and
-moonless, as authored.
+are read as one — which is also why `DEEPFROM` above `DEEPTO` is the shape the code expects rather
+than a mistake. The hours between the bands — `20:00`–`22:00` and `02:00`–`04:00` as authored — are
+undimmed and moonless.
 
-The moon is sprite `129`, drawn `2×2`, crossing the same sky the sun does: `Sun.Margin` down from the
-top, and `Sun.Margin` to `Sun.Margin + Sun.Span` across, which is why those two are the sun's only
-public geometry. What moves it is the **day of the month** (`stat(3)`) rather than the hour — the
-first of a month is against the left margin, the 31st against the right, so it shifts a little each
-night instead of tracking across an evening. A short month simply stops before the right margin.
+The moon is `SPR` (sprite `129`), drawn at the sun's `TILES`, crossing the same sky the sun does:
+`Sun.Margin` down from the top, and `Sun.Margin` to `Sun.Margin + Sun.Span` across, which is why
+those are the sun's public geometry. **The night authors no size and no margin of its own** — `Span`
+is measured off the sun's `TILES`, so a moon of another size would overrun the line it shares.
+
+What moves it is the **day of the month** (`stat(3)`) rather than the hour, over `MONTHDAY` days —
+authored as `31`, the longest month, so the first of a month is against the left margin and the 31st
+against the right and it shifts a little each night instead of tracking across an evening. A short
+month simply stops before the right margin, and a `MONTHDAY` of 1 or less pins it at the left one
+rather than dividing by zero.
 
 Both go on **inside the room**, called from `Room.Draw` between `Ball.Draw` and the `camera()` reset
 that starts the HUD. So the moon is in front of the terrain and the ball where the sun is behind the
@@ -471,7 +489,9 @@ the debug readout, which all draw after it. The level select does **not** call i
 falls dark even though its preview is the same outdoors.
 
 Unlike the sun's hour, the clock is read every frame rather than at `Init`: it is two `stat` calls
-and nothing else, so the night can fall under a player who stays on one hole.
+and nothing else, so the night can fall under a player who stays on one hole. `Moon.Init` exists only
+to read the object — the tuning is taken on `Room.Enter` like everything else's, and it is called
+after `Sun.Init` because the sky it measures itself against is the sun's.
 
 > **Known mismatch.** `Moon.Draw` measures both the sprite and the dim in **screen** pixels —
 > `Sun.Margin`/`Sun.Span` across, and `rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` — but its
@@ -658,6 +678,8 @@ inverted:
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a colour now |
 | `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
+| `DAYCYCLE/SUN` | `Sun`, and `Moon` for the sky | `SPR` `TILES` (the body, in 8×8 tiles), `MARGIN` (clearance at the left, right and top, in screen pixels), `DAWNHR` `DUSKHR` (whole hours; outside them, no sun), `GLOWRAD` `GLOWCOL` (the halo discs, read as a pair by index, widest last), `GLOWOPA`. **`TILES` and `MARGIN` are the sky's, not the sun's** — `Sun.Span` is measured off them and the moon crosses the same line |
+| `DAYCYCLE/NIGHT` | `Moon` | `SPR`, `MONTHDAY` (days the moon crosses the sky over), `DEEPFROM` `DEEPTO` (deep night, wrapping midnight) `DEEPOPA`, `DUSKFROM` `DAWNTO` (the twilights either side) `TWILOPA`. No size or margin of its own — those are `DAYCYCLE/SUN`'s |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
 | `SWING/POWER` | `Swing`, `Meter` | `SWEEP` (seconds for one out-and-back), `MISS`, `MINHIT` |
@@ -680,8 +702,8 @@ so the numbers exist, and the levels behind them do not yet.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
-Sprite ids fixed in code: `1` the sun, a 2×2 block — the one sprite the game names itself, since
-every room's sun is the same one.
+Sprite ids fixed in code: none. The sun and the moon were the last two — both are `DAYCYCLE`'s now,
+and their old ids (`1` and `129`, 2×2) are the fallbacks the code runs on until the group is authored.
 
 Sfx ids fixed in code: `0` club on ball, `1` ball into the cup. Everything else (footsteps, club swap)
 is authored as a list in json and read through `SfxList`, which drops a negative or wrong-typed entry
@@ -725,3 +747,6 @@ rather than loading it.
   pause, no sound — the level is simply back at its spawns the frame the ball stops.
 - `GAME/WIPE` is not authored. The wipe runs on its code defaults until it is, and `GAME/START` is
   still the dead object the level select replaced.
+- `DAYCYCLE/SUN` and `DAYCYCLE/NIGHT` are not authored either. Both run on the code defaults, which
+  are exactly the numbers that used to be `const` in the two files, so nothing about the sky has
+  changed until the group is pasted in.
