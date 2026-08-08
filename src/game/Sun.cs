@@ -30,7 +30,7 @@ internal static class Sun
     // The glow: three translucent discs over the sprite, drawn widest last so they layer into a
     // halo rather than one flat disc. These radii are what midday draws — the rest of the day scales
     // them down with the sun's height, so dawn and dusk have none at all.
-    private static readonly int[] GlowRadius = { 14, 16, 18 };
+    private static readonly int[] GlowRadius = { 16, 20, 24 };
     private static readonly int[] GlowColor =
     {
         Constants.Colors.BrightOrange,
@@ -96,7 +96,7 @@ internal static class Sun
         {
             int radius = (int)(GlowRadius[i] * Height);
 
-            if (radius > Terrain.TileSize * Tiles)
+            if (radius > Terrain.TileSize)
             {
                 api.circfill(centerX, centerY, radius, GlowColor[i], GlowOpacity);
             }
