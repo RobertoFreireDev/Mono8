@@ -26,6 +26,11 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
     private int camX;
     private int camY;
 
+    // Arrow-key pan. A held arrow steps once every four frames rather than every one - at 60 FPS a
+    // per-frame step runs away faster than the eye can follow the tiles going past.
+    private const float PanRepeatInterval = 4f / 60f;
+    private float panRepeatTimer;
+
     // Set by the menu bar toggle (top-left, only shown while the map editor is active).
     public bool FullMapView { get; set; }
 
@@ -240,6 +245,30 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         camY = Math.Clamp(camY, 0, Math.Max(0, QuarterRows - MapRows));
     }
 
+    // Pan the map viewport with the arrow keys. Holding Control moves 4 tiles at a time instead of
+    // one. The first press moves at once; holding then repeats on the interval, so the pace is the
+    // same whichever arrows are down.
+    private void UpdateArrowPan(float elapsedSeconds)
+    {
+        int dx = (KeybrdInput.Pressed(Keys.Right) ? 1 : 0) - (KeybrdInput.Pressed(Keys.Left) ? 1 : 0);
+        int dy = (KeybrdInput.Pressed(Keys.Down) ? 1 : 0) - (KeybrdInput.Pressed(Keys.Up) ? 1 : 0);
+
+        if (dx == 0 && dy == 0)
+        {
+            panRepeatTimer = 0f;
+            return;
+        }
+
+        panRepeatTimer -= elapsedSeconds;
+        if (panRepeatTimer > 0f) return;
+        panRepeatTimer += PanRepeatInterval;
+
+        int panStep = KeybrdInput.IsCtrlPressed() ? 4 : 1;
+        camX += dx * panStep;
+        camY += dy * panStep;
+        ClampCamera();
+    }
+
     // Zoom about the cursor: the cell under the mouse stays under the mouse.
     private void UpdateZoom((int x, int y) mouse, Rectangle mapArea)
     {
@@ -282,13 +311,7 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
 
         UpdateEditShortcuts();
 
-        // Pan the map viewport. Holding Control moves 8 tiles at a time instead of one.
-        int panStep = KeybrdInput.IsCtrlPressed() ? 8 : 1;
-        if (KeybrdInput.Pressed(Keys.Left)) camX -= panStep;
-        if (KeybrdInput.Pressed(Keys.Right)) camX += panStep;
-        if (KeybrdInput.Pressed(Keys.Up)) camY -= panStep;
-        if (KeybrdInput.Pressed(Keys.Down)) camY += panStep;
-        ClampCamera();
+        UpdateArrowPan(elapsedSeconds);
 
         var mouse = _api.mousexy();
         var mapArea = MapArea;
