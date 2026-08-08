@@ -2,6 +2,11 @@
 
 internal class Mono8API : IEditorAPI
 {
+    // Flip to true to publish: the console boots straight into the game and stays there — the editors
+    // are never built, and neither Esc nor Ctrl+R can reach them. Deliberately not a const, so the
+    // editor-side branches still compile without unreachable-code warnings.
+    public static readonly bool PublishGame = true;
+
     public static EditorRegistry Editors = new EditorRegistry();
     private static SfxEngine _sfxEngine = new SfxEngine();
     public static SpriteSheet SpriteSheet = new SpriteSheet();
@@ -28,12 +33,15 @@ internal class Mono8API : IEditorAPI
     {
         // Before the editors, so each constructor sees the settings it is about to apply.
         Load();
-        Editors.Register(new SpriteEditor(this), 15, "Sprite");
-        Editors.Register(new MapEditor(this), 16, "Map");
-        Editors.Register(new SfxEditor(this), 17, "Sfx");
-        Editors.Register(new MusicEditor(this), 18, "Music");
-        Editors.Register(new JsonEditor(this), JsonEditorIcon, "Json");
-        MenuBar = new EditorMenuBar(this, Editors);
+        if (!PublishGame)
+        {
+            Editors.Register(new SpriteEditor(this), 15, "Sprite");
+            Editors.Register(new MapEditor(this), 16, "Map");
+            Editors.Register(new SfxEditor(this), 17, "Sfx");
+            Editors.Register(new MusicEditor(this), 18, "Music");
+            Editors.Register(new JsonEditor(this), JsonEditorIcon, "Json");
+            MenuBar = new EditorMenuBar(this, Editors);
+        }
         _game = new YourGame(this);
     }
 
@@ -107,6 +115,17 @@ internal class Mono8API : IEditorAPI
 
         try
         {
+            if (PublishGame)
+            {
+                // The intro holds this method off for its first couple of seconds, so the first frame
+                // that gets here is the game's first frame — and it precedes any Draw.
+                if (!_playingGame) InitGame();
+
+                _sfxEngine.UpdateMusic();
+                if (!Menu.IsPaused()) _game.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
+                return;
+            }
+
             Editors.EnsureActiveInitialized();
 
             _sfxEngine.UpdateMusic();
@@ -167,7 +186,7 @@ internal class Mono8API : IEditorAPI
             {
                 _game.Draw();
             }
-            else
+            else if (!PublishGame)
             {
                 Editors.Active.Draw();
                 MenuBar.Draw();
