@@ -243,7 +243,13 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
 
         // A paste while the value is open lands in the buffer and not in the sheet, since the buffer
         // is what the commit will write — anything else would be undone the moment the edit ended.
-        if (_editing == Editing.Value && KeybrdInput.IsPasteShortcutPressed()) PasteIntoField();
+        // A copy comes off the same buffer for the same reason: what is on screen mid-edit is not
+        // what the sheet still holds, and the buffer is the one the developer is looking at.
+        if (_editing == Editing.Value)
+        {
+            if (KeybrdInput.IsCopyShortcutPressed()) CopyFieldBuffer();
+            if (KeybrdInput.IsPasteShortcutPressed()) PasteIntoField();
+        }
 
         if (!_field.Update(out string committed, out bool cancelled)) return;
 
@@ -500,6 +506,7 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
     {
         if (_inspected == null) return;
 
+        if (KeybrdInput.IsCopyShortcutPressed()) CopyValue();
         if (KeybrdInput.IsPasteShortcutPressed()) PasteValue();
 
         if (KeybrdInput.JustPressed(Keys.Up)) SelectBlock(SelectedBlock() - 1);
@@ -878,7 +885,47 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
         EnsureBlockVisible();
     }
 
-    // ── Paste ─────────────────────────────────────────────────────────────────
+    // ── Copy and paste ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Ctrl+C on the selected value. What it takes is the stored form and not the drawn one, so a
+    /// Bool goes on the clipboard as <c>true</c> rather than as the TRUE the row reads — the word is
+    /// for the eye, and the literal is the only one of the two that pastes back. A value that no
+    /// longer reads as its type goes just as it is: it is what the row shows and what the developer
+    /// is pointing at, and the paste that puts it somewhere is validated like any other.
+    /// </summary>
+    private void CopyValue()
+    {
+        var field = SelectedField();
+        if (field == null || _selItem >= field.Values.Count) return;
+
+        Copy(field.Values[_selItem]);
+    }
+
+    /// <summary>
+    /// The same off the open field, where the buffer is the value: mid-edit it is what is on screen
+    /// and the sheet still holds what the commit has not yet replaced. Half of a position is let out
+    /// just as it is let in — the paste that puts it down is where an entry answers for itself, and
+    /// it has not happened yet.
+    /// </summary>
+    private void CopyFieldBuffer() => Copy(_field.Value);
+
+    /// <summary>
+    /// Puts a value on the clipboard and says so. An empty one is refused: a key added with [+KEY]
+    /// starts life as a Text with nothing in it, so it is the first row a copy is likely to land on,
+    /// and taking it would leave the clipboard holding something that says nothing on the bar and
+    /// silently blanks whatever it is pasted into. The clipboard keeps what it had instead.
+    /// </summary>
+    private void Copy(string stored)
+    {
+        if (string.IsNullOrEmpty(stored))
+        {
+            _events.AddEvent("NO VALUE");
+            return;
+        }
+
+        _events.AddEvent(ValueClipboard.CopyValue(stored));
+    }
 
     /// <summary>
     /// Ctrl+V on the selected value with no edit open. It writes straight to the sheet, so what was
@@ -913,11 +960,11 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
     }
 
     /// <summary>
-    /// Whether there is something to paste and a field that can take it, saying which is missing
-    /// when there is not. Only three types can: a sprite or a colour index reads back as an Int, a
-    /// map position as a PosXY, and a Text takes either as the string it is. A Decimal, a Money or a
-    /// Bool has no copy anywhere that means anything to it, so the paste is refused rather than
-    /// turning a sprite index into 137.00.
+    /// Whether there is something to paste and a field to paste it into. No type is turned away
+    /// here: what a value may become is the field's own question, and it is already asked — the
+    /// normalisation a paste goes through is the same one a typed entry does, so a Money field takes
+    /// a copied number as 137.00 and refuses a position, and a Bool takes only the two words. Listing
+    /// the types that could take a paste would only be a second, staler copy of that answer.
     /// </summary>
     private bool PasteAllowed(JsonField field)
     {
@@ -926,14 +973,6 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
         if (!ValueClipboard.HasValue)
         {
             _events.AddEvent("NOTHING COPIED");
-            return false;
-        }
-
-        if (field.Type != DataValueType.Int
-            && field.Type != DataValueType.PosXY
-            && field.Type != DataValueType.Text)
-        {
-            _events.AddEvent("CANT PASTE");
             return false;
         }
 

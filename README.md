@@ -532,19 +532,23 @@ Authoring `data.json` means typing numbers you read off another editor — the s
 
 Every copy confirms with `COPIED: nnn` on the bottom bar, so what was taken is never a guess. The two map readings are exactly the ones the bottom bar already shows while you hover — pixels in the hover text on the left, tiles in the `X:nnn Y:nnn` on the right — and both include the enabled layer's quarter offset, so they are positions on the whole map sheet rather than within the layer.
 
-This is a **separate clipboard** from the `Ctrl+C` / `Ctrl+V` that copies sprite pixels and map tiles. Those hold a region of the sheet; this holds one number. Neither can overwrite the other, so a copied region survives any number of value copies.
+The **JSON Editor copies too**, with `Ctrl+C` on the selected value — every type, not only the two the other editors produce, so a decimal tuned on one object can be carried to the next without being read off the screen and typed again. What is taken is the value as the **file stores** it, so a `Bool` copies as `true` rather than as the `TRUE` the row draws, and a value the red row is marking copies as it stands. An empty value is refused with `NO VALUE`, since taking it would only blank whatever it was pasted into. With a value's editor open `Ctrl+C` takes the **buffer** — what is on screen mid-edit, half-typed or not — for the same reason `Ctrl+V` writes into it.
+
+This is a **separate clipboard** from the `Ctrl+C` / `Ctrl+V` that copies sprite pixels and map tiles. Those hold a region of the sheet; this holds one value. Neither can overwrite the other, so a copied region survives any number of value copies. `Ctrl+C` means the region in the Sprite and Map Editors and the value in the JSON Editor, which is unambiguous only because no editor has both kinds of thing to copy — the navigators and the palette, where the left button is busy painting, hand theirs over on a right-click instead.
 
 ### Pasting
 
-`Ctrl+V` in the JSON Editor writes the copied text into the selected value — either with the value's inline editor open, or with the key simply selected in the inspector. It only lands in the three types a copy can mean something for:
+`Ctrl+V` in the JSON Editor writes the copied text into the selected value — either with the value's inline editor open, or with the key simply selected in the inspector. **Every type takes a paste**, and what a value is allowed to become is decided by reading it back as the field's own type and by nothing else:
 
 | Field type | Takes |
 |---|---|
 | `Int` | A sprite or colour index. A copied position is refused (`BAD VAL`). |
 | `PosXY` | A copied position. |
-| `Text` | Either, as the string it is. |
+| `Decimal`, `Money` | A copied number — a `Money` stores it as `137.00`. A position is refused. |
+| `Bool` | Only `true` or `false`, which is the form a `Bool` copies in. |
+| `Text` | Anything, as the string it is. |
 
-Anything else answers `CANT PASTE` rather than converting — a sprite index is not `137.00`. An empty clipboard says `NOTHING COPIED`, and a successful paste confirms with `PASTED: nnn`.
+A value the field cannot hold is refused with `BAD VAL` and the old value stays put — the same check that runs on a typed entry, so nothing reaches the file that could not load back. An empty clipboard says `NOTHING COPIED`, and a successful paste confirms with `PASTED: nnn`. A value longer than the bottom bar can hold is cut with a `...` in both notices; the clipboard still holds it whole.
 
 ## Sprite Editor
 
@@ -817,7 +821,7 @@ Groups and objects are **not indented** — they are told apart by the fold mark
 One row block per field: the key name, a one-character type badge, and the value. Everything fits on the key's line except a `Text` value, which wraps at 39 characters into as many extra lines as it needs and pushes the fields below it down.
 
 - **Edit a value** by clicking it or pressing `Enter`. Only characters the field's type accepts can be typed at all — a second `.` in a Money field, a letter in an Int field and a third decimal place are simply not entered. `Enter` or a click elsewhere commits, `Tab` commits and moves to the next row, and `Esc` cancels and restores the previous value.
-- **Paste a value** copied from another editor with `Ctrl+V` — into an `Int`, a `PosXY` or a `Text`, with the value's editor open or the key just selected. See [Copying Values Between Editors](#copying-values-between-editors).
+- **Copy a value** with `Ctrl+C` and **paste one** with `Ctrl+V` — any type, with the value's editor open or the key just selected. A paste that does not read back as the field's type is refused with `BAD VAL`. See [Copying Values Between Editors](#copying-values-between-editors).
 - **Case** is kept for a `Text` value and nowhere else: it is drawn as it is stored, both while you type it and after it commits, so the edit never appears to change it. `Shift` and `Caps Lock` both work, and together they give lower case, as everywhere else on the machine. Names, numbers, positions and bools have no case to keep — a name is folded to upper case as you type it, for the reason in [data.json](#datajson).
 - **`Bool`** is not typed: it draws as a `[TRUE]`/`[FALSE]` button that toggles when clicked.
 - **Hover the badge** to read the type out in full on the bottom bar — `TEXT`, `INT`, `DECIMAL`, `MONEY`, `BOOL` or `POSITION`. `Text` also carries its cap (`TEXT MAX 256`), and a `PosXY` badge shows the position itself (`POSITION 40,88`), falling back to an example (`POSITION EG 40,88`) while the value does not read as one.
@@ -838,7 +842,8 @@ Both panels scroll with the mouse wheel and with their own scrollbars, and the s
 | Key | Description |
 |---|---|
 | `Ctrl+S` | Saves the project, unless a value is invalid (`ERROR ON GROUP/OBJECT/KEY`). |
-| `Ctrl+V` | Pastes the [value copied](#copying-values-between-editors) from another editor into the selected `Int`, `PosXY` or `Text` value — with its editor open or just selected. |
+| `Ctrl+C` | Copies the selected value, in the form the file stores it — with its editor open, the buffer instead. An empty value says `NO VALUE`. |
+| `Ctrl+V` | Pastes the [copied value](#copying-values-between-editors) into the selected value, whatever its type — with its editor open or just selected. One that does not read back as that type is refused with `BAD VAL`. |
 | `Tab` | Moves focus between the tree and the inspector; while editing, commits and moves to the next row. |
 | `Up`/`Down` | Moves the selection within the focused panel. |
 | `Left`/`Right` | Collapses/expands the selected group. |
