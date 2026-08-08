@@ -34,6 +34,7 @@ internal class Room
     private const string FieldPlayer = "PLYRPOS";
     private const string FieldFlag = "FLAGPOS";
     private const string FieldBall = "BALLPOS";
+    private const string FieldSun = "SUN";
     private const string FieldHitMax = "HITMAX";
     private const string FieldNumber = "NUMBER";
 
@@ -60,6 +61,14 @@ internal class Room
 
     public int BallX { get; private set; }
     public int BallY { get; private set; }
+
+    /// <summary>
+    /// Whether the room authors a SUN, and where it hangs in map-sheet pixels. A room without one is
+    /// an overcast room: no sun drawn, and no shadow under the player either.
+    /// </summary>
+    public bool HasSun { get; private set; }
+    public int SunX { get; private set; }
+    public int SunY { get; private set; }
 
     /// <summary>Strokes the room allows, which the <see cref="Hud"/> counts down.</summary>
     public int HitMax { get; private set; }
@@ -94,6 +103,9 @@ internal class Room
 
         // The bag first: the ball leaves the club face, so a hit on the first frame already has one.
         Club.Init();
+
+        // Before the player: the shadow under the body is only cast while there is a sun to cast it.
+        Sun.Init(this);
 
         // The ball before the player: the swing reads it the frame it starts.
         Ball.Init(this);
@@ -158,6 +170,10 @@ internal class Room
         // pixels, so the camera is what shows it: the room's corner lands on (0, 0) and a body draws
         // where it actually stands, whichever room on the sheet that happens to be.
         api.camera(OriginX, OriginY);
+
+        // Between the two maps: the sun is in the sky the backdrop paints, and the room's own cells
+        // pass in front of it — a hill on the horizon eclipses it rather than being lit through.
+        Sun.Draw();
 
         api.map(CellX, CellY, OriginX, OriginY, CellW, CellH);
         Flag.Draw();
@@ -226,6 +242,9 @@ internal class Room
         FlagY = originY;
         BallX = originX;
         BallY = originY;
+        HasSun = false;
+        SunX = originX;
+        SunY = originY;
 
         if (data == null)
         {
@@ -248,6 +267,12 @@ internal class Room
         if (data.Has(FieldBall))
         {
             (BallX, BallY) = data.GetXY(FieldBall);
+        }
+
+        if (data.Has(FieldSun))
+        {
+            (SunX, SunY) = data.GetXY(FieldSun);
+            HasSun = true;
         }
     }
 }

@@ -15,6 +15,15 @@ internal static class Player
     private const string AnimWalk = "PLRWALK";
     private const string AnimStair = "PLRSTAIR";
 
+    // The shadow the sun casts under the feet: a flat smear a little narrower than the body, half
+    // transparent so the ground it falls on still reads through it.
+    private const int ShadowWidth = 6;
+    private const float ShadowOpacity = 0.2f;
+
+    // How far the shadow leans away from the sun at the most. Two pixels either side is enough to
+    // read as the light having a place in the room without the shadow coming off the feet.
+    private const int ShadowLean = 2;
+
     public static int X;
     public static int Y;
     public static bool OnGround;
@@ -451,6 +460,9 @@ internal static class Player
     {
         var api = YourGame.API;
 
+        // Under everything the player has, dust included: it is what the body stands on.
+        DrawShadow();
+
         // Under the body: the dust comes off the heels, not over them.
         Dust.Draw();
 
@@ -470,6 +482,75 @@ internal static class Player
 
         DrawHitboxDebug();
         DrawAddressDebug();
+    }
+
+    /// <summary>
+    /// The shadow under the feet: only in a room the <see cref="Sun"/> lights, and only while the
+    /// body is actually standing on something. A jump takes it with the ground contact rather than
+    /// stretching it downwards — there is nothing here that knows how far the ground is.
+    /// </summary>
+    private static void DrawShadow()
+    {
+        if (!Sun.Present || !OnGround)
+        {
+            return;
+        }
+
+        var api = YourGame.API;
+
+        // The row directly under the sprite, which with both feet down is the ground itself. An
+        // unauthored SPRSIZE reads as 1 for the same reason the walls do — it is the sprite's extent,
+        // and at 0 the shadow would be drawn across the body instead of below it.
+        int y = Y + (SprSize > 0 ? SprSize : 1);
+        int x = X + SprSize / 2 - ShadowWidth / 2 + Lean();
+
+        // Clipped to the ground it actually falls on, a column at a time and drawn as runs, so the
+        // common case — the whole width on flat ground — is still one rect. Two ways a column drops
+        // out, and they are the two ways the row can fail to be a surface:
+        //
+        //  - nothing under it. A body on the lip of a platform has part of its shadow over the drop,
+        //    and a smear in mid-air reads as a hole in the terrain.
+        //  - solid above it too. Then the row is buried in a tile rather than lying on one — a step
+        //    or a wall the lean has carried the shadow into — and the shadow would be painted up the
+        //    face of it.
+        int run = -1;
+        for (int i = 0; i <= ShadowWidth; i++)
+        {
+            int px = x + i;
+
+            // The last pass is off the end on purpose: it is what closes a run that reaches the edge.
+            bool lit = i < ShadowWidth
+                && Terrain.Solid(px, y, 1, 1)
+                && !Terrain.Solid(px, y - 1, 1, 1);
+
+            if (lit && run < 0)
+            {
+                run = px;
+            }
+            else if (!lit && run >= 0)
+            {
+                api.rect(run, y, px - 1, y, Constants.Colors.Black, ShadowOpacity);
+                run = -1;
+            }
+        }
+    }
+
+    /// <summary>
+    /// How far the shadow leans, in pixels: away from the sun, and further the further off to one
+    /// side it hangs. Clamped to <see cref="ShadowLean"/> either way — the point is to say which side
+    /// the light is on, not to trace where the shadow would really land.
+    /// </summary>
+    private static int Lean()
+    {
+        // The sun's authored x, not the middle of its sprite: SUN is where the developer put the
+        // light, and the lean is read off that value as written.
+        int dx = CenterX - Sun.X;
+
+        // Scaled over half a screen, which is as far off-axis as a sun in the room the body is
+        // standing in can usefully get: at the far side of the room the lean is at its limit.
+        int lean = dx * ShadowLean / (Constants.Screen.ResolutionX / 2);
+
+        return (int)YourGame.API.mid(-ShadowLean, lean, ShadowLean);
     }
 
     // An unauthored clip reads as sprite 0 — the empty sprite, which would draw nothing at all — so

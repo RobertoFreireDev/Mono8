@@ -21,7 +21,8 @@
       "BALLPOS:p": [46, 96],
       "BACKPOS:p": [256, 0],
       "HITMAX:i": 4,
-      "NUMBER:i": 1
+      "NUMBER:i": 1,
+      "SUN:p": [56, 42]
     },
     "02": {
       "CELLPOS:p": [32, 0],

@@ -82,6 +82,7 @@ Update() menu up:
                       Room.Enter(name)
                         Room.Load(name)    read ROOMS/<name>
                         Club.Init()        the bag first — the ball leaves the club face
+                        Sun.Init(room)     before the player: the shadow only falls where there is a sun
                         Ball.Init(room)    before the player: the swing reads it frame 1
                         Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
                         Flag.Init(room)
@@ -104,10 +105,11 @@ Draw()   menu up:
          menu down:
          map(BACKPOS)       backdrop layer, screen pixels — the screen is never cleared
          camera(origin)     the room's corner onto (0, 0)
+         Sun.Draw           between the maps — sky, so the room's own cells pass in front of it
          map(CELLPOS)       the room itself
          Flag.Draw
          Ball.DrawHoleDebug over the flag it is measured from
-         Player.Draw        Dust under the body, body, club sprite over it, miss text
+         Player.Draw        shadow, Dust under the body, body, club sprite over it, miss text
          Ball.Draw
          camera()
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
@@ -159,6 +161,7 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
+| [Sun.cs](Sun.cs) | The room's sun, where `SUN` hangs it — a fixed 2×2 sprite drawn between the backdrop and the room's cells. `Present` is also what says whether the player casts a shadow. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
@@ -372,6 +375,40 @@ and clears `Present` / sets `Holed`.
 
 ---
 
+## The sun and the shadow
+
+A room hangs a sun by authoring `SUN`, a position in map-sheet pixels like its other spawns. It is
+the one thing a room places that is optional in both directions: a room without it is overcast, and
+nothing about the hole changes.
+
+The sprite is fixed in code — sprite `1`, drawn `2×2` — because every room's sun is the same sun.
+It draws **between the backdrop and the room's own cells**, so it sits in the sky the backdrop paints
+and the terrain passes in front of it rather than being lit through.
+
+`Sun.Present` is also the switch on the player's shadow: a 6×1 black smear at `ShadowOpacity`,
+centred on the body, on the row directly under the sprite. It is drawn first of everything
+`Player.Draw` puts down — under the dust as well as the body — and only while `OnGround`, so a jump
+takes it away with the ground contact. There is no cast: nothing here knows how far below the ground
+is, so a body in the air has no shadow rather than a stretched one.
+
+Two things shape it:
+
+- **It leans away from the sun**, `-2` to `+2` pixels (`ShadowLean`). The lean is the horizontal
+  distance from `SUN`'s authored x — the value as written, not the middle of the sprite it draws —
+  to the body's centre, scaled over half a screen and clamped. A sun over the body casts straight
+  down, one at the far side of the room casts at the limit. It says which side the light is on; it
+  is not an attempt to trace where the shadow would really fall.
+- **It is clipped to the ground it lands on.** Each of its six columns has to be a *surface* at the
+  shadow's own row: solid there, and open one pixel above. Solid fails over a drop — a body on the
+  lip of a platform loses the part hanging over nothing rather than smearing it across mid-air — and
+  open-above fails inside a step or a wall the lean has carried the shadow into, where the row is
+  buried in a tile rather than lying on one and the shadow would be painted up its face. Contiguous
+  lit columns go out as one `rect`, so flat ground is still a single call.
+
+The level select's preview does not draw the sun — it reads only `CELLPOS`, `BACKPOS` and `FLAGPOS`.
+
+---
+
 ## Between levels
 
 Sinking the ball is the end of the level, so `YourGame` closes the screen on it. `Wipe` is a five-state
@@ -545,7 +582,7 @@ inverted:
 | Group / object | Read by | Holds |
 |---|---|---|
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a one-pixel drop now |
-| `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
+| `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` `SUN` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out; `SUN` is optional and a room without one has no sun and no shadow), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
@@ -567,6 +604,9 @@ are placeholders, every one of them pointing at `02`'s `CELLPOS` — so the numb
 levels behind them do not yet.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
+
+Sprite ids fixed in code: `1` the sun, a 2×2 block — the one sprite the game names itself, since
+every room's sun is the same one.
 
 Sfx ids fixed in code: `0` club on ball, `1` ball into the cup. Everything else (footsteps, club swap)
 is authored as a list in json and read through `SfxList`, which drops a negative or wrong-typed entry
