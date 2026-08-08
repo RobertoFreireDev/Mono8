@@ -31,6 +31,10 @@ internal class YourGame : IEditor
     // menu can open.
     public void Init()
     {
+        // Nothing here is aimed — the level select and the shot are both on the buttons — so the
+        // pointer is only in the way. Esc back to the editors brings it straight back.
+        API.mouse(false);
+
         Debug.Init();
 
         // First: which room is which level is what the save slots and the grid are both indexed by.

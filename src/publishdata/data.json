@@ -30,7 +30,7 @@
       "BALLPOS:p": [302, 96],
       "BACKPOS:p": [256, 0],
       "HITMAX:i": 5,
-      "NUMBER:i": 2
+      "NUMBER:i": 3
     },
     "C": {
       "CELLPOS:p": [0, 18],
@@ -39,7 +39,7 @@
       "BALLPOS:p": [46, 246],
       "BACKPOS:p": [256, 0],
       "HITMAX:i": 5,
-      "NUMBER:i": 3
+      "NUMBER:i": 2
     }
   },
   "PLAYER": {

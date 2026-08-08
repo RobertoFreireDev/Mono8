@@ -115,6 +115,9 @@ internal class Mono8API : IEditorAPI
                     if (KeybrdInput.IsEscJustPressed())
                     {
                         _playingGame = false;
+                        // Cursor visibility is the game's while it runs, but the editors are driven
+                        // by it, so a game that hid the pointer does not take it away with it.
+                        mouse(true);
                     }
                     else
                     {
@@ -190,6 +193,7 @@ internal class Mono8API : IEditorAPI
     public bool mouserr() => MouseInputBinding.RightReleased();
     public bool mouser() => MouseInputBinding.RightPressed();
     public (int x, int y) mousexy() => MouseInputBinding.PosXY();
+    public void mouse(bool visible) => Mono8Game.Instance.IsMouseVisible = visible;
 
     public void camera(float x = 0, float y = 0)
     {

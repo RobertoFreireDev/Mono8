@@ -30,7 +30,7 @@ Two conventions that catch people out:
 - [Map](#map) — `mget` `mset` `map`
 - [Tile collision](#tile-collision) — `mcol`
 - [Sprite flags](#sprite-flags) — `fget` `fset`
-- [Input](#input) — `btn` `btnp` `btnr` `mouse*`
+- [Input](#input) — `btn` `btnp` `btnr` `mouse*` `mouse(visible)`
 - [Audio](#audio) — `sfx` `music`
 - [Random](#random) — `rnd` `srand`
 - [Math](#math) — `abs` `atan2` `cos` `sin` `sqrt` `min` `max` `mid` `flr` `ceil` `round` `sgn`
@@ -594,6 +594,23 @@ range-check before using them as indices.
 ```csharp
 var (mx, my) = API.mousexy();
 int worldX = mx + camX;
+```
+
+### `void mouse(bool visible)`
+
+Shows or hides the system cursor over the window. Hiding it stops nothing else — the buttons and
+`mousexy()` keep reporting — so a game that wants its own pointer hides this one and draws a sprite
+at `mousexy()`.
+
+Constraints: the setting lasts only as long as the game runs. Leaving play with Esc restores the
+cursor, because the editors are mouse-driven and would otherwise be left without one. Call it from
+`Init()` so Restart re-applies it.
+
+```csharp
+public void Init()
+{
+    API.mouse(false);   // button-driven game, no pointer
+}
 ```
 
 ### While the window is unfocused

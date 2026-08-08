@@ -211,6 +211,16 @@ public interface IMono8API
     bool mouser();
     (int x, int y) mousexy();
 
+    /// <summary>
+    /// Shows or hides the system cursor over the window. Hiding it changes nothing else: the buttons
+    /// and <see cref="mousexy"/> keep reporting, so a game can hide the pointer and draw its own.
+    /// <para>
+    /// The setting belongs to the running game only — leaving play with Esc hands a visible cursor
+    /// back to the editors, which are mouse-driven. Set it from <c>Init</c> so Restart re-applies it.
+    /// </para>
+    /// </summary>
+    void mouse(bool visible);
+
     // ============================================================
     // AUDIO
     // ============================================================
