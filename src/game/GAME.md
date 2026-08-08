@@ -385,11 +385,25 @@ The sprite is fixed in code — sprite `1`, drawn `2×2` — because every room'
 It draws **between the backdrop and the room's own cells**, so it sits in the sky the backdrop paints
 and the terrain passes in front of it rather than being lit through.
 
-`Sun.Present` is also the switch on the player's shadow: a 6×1 black smear at `ShadowOpacity`,
-centred on the body, on the row directly under the sprite. It is drawn first of everything
-`Player.Draw` puts down — under the dust as well as the body — and only while `OnGround`, so a jump
-takes it away with the ground contact. There is no cast: nothing here knows how far below the ground
-is, so a body in the air has no shadow rather than a stretched one.
+`Sun.Present` is also the switch on the player's shadow: a black smear one pixel tall at
+`ShadowOpacity`, centred on the body, drawn first of everything `Player.Draw` puts down — under the
+dust as well as the body.
+
+It is not gated on `OnGround`. Instead the ground is looked for a pixel at a time under the body,
+with the same `SolidAt` test `RefreshOnGround` uses, and how far down it is found is what the shadow
+is made of:
+
+| Ground under the feet | Width |
+|---|---|
+| 1px (standing on it) | 6 |
+| 2px | 4 |
+| 3px | 2 |
+| 4px or more | none — the search stops at `ShadowMaxDrop` |
+
+A pixel off each side per pixel of air, so a jump pulls the shadow in to nothing over its first
+few pixels rather than blinking it out on the frame it starts. `ShadowMaxDrop` is `ShadowWidth / 2`
+rather than a number of its own: at a drop of 4 the two sides would have met, so there is nothing
+past it worth probing for. The row the shadow draws on follows the ground down with it.
 
 Two things shape it:
 

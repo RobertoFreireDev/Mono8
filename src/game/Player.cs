@@ -24,6 +24,12 @@ internal static class Player
     // read as the light having a place in the room without the shadow coming off the feet.
     private const int ShadowLean = 2;
 
+    // The furthest the ground can be under the body and still catch a shadow. Derived rather than
+    // picked: the shadow loses a pixel each side per pixel of air, so at ShadowWidth / 2 it is down
+    // to its last two, and one further — a drop of 4 at the authored width of 6 — the two sides
+    // would have met and there would be nothing to draw.
+    private const int ShadowMaxDrop = ShadowWidth / 2;
+
     public static int X;
     public static int Y;
     public static bool OnGround;
@@ -485,24 +491,47 @@ internal static class Player
     }
 
     /// <summary>
-    /// The shadow under the feet: only in a room the <see cref="Sun"/> lights, and only while the
-    /// body is actually standing on something. A jump takes it with the ground contact rather than
-    /// stretching it downwards — there is nothing here that knows how far the ground is.
+    /// The shadow under the feet: only in a room the <see cref="Sun"/> lights, and only over ground
+    /// close enough underneath to still catch one. It narrows with the gap rather than switching off
+    /// with the ground contact, so a jump pulls it in to nothing over its first few pixels instead of
+    /// blinking out on the frame it starts.
     /// </summary>
     private static void DrawShadow()
     {
-        if (!Sun.Present || !OnGround)
+        if (!Sun.Present)
         {
             return;
         }
 
+        // How far under the body the ground is — the question RefreshOnGround asks, asked once per
+        // pixel rather than once. Past ShadowMaxDrop there would be no width left to draw, so the
+        // search stops there instead of probing the whole fall.
+        int drop = 0;
+        for (int d = 1; d <= ShadowMaxDrop; d++)
+        {
+            if (SolidAt(X, Y + d))
+            {
+                drop = d;
+                break;
+            }
+        }
+
+        if (drop == 0)
+        {
+            return;
+        }
+
+        // A pixel off each side for every pixel of air. ShadowMaxDrop is the last drop that leaves
+        // anything: one further and the two sides would have met.
+        int width = ShadowWidth - 2 * (drop - 1);
+
         var api = YourGame.API;
 
-        // The row directly under the sprite, which with both feet down is the ground itself. An
-        // unauthored SPRSIZE reads as 1 for the same reason the walls do — it is the sprite's extent,
-        // and at 0 the shadow would be drawn across the body instead of below it.
-        int y = Y + (SprSize > 0 ? SprSize : 1);
-        int x = X + SprSize / 2 - ShadowWidth / 2 + Lean();
+        // The ground row: directly under the sprite with the feet on it, and a pixel lower for every
+        // pixel of air between. An unauthored SPRSIZE reads as 1 for the same reason the walls do —
+        // it is the sprite's extent, and at 0 the shadow would be drawn across the body instead.
+        int y = Y + (SprSize > 0 ? SprSize : 1) + drop - 1;
+        int x = X + SprSize / 2 - width / 2 + Lean();
 
         // Clipped to the ground it actually falls on, a column at a time and drawn as runs, so the
         // common case — the whole width on flat ground — is still one rect. Two ways a column drops
@@ -514,12 +543,12 @@ internal static class Player
         //    or a wall the lean has carried the shadow into — and the shadow would be painted up the
         //    face of it.
         int run = -1;
-        for (int i = 0; i <= ShadowWidth; i++)
+        for (int i = 0; i <= width; i++)
         {
             int px = x + i;
 
             // The last pass is off the end on purpose: it is what closes a run that reaches the edge.
-            bool lit = i < ShadowWidth
+            bool lit = i < width
                 && Terrain.Solid(px, y, 1, 1)
                 && !Terrain.Solid(px, y - 1, 1, 1);
 
