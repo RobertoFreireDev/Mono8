@@ -110,7 +110,7 @@ internal class YourGame : IEditor
 }
 ```
 
-- `Init()` runs on **every** Ctrl+R and on pause-menu **Restart** — so it must fully reset state, not just set it up the first time.
+- `Init()` runs on **every** Ctrl+R and on pause-menu **Restart Game** — so it must fully reset state, not just set it up the first time.
 - `Update` runs only while the game is playing and the pause menu is closed — and only while the window is focused. Clicking away dims the screen and freezes the frame; `Update` resumes on the click that raises the window, but that click's press and release are swallowed, so `mouselp()`/`mouselr()` never see it. Never drive state off `time()` across that gap: the wall clock keeps running while `Update` does not.
 - Never change the class name, the constructor signature, the `IEditor` implementation or the three method signatures. `Exit()` may be added (it has a default implementation).
 - An exception from any of the three does not crash the process — the engine draws the message and freezes. So a crash is silent-ish; prefer defensive reads (`gjson` returns `null`, getters return fallbacks).
@@ -218,6 +218,8 @@ bool btnr(button)                              // released this frame
 bool mousel() mouselp() mouselr()  mouser() mouserp() mouserr()
 bool mouseup() mousedown()                     // wheel
 (int x, int y) mousexy()
+void mouse(visible)                            // the console's own pointer; game-session only
+void mouseicon(n)                              // icon 0-95 as the pointer; holds until the app closes
 ```
 
 Player 0 is buttons `0`-`7`, player 1 is `8`-`15`; `btn(b, p)` == `btn(p * 8 + b)`. `btnr` takes the raw index only.
@@ -338,9 +340,8 @@ float rnd(float max = 1f)   double rnd(double)   int rnd(int max)   // [0, max)
 void srand(seed)
 int dget(index)   void dset(index, value)      // 0-63, dset writes to disk immediately
 double time()     int stat(id)                 // stat(7) = FPS, everything else 0
-void menuitem(index, label, callback)          // index 0-2, label ≤ 16 chars
+void menuitem(index, label, callback)          // index 0-4, label ≤ 16 chars
 void menuitem(index)                           // remove
-void menurestart(visible)                      // show/hide the built-in Restart entry
 ```
 
 ---

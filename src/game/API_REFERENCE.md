@@ -25,12 +25,12 @@ Two conventions that catch people out:
 
 ## Table of contents
 
-- [System](#system) — `time` `stat` `menuitem` `menurestart`
+- [System](#system) — `time` `stat` `menuitem`
 - [Graphics](#graphics) — `cls` `pixel` `line` `rect` `rectfill` `circ` `circfill` `oval` `ovalfill` `rectinv` `ovalinv` `spr` `sspr` `sprr` `ssprr` `print` `icon` `camera` `pal` `palt`
 - [Map](#map) — `mget` `mset` `map`
 - [Tile collision](#tile-collision) — `mcol`
 - [Sprite flags](#sprite-flags) — `fget` `fset`
-- [Input](#input) — `btn` `btnp` `btnr` `mouse*` `mouse(visible)`
+- [Input](#input) — `btn` `btnp` `btnr` `mouse*` `mouse(visible)` `mouseicon`
 - [Audio](#audio) — `sfx` `music`
 - [Random](#random) — `rnd` `srand`
 - [Math](#math) — `abs` `atan2` `cos` `sin` `sqrt` `min` `max` `mid` `flr` `ceil` `round` `sgn`
@@ -71,7 +71,7 @@ Use it for an on-screen FPS readout while tuning. Every other id is reserved and
 ### `void menuitem(int index, string label, Action callback)`
 
 Adds a custom entry to the pause menu (opened with Enter / gamepad Start), between *Continue* and
-*Restart*.
+*Restart Game*.
 
 Enter / Start opens the menu and then confirms within it — it does not toggle, so the player leaves
 through *Continue* rather than by pressing it again. The selection starts on *Continue*, which is why
@@ -79,7 +79,7 @@ a custom entry is never the thing a stray second press lands on.
 
 | Parameter | Meaning | Constraints |
 |---|---|---|
-| `index` | slot the entry occupies | `0`–`2`; anything else is ignored |
+| `index` | slot the entry occupies | `0`–`4`; anything else is ignored |
 | `label` | text shown | truncated to 16 chars; drawn upper-case |
 | `callback` | run when the player confirms with **X** or **Start/Enter** | the menu closes right after it runs |
 
@@ -90,19 +90,6 @@ across frames but `Init()` runs again on Restart, so re-registering there keeps 
 
 Removes the custom entry at `index`. Out-of-range indices are ignored. Use it when an option stops
 being valid (e.g. a "continue run" item after the run ends).
-
-### `void menurestart(bool visible)`
-
-Shows or hides the pause menu's built-in *Restart* entry. Visible until you say otherwise.
-
-| Parameter | Meaning | Constraints |
-|---|---|---|
-| `visible` | whether *Restart* is listed | `false` leaves only *Continue*, the custom entries and *Exit* |
-
-Restart re-runs `Init()`, so hide it on the screen `Init()` itself lands on — a title or a level
-select, where the entry does nothing visible. The setting is engine state, not game state: it
-survives `Init()` exactly as `menuitem` does, so set it from wherever the screen changes rather than
-assuming a restart put it back.
 
 ---
 

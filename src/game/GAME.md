@@ -68,7 +68,8 @@ an iris left closing would advance straight past the level just restarted.
 occupants. `LevelSelect.Active` is the switch, and only one of the two runs in a frame.
 
 ```
-Init()   Debug.Init()
+Init()   API.mouse(false)     nothing is aimed — the pointer would only be in the way
+         Debug.Init()
          Levels.Init()        walk ROOMS, read each NUMBER — which room is which level
          Save.Init()          the levels finished so far, read out of data.save
          Wipe.Init()          nothing on screen — a restart lands on the menu
@@ -257,8 +258,8 @@ black: mid-slide the two pictures do not cover the screen between them, and a fa
 frame smears rather than crossing over.
 
 The menu is where the game starts and where the pause menu's `LEVELS` entry goes back to. That entry,
-the `DEBUG` toggle and the built-in *Restart* are registered only while a room is running, and the
-menu clears all three while it is up.
+the `DEBUG` toggle and `RESTART LEVEL` are registered only while a room is running, and the menu
+clears all three while it is up.
 
 `GAME/START` is no longer read: the level select replaced the fixed opening room, so the object can be
 deleted or repurposed.

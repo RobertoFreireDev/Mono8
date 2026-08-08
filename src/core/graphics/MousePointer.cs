@@ -43,7 +43,7 @@ internal static class MousePointer
         var (x, y) = MouseInput.MouseVirtualPosition();
 
         // Off the virtual screen is letterbox or outside the window: no pixel to point at there.
-        if (x < 0 || y < 0 || x >= Screen.BaseBox.Width || y >= Screen.BaseBox.Height) return;
+        if (x < -7 || y < -7 || x >= Screen.BaseBox.Width || y >= Screen.BaseBox.Height) return;
 
         // The pointer is chrome, not part of the scene, so it ignores the pal/palt the frame left set
         // rather than being tinted or erased by it.

@@ -145,7 +145,7 @@ The mirror looks for `mono8.csproj` in the working directory and above it. A pub
 
 It is deliberately not `data.json`, and carries none of that format's type suffixes or name limits. Loading is forgiving in the same spirit: a missing or unreadable file is every default, and an unknown key, a value of the wrong kind or an index that no longer fits its editor's table drops that one setting rather than the launch. A JSON Editor selection whose group or object has since been renamed or deleted simply comes back with nothing selected.
 
-Each editor restores its settings **once, at startup** — not on `Ctrl+R` or the pause menu's **Restart**, either of which would throw away whatever you had changed since.
+Each editor restores its settings **once, at startup** — not on `Ctrl+R` or the pause menu's **Restart Game**, either of which would throw away whatever you had changed since.
 
 ### data.json
 
@@ -211,7 +211,7 @@ An exception thrown from your `Init`, `Update` or `Draw` does not crash the proc
 
 ### Start (Pause) Menu
 
-While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) opens a pause menu with **Continue**, **Restart** and **Exit**, plus up to three custom entries set via `menuitem`.
+While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) opens a pause menu with **Continue**, **Restart Game** and **Exit**, plus up to five custom entries set via `menuitem`.
 
 | Key | Description |
 |---|---|
@@ -221,12 +221,12 @@ While your game is running, pressing `Enter` (keyboard) or `Start` (gamepad) ope
 
 `Enter` / `Start` does **not** toggle. It opens the menu, and from then on it is a second confirm key alongside `B`/`X` — so the key that opened the menu is also the key that answers it, and the way back out is the **Continue** entry rather than pressing it again. The menu opens on **Continue**, so `Enter` twice is open-and-resume.
 
-Entries are laid out in this order: **Continue**, then any custom entries, then **Restart** and **Exit**.
+Entries are laid out in this order: **Continue**, then any custom entries, then **Restart Game** and **Exit**.
 
 - **Continue** resumes the game.
-- **Restart** reinitializes the active editor via `Init()`. Hide it with [`menurestart(false)`](#system) on a screen a re-run of `Init()` means nothing on — a title or a level select, which `Init()` lands on anyway.
+- **Restart Game** reinitializes the game via `Init()`.
 - **Exit** quits the application.
-- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected. `index` is `0`-`2`, and labels longer than 16 characters are truncated.
+- Custom entries added with `menuitem(index, label, callback)` run their callback and close the menu when selected. `index` is `0`-`4`, and labels longer than 16 characters are truncated.
 
 ## API Reference
 
@@ -238,9 +238,8 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 |---|---|---|
 | `time` | — | Returns the wall-clock time of day in seconds (seconds since midnight). |
 | `stat` | `id` | Returns a system statistic. Only `id` `7` is implemented (current FPS); any other `id` returns `0`. |
-| `menuitem` | `index, label, callback` | Adds/updates a custom menu item (`index` `0`-`2`; `label` truncated to 16 chars). |
+| `menuitem` | `index, label, callback` | Adds/updates a custom menu item (`index` `0`-`4`; `label` truncated to 16 chars). |
 | `menuitem` | `index` | Removes the custom menu item at `index`. |
-| `menurestart` | `visible` | Shows or hides the [pause menu](#start-pause-menu)'s built-in **Restart** entry. Visible until you say otherwise, and the setting is engine state — it survives `Init()` exactly as `menuitem` does. |
 
 ### Graphics
 
@@ -345,6 +344,8 @@ Flags are how the map answers *every* collision question, hand-drawn tiles and [
 | `mouserr` | — | Returns whether the right mouse button was just released. |
 | `mouser` | — | Returns whether the right mouse button is held. |
 | `mousexy` | — | Returns the current mouse position as `(x, y)`. |
+| `mouse` | `visible` | Shows or hides the pointer the console draws in place of the OS one — an 8×8 icon whose top-left corner is the pixel `mousexy` reports, at every window scale and in fullscreen, clipped at the screen edge rather than spilling onto the letterbox. Hiding it changes nothing else: the buttons and `mousexy` keep reporting. The setting belongs to the running game — `Esc` back to the editors restores the pointer. |
+| `mouseicon` | `n` | Draws the pointer with icon `n` from the same built-in sheet [`icon`](#graphics) uses (`0`-`95`; anything outside restores the built-in pointer). Unlike `mouse`, the choice is not the game session's — it holds until the application closes, and is never written to disk. |
 
 #### Button Indices
 
@@ -468,7 +469,7 @@ Every getter takes `field, i = 0, fallback` — `i` picks the item out of an arr
 
 The data the game sees is compiled from `data.json` at launch and again on every `Ctrl+S`, so a value you change in the [JSON Editor](#json-editor) reaches `gjson` as soon as you save — no restart.
 
-That recompile builds **new** objects and swaps the whole index at once, so an object you held on to from before the save is not updated — it is the previous one, left intact and now orphaned. It costs nothing to keep a `Mono8JsonObject` in a field, but fetch it again in `Init()` (which `Ctrl+R` and the pause menu's **Restart** both call) so a run always reads what is on screen in the editor. Calling `gjson` in `Update` is the other way round: it allocates nothing and always returns the current object, at the price of the lookup.
+That recompile builds **new** objects and swaps the whole index at once, so an object you held on to from before the save is not updated — it is the previous one, left intact and now orphaned. It costs nothing to keep a `Mono8JsonObject` in a field, but fetch it again in `Init()` (which `Ctrl+R` and the pause menu's **Restart Game** both call) so a run always reads what is on screen in the editor. Calling `gjson` in `Update` is the other way round: it allocates nothing and always returns the current object, at the price of the lookup.
 
 ## Autotile
 
