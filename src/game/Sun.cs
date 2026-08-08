@@ -16,8 +16,14 @@ internal static class Sun
     private const int Tiles = 2;
 
     // Two tiles of clearance on each side and above, so the sun never touches an edge of the screen
-    // at either end of the day.
-    private const int Margin = 2 * Terrain.TileSize;
+    // at either end of the day. Public with the sweep below because the Moon hangs off the same two:
+    // there is one sky, and the two bodies cross it on the same line.
+    public const int Margin = 2 * Terrain.TileSize;
+
+    // How far a body travels across that sky, in screen pixels. Margin to margin, less its own width
+    // — a 2x2 sprite is placed by its left edge, so the far end has to stop a sprite short of the
+    // margin rather than on it.
+    public const int Span = Constants.Screen.ResolutionX - 2 * Margin - Tiles * Terrain.TileSize;
 
     // Daylight, in whole hours off the player's own clock: at DawnHour the sun is against the left
     // margin, at DuskHour against the right one, and outside the two there is none at all.
@@ -58,16 +64,14 @@ internal static class Sun
 
         Present = hour >= DawnHour && hour <= DuskHour;
 
-        // Left margin to right margin over the daylight hours, measured from the room's corner
-        // because that corner is where the screen starts. The sprite is placed by its own left edge,
-        // so the right end of the sweep stops a sprite width short of the margin.
+        // Along the sky over the daylight hours, measured from the room's corner because that corner
+        // is where the screen starts.
         //
         // Computed whether or not the sun is up: nothing draws while it is down, and the shadow that
         // reads X is off for the same reason, so the value only has to be somewhere sane.
-        int span = Constants.Screen.ResolutionX - 2 * Margin - Tiles * Terrain.TileSize;
         int hoursIn = (int)YourGame.API.mid(0, hour - DawnHour, DuskHour - DawnHour);
 
-        X = room.OriginX + Margin + span * hoursIn / (DuskHour - DawnHour);
+        X = room.OriginX + Margin + Span * hoursIn / (DuskHour - DawnHour);
         Y = room.OriginY + Margin;
 
         // Distance from the middle of the day, as a fraction of half of it — so the two ends are 0

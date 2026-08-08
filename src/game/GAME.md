@@ -116,6 +116,7 @@ Draw()   menu up:
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
 
          Wipe.Draw          over the room and its HUD, whichever screen is up
+         Moon.Draw          the moon, then the hour's dim over the whole screen, menu included
          Debug.Draw         last, over everything — over the menu too
 ```
 
@@ -162,6 +163,7 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
+| [Moon.cs](Moon.cs) | The night: sprite `129` placed across the sky by the day of the month, and the hour's dim over the whole screen on top of it. Last of the game's own layers. Reads the clock and nothing else — no room, no state, no `Init`. Static. |
 | [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — a fixed 2×2 sprite drawn between the backdrop and the room's cells, and none at all outside daylight. `Present` is also what says whether the player casts a shadow. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
@@ -394,10 +396,11 @@ It draws **between the backdrop and the room's own cells**, so it sits in the sk
 and the terrain passes in front of it rather than being lit through.
 
 Over the sprite go three translucent discs centred on it, widest last so they layer into a halo
-rather than one flat wash: `14`/`16`/`18` pixels in `BrightOrange`/`Orange`/`Yellow` at `0.2`. Those
+rather than one flat wash: `16`/`20`/`24` pixels in `BrightOrange`/`Orange`/`Yellow` at `0.2`. Those
 are the midday radii — they are scaled by how far into the day it is, `0` at `06:00` and `18:00` and
-`1` at `12:00`, so the glow opens up towards noon and is gone entirely at either end. A radius that
-rounds to nothing is skipped rather than passed to `circfill`, which throws on a negative one.
+`1` at `12:00`, so the glow opens up towards noon and is gone entirely at either end. A disc smaller
+than a tile is skipped rather than drawn: it would be lost inside the sprite anyway, and it keeps a
+negative radius — which `circfill` throws on — from ever reaching the call.
 
 `Sun.Present` is also the switch on the player's shadow: a black smear one pixel tall at
 `ShadowOpacity`, centred on the body, drawn first of everything `Player.Draw` puts down — under the
@@ -434,6 +437,36 @@ Two things shape it:
   lit columns go out as one `rect`, so flat ground is still a single call.
 
 The level select's preview does not draw the sun — it reads only `CELLPOS`, `BACKPOS` and `FLAGPOS`.
+
+### The moon and the night
+
+The other half of the same clock, and the one thing outside a room that reads it. `Moon.Draw` is
+both halves of the night in one pass: the moon, then the dark over it.
+
+The dim is the hour's:
+
+| Hours | Dim |
+|---|---|
+| `22:00`–`02:00` | `0.4` |
+| `18:00`–`20:00`, `04:00`–`06:00` | `0.2` |
+| anything else | nothing drawn at all — no dark, and no moon |
+
+Deep night is the one band that runs past midnight, so it is read as two halves where the twilights
+are read as one. The hours between the bands — `20:00`–`22:00` and `02:00`–`04:00` — are undimmed and
+moonless, as authored.
+
+The moon is sprite `129`, drawn `2×2`, crossing the same sky the sun does: `Sun.Margin` down from the
+top, and `Sun.Margin` to `Sun.Margin + Sun.Span` across, which is why those two are the sun's only
+public geometry. What moves it is the **day of the month** (`stat(3)`) rather than the hour — the
+first of a month is against the left margin, the 31st against the right, so it shifts a little each
+night instead of tracking across an evening. A short month simply stops before the right margin.
+
+Both go on **over the wipe and under the debug readout**, in screen pixels with the camera already
+back at the origin: the level select falls dark with a room — both are the same outdoors — and the
+FPS line stays legible at any hour. Being last also means the moon is in front of the terrain and the
+HUD, where the sun is behind the room's own cells. Unlike the sun's hour, the clock is read every
+frame rather than at `Init`: it is two `stat` calls and nothing else, so the night can fall under a
+player who stays on one hole.
 
 ---
 

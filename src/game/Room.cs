@@ -177,6 +177,7 @@ internal class Room
 
         // Last, so two pixels are never lost behind the body the swing lines them up against.
         Ball.Draw();
+        Moon.Draw();
 
         // HUD, over the room and back in screen pixels.
         api.camera();
