@@ -85,6 +85,7 @@ Update() menu up:
                         Sun.Init(room)     before the player: the shadow only falls where there is a sun
                                            the hour places it; the room only lends its corner
                         Moon.Init()        after the sun: the night hangs off the sky the sun authors
+                        Clouds.Init(room)  a sky filled fresh — the room lends only its corner
                         Ball.Init(room)    before the player: the swing reads it frame 1
                         Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
                         Flag.Init(room)
@@ -95,6 +96,7 @@ Update() menu up:
          Ball.Update        gravity, bounce, roll, drop into the cup
          Flag.Update        wave clip
          Club.Update        club swap — after the player, so the swing state it checks is this frame's
+         Clouds.Update      the drift, and the re-roll of one that has crossed the screen
          out of bounds?     player or ball off the room  →  Room.Enter(Name), the level over again
                             skipped while the wipe is up
          Ball.Holed?        →  Save.Complete(room, Hud.Taken), then Wipe.Start() — once
@@ -114,6 +116,7 @@ Draw()   menu up:
          Player.Draw        shadow, Dust under the body, body, club sprite over it, miss text
          Ball.Draw
          Moon.Draw          the moon, then the hour's dim — inside the room, so under the HUD
+         Clouds.Draw        the sky's nearest layer: over the room, over both bodies, under the HUD
          camera()
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
 
@@ -166,6 +169,7 @@ four fields together.
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
 | [Moon.cs](Moon.cs) | The night: the moon placed across the sky by the day of the month, and the hour's dim over it, both authored under `DAYCYCLE/NIGHT`. Drawn from inside the room, after the ball and before the HUD. Reads the clock and its own object and nothing else — no room, which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
 | [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — drawn between the backdrop and the room's cells, and none at all outside daylight. Owns `DAYCYCLE/SUN`, which is the sky itself: `Margin`, `Tiles` and the `Span` derived from them are public because the moon crosses the same line. `Present` is also what says whether the player casts a shadow. Static. |
+| [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky. Each object under `CLOUDS` bar `CONFIG` is a *kind* of cloud; `CONFIG` says how many fly at once, where they start, how fast they drift and how much air they keep between them. Drawn after the sun and the moon and before the HUD. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
@@ -503,6 +507,54 @@ after `Sun.Init` because the sky it measures itself against is the sun's.
 
 ---
 
+## The clouds
+
+The third thing in the sky, and the only one that moves during a level. `CLOUDS` splits in two: every
+object except `CONFIG` is a **kind** of cloud — `SPRIDX` and its size in `TILESX` × `TILESY` tiles —
+and `CONFIG` is everything about how they fly. So the sheet says what a cloud looks like and the
+config says how busy the sky is; the two are independent, and a kind can be up more than once.
+
+| `CONFIG` field | Holds |
+|---|---|
+| `MINCLOUD` `MAXCLOUD` | how many are alive at once — drawn between the two on room entry |
+| `STRTPOSX` | the band a cloud is started along, `[min, max]` |
+| `STRTPOSY` | the band it hangs in, `[min, max]` |
+| `SPEED` | the drift speeds to pick one of, px/s, rightward |
+| `MINDISTX` `MINDISTY` | the clearance one cloud keeps from another |
+
+**How many** is settled once per `Room.Enter` and holds for the level: a cloud that crosses the screen
+comes back on at the left rather than being retired, so the count never drifts. **What each one is** —
+kind, mirroring, row and speed — is re-rolled on the way in *and* every time one returns, so a sky
+watched long enough never repeats an arrangement. `spr`'s `flipX` is rolled with it, which reads the
+three authored kinds as six; `flipY` is deliberately not, since a cloud upside down is a different
+cloud.
+
+Positions are **screen pixels off the room's corner**, the way the `Sun`'s are — `Clouds.Draw` runs
+with the room's camera up, so `Room.OriginX`/`OriginY` is what puts them in map-sheet space. This is
+the fix the `Moon` still needs.
+
+**The clearance is a box, not a radius**: two clouds are crowded only when they are inside `MINDISTX`
+*and* `MINDISTY` of each other, so two on the same row with a screen between them are fine and so are
+two stacked at opposite ends of the sky. It is measured between the sprite boxes rather than their
+corners, so a 2×2 kind keeps its distance as honestly as a 2×1 one. Placement rolls a row up to eight
+times looking for a gap; a sky asking for more clouds than the clearance leaves room for falls back to
+**queuing** the cloud a full `MINDISTX` behind the leftmost one there is, which is clear by
+construction and drifts in as the ones ahead move on. So a tight `CONFIG` thins the sky rather than
+stacking it or hanging the search.
+
+They draw **after the sun, the moon and the room itself** and before the HUD — the nearest layer of
+the sky, in front of the terrain rather than behind it. One consequence worth knowing: `Moon.Draw`
+ends with the night's dim, so a cloud drawn after it stays bright at night. Moving `Clouds.Draw`
+above `Moon.Draw` is the one-line fix if that reads wrong once the night is looked at.
+
+Degenerate authoring is read rather than thrown on: a band authored backwards is swapped, a `TILESX`
+under 1 is taken as 1, a kind with no `SPRIDX` is dropped rather than flown invisibly, a `SPEED` of 0
+or less is dropped (it would never reach the edge that sends it back), a negative clearance is read as
+none, and `MAXCLOUD` is capped at the pool of 32. With no kind authored at all the sky is simply
+empty.
+
+---
+
 ## Between levels
 
 Sinking the ball is the end of the level, so `YourGame` closes the screen on it. `Wipe` is a five-state
@@ -680,6 +732,8 @@ inverted:
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `DAYCYCLE/SUN` | `Sun`, and `Moon` for the sky | `SPR` `TILES` (the body, in 8×8 tiles), `MARGIN` (clearance at the left, right and top, in screen pixels), `DAWNHR` `DUSKHR` (whole hours; outside them, no sun), `GLOWRAD` `GLOWCOL` (the halo discs, read as a pair by index, widest last), `GLOWOPA`. **`TILES` and `MARGIN` are the sky's, not the sun's** — `Sun.Span` is measured off them and the moon crosses the same line |
 | `DAYCYCLE/NIGHT` | `Moon` | `SPR`, `MONTHDAY` (days the moon crosses the sky over), `DEEPFROM` `DEEPTO` (deep night, wrapping midnight) `DEEPOPA`, `DUSKFROM` `DAWNTO` (the twilights either side) `TWILOPA`. No size or margin of its own — those are `DAYCYCLE/SUN`'s |
+| `CLOUDS/<name>` | `Clouds` | One kind of cloud: `SPRIDX`, `TILESX`, `TILESY`. Every object in the group except `CONFIG` is one |
+| `CLOUDS/CONFIG` | `Clouds` | `MINCLOUD` `MAXCLOUD` (how many fly at once), `STRTPOSX` `STRTPOSY` (the start bands, `[min, max]`), `SPEED` (drift speeds to pick from, px/s), `MINDISTX` `MINDISTY` (clearance between clouds). **`MINCLOUD`, `MAXCLOUD`, `MINDISTX` and `MINDISTY` are not authored yet** — the code defaults (`3`/`6`, `16`/`8`) run until they are |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
 | `SWING/POWER` | `Swing`, `Meter` | `SWEEP` (seconds for one out-and-back), `MISS`, `MINHIT` |
@@ -750,3 +804,8 @@ rather than loading it.
 - `DAYCYCLE/SUN` and `DAYCYCLE/NIGHT` are not authored either. Both run on the code defaults, which
   are exactly the numbers that used to be `const` in the two files, so nothing about the sky has
   changed until the group is pasted in.
+- `CLOUDS/CONFIG` is half authored: `STRTPOSX`, `STRTPOSY` and `SPEED` are there, but `MINCLOUD`,
+  `MAXCLOUD`, `MINDISTX` and `MINDISTY` are not, so the number of clouds and the air between them are
+  the code's (`3`-`6` clouds, `16`×`8` clearance) until the four are added.
+- The clouds draw after `Moon.Draw`, so they are not covered by the night's dim — see
+  [The clouds](#the-clouds).

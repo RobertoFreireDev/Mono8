@@ -326,7 +326,7 @@
       "TILES:i": 2,
       "MARGIN:i": 16,
       "DAWNHR:i": 6,
-      "DUSKHR:i": 18,
+      "DUSKHR:i": 15,
       "GLOWRAD:i": [16, 20, 24],
       "GLOWCOL:i": [25, 9, 10],
       "GLOWOPA:d": 0.2
@@ -340,6 +340,32 @@
       "DAWNTO:i": 6,
       "DEEPOPA:d": 0.4,
       "TWILOPA:d": 0.2
+    }
+  },
+  "CLOUDS": {
+    "O1": {
+      "SPRIDX:i": 192,
+      "TILESX:i": 2,
+      "TILESY:i": 2
+    },
+    "O2": {
+      "SPRIDX:i": 226,
+      "TILESX:i": 2,
+      "TILESY:i": 1
+    },
+    "O3": {
+      "SPRIDX:i": 194,
+      "TILESX:i": 2,
+      "TILESY:i": 1
+    },
+    "CONFIG": {
+      "STRTPOSX:i": [-48, 256],
+      "STRTPOSY:i": [-8, 64],
+      "SPEED:i": [2, 4, 6],
+      "MINCLOUD:i": 3,
+      "MAXCLOUD:i": 6,
+      "MINDISTX:i": 16,
+      "MINDISTY:i": 8
     }
   }
 }

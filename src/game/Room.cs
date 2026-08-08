@@ -102,6 +102,10 @@ internal class Room
         // After the sun, never before: the night hangs off the sky the sun's object authors.
         Moon.Init();
 
+        // The sky is filled fresh on every entry, so a level is never re-entered under the same
+        // clouds. Like the sun it takes only the room's corner.
+        Clouds.Init(this);
+
         // The ball before the player: the swing reads it the frame it starts.
         Ball.Init(this);
         Player.Init(this);
@@ -117,6 +121,9 @@ internal class Room
 
         // After the player, so the swing state the toggle checks is this frame's.
         Club.Update(elapsedSeconds);
+
+        // Scenery — nothing reads the clouds, so this only has to happen once a frame.
+        Clouds.Update(elapsedSeconds);
 
         // Last, on the positions the frame settled on: a body that has left the room is never
         // coming back — there is nothing outside one screen — so the hole is unplayable and the
@@ -181,6 +188,10 @@ internal class Room
         // Last, so two pixels are never lost behind the body the swing lines them up against.
         Ball.Draw();
         Moon.Draw();
+
+        // After both bodies of the sky and before the HUD, so the clouds pass in front of the room
+        // rather than behind it — they are the nearest thing in the sky, not the furthest.
+        Clouds.Draw();
 
         // HUD, over the room and back in screen pixels.
         api.camera();
