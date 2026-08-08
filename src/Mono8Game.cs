@@ -74,6 +74,11 @@ public class Mono8Game : Game
             DepthFormat.None);
         TextEntry.Attach(Window);
         LoadFiles();
+
+        if (Mono8API.PublishGame)
+        {
+            Screen.ToggleFullScreen(_graphics, GraphicsDevice);
+        }        
     }
 
     protected override void Update(GameTime gameTime)
