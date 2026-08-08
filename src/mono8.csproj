@@ -25,21 +25,16 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="data\data.*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="data\config.*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <Folder Include="publishdata\" />
   </ItemGroup>
-  <!-- The data folder in the output is the live copy the editors read and write, not a build artifact.
-       Carrying it as CopyToOutputDirectory made MSBuild track those files, so deleting one from data\
-       had IncrementalClean delete the authored copy out of bin. Copying by hand keeps the build from
-       ever touching an output whose source is gone: only a file that exists here is written there. -->
-  <ItemGroup>
-    <Mono8DataFile Include="data\data.*;data\config.*" />
-  </ItemGroup>
-  <Target Name="CopyMono8Data" AfterTargets="Build">
-    <Copy SourceFiles="@(Mono8DataFile)" DestinationFolder="$(OutDir)data" />
-  </Target>
-  <Target Name="PublishMono8Data" AfterTargets="Publish">
-    <Copy SourceFiles="@(Mono8DataFile)" DestinationFolder="$(PublishDir)data" />
-  </Target>
   <Target Name="RestoreDotnetTools" BeforeTargets="CollectPackageReferences">
     <Message Text="Restoring dotnet tools (this might take a while depending on your internet speed and should only happen upon building your project for the first time, or after upgrading MonoGame, or clearing your nuget cache)" Importance="High" />
     <Exec Command="dotnet tool restore" />
