@@ -12,6 +12,13 @@ internal static class Font
     /// <summary>Height of one printed line in pixels.</summary>
     public const int Height = 7;
 
+    /// <summary>
+    /// Rows down from the y a line prints at to the middle of its ink. The engine draws the glyph
+    /// cell one pixel above the y it is given, so a line's centre is two rows down and not three —
+    /// what anything centred *on* a caption rather than on its box has to measure by.
+    /// </summary>
+    public const int Middle = 2;
+
     /// <summary>What a string takes on screen — what centring and right-aligning measure.</summary>
     public static int Width(string text)
     {

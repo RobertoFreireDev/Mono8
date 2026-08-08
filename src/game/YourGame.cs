@@ -49,7 +49,7 @@ internal class YourGame : IEditor
     {
         if (LevelSelect.Active)
         {
-            LevelSelect.Update();
+            LevelSelect.Update(elapsedSeconds);
 
             // Entered from here rather than from the menu, so Room.Enter still runs from one place.
             // The room does not update the frame it is entered — its first frame is the next one.

@@ -83,7 +83,7 @@ Update() menu up:
          Wipe.Closed?       →  YourGame.Advance(): the next level, or back to the menu
 
 Draw()   menu up:
-         LevelSelect.Draw   cls, the title, the numbers
+         LevelSelect.Draw   cls, the previewed level (sliding), the title, the discs and numbers
 
          menu down:
          map(BACKPOS)       backdrop layer, screen pixels — the screen is never cleared
@@ -132,7 +132,7 @@ four fields together.
 | File | Owns |
 |---|---|
 | [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
-| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, which have been sunk, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also what "the next level" means. Static. |
+| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, which have been sunk, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also the preview of the level the cursor is on, and the slide from one to the next. Also what "the next level" means. Static. |
 | [Levels.cs](Levels.cs) | Which room is which level. Reads every object under `ROOMS` once at `Init` and indexes them by their `NUMBER`, so the object name stays the developer's and the number is what the grid and the save slots key on. Static. |
 | [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
 | [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges — `Left`/`Right` are public, since the player walks into them — and its `HITMAX` and `NUMBER`, and restarts the level when a body leaves the edges or the strokes run out. |
@@ -151,7 +151,7 @@ four fields together.
 | [SfxList.cs](SfxList.cs) | A sfx array field played one at a time at random — the footsteps and the club swap. Instance. |
 | [Motion.cs](Motion.cs) | The pixel-stepped travel and the gravity clamp the player and the ball both move by. Stateless. |
 | [Btn.cs](Btn.cs) | Button indices by name, so no `btn` call carries a bare number. |
-| [Font.cs](Font.cs) | The engine font's advance and line height, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with. |
+| [Font.cs](Font.cs) | The engine font's advance, line height and ink middle, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with. |
 | [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
 
@@ -177,6 +177,11 @@ gap in the grid is the disabled state.
 Each number prints through `Font.PrintOutlined` with a one-pixel black outline, in the colour that
 says what it is: **yellow for a hole already sunk, white for one still to play**, read out of `Save`
 when the menu comes up rather than measured with the grid — the hole just finished is one of them.
+
+Every number sits on a **dark green disc**, radius 8, centred on the caption's own ink (`Font.Middle`
+and half the string width, not the cell) so one digit and two are both centred in it. The disc is
+what makes a number readable now that a whole level is drawn behind the grid. It does **not** take the
+cursor's one-pixel drop — the number shifting inside its own disc is the cue.
 
 The cursor is a colour **within** that pair rather than one over the top of it, so a number never has
 to choose which of the two things it is saying:
@@ -207,8 +212,34 @@ cursor onto a level, called on every room entry so a run that has walked from 1 
 on 4. Both take the **room's object name**, which is what a room carries around; `Levels.Number` turns
 it back into the cell it belongs in.
 
-The whole grid — which room each number stands for, whether it is authored, where it prints — is
-measured once in `Init`, so a frame of the menu allocates nothing and asks json nothing.
+The whole grid — which room each number stands for, whether it is authored, where it prints, where its
+disc is centred — is measured once in `Init`, so a frame of the menu allocates nothing and asks json
+nothing.
+
+### The preview
+
+Behind the grid is the level the cursor is on, drawn the way `Room.Draw` draws it: the backdrop, the
+room's cells, and the flag on its wave clip. The menu reads **only what the picture needs** out of
+`ROOMS/<name>` — `CELLPOS`, `BACKPOS`, `FLAGPOS`, and nothing else, since spawns, strokes and the
+level number are things a room being *played* needs. That is `LevelSelect.Preview`, a struct, loaded
+on a cursor move and never per frame. The camera is the room's own — `CELLPOS × 8` — so the cells and
+the flag standing on them land on screen exactly where the level will show them.
+
+Moving the cursor **crosses one picture over the other in 1 second** (`SlideSeconds`), in the
+direction the move was made on the grid: a press right carries the old level off to the left and
+brings the new one in from the right, a press down carries it up. Both slide a full screen and both
+fade — the outgoing one from opaque to gone, the incoming one from gone to opaque. The offset is
+taken off the *camera* rather than added to each draw, so a picture never comes apart while it moves.
+A press part way through a slide drops whatever was still on its way out and starts again from what is
+showing, so the picture never lags the cursor.
+
+`Focus` and `Show` **settle** instead: the cursor was put there rather than walked there, and the menu
+is not on screen when `Focus` is called. `Show` also re-reads the picture and re-loads the flag clip,
+for the same reason it re-reads the results — a Ctrl+S while a level was up rebuilt the objects.
+
+The menu **no longer clears to dark green** — the preview is the backdrop now. It still clears, to
+black: mid-slide the two pictures do not cover the screen between them, and a fade over an uncleared
+frame smears rather than crossing over.
 
 The menu is where the game starts and where the pause menu's `LEVELS` entry goes back to. That entry,
 the `DEBUG` toggle and the built-in *Restart* are registered only while a room is running, and the
@@ -476,7 +507,7 @@ inverted:
 | Group / object | Read by | Holds |
 |---|---|---|
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a one-pixel drop now |
-| `ROOMS/<name>` | `Room`, `Levels` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
+| `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |

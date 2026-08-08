@@ -19,8 +19,10 @@ internal class Room
 
     // Where a room's backdrop sits when it authors no BACKPOS — the start of map layer 2, which
     // begins 256 cells to the right of layer 1. Screen is never cleared, so there is always one.
-    private const int DefaultBackX = 256;
-    private const int DefaultBackY = 0;
+    // Public because the level select draws the same backdrop behind its grid and has to fall back
+    // to the same place a room would.
+    public const int DefaultBackX = 256;
+    public const int DefaultBackY = 0;
 
     // What a room that authors no HITMAX allows. Enough to finish a hole rather than 0, which the HUD
     // would otherwise have to read as a level lost before it starts.
