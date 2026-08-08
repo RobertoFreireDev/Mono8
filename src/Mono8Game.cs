@@ -78,7 +78,14 @@ public class Mono8Game : Game
         if (Mono8API.PublishGame)
         {
             Screen.ToggleFullScreen(_graphics, GraphicsDevice);
-        }        
+        }
+        else
+        {
+            Screen.MaximizeWindowed(_graphics, GraphicsDevice);
+            Window.Position = Screen.WindowedCenter(
+                _graphics.PreferredBackBufferWidth,
+                _graphics.PreferredBackBufferHeight);
+        }
     }
 
     protected override void Update(GameTime gameTime)
