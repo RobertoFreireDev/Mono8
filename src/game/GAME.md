@@ -33,8 +33,8 @@ Controls:
 | 6 | C | Back out of a swing that has not been taken yet |
 | 7 | V | Next club |
 
-The level select takes no mouse: ← → ↑ ↓ walk the cursor around the grid and Z picks the level it is
-on.
+The level select takes no mouse: ← → ↑ ↓ walk the cursor around the grid, and Z or X picks the level
+it is on.
 
 Pause menu (Enter opens it, and confirms once it is open — it does not toggle, so the way out is
 *Continue*) carries four entries of the game's own, between the engine's *Continue* and its
@@ -112,11 +112,11 @@ Draw()   menu up:
          Ball.DrawHoleDebug over the flag it is measured from
          Player.Draw        shadow, Dust under the body, body, club sprite over it, miss text
          Ball.Draw
+         Moon.Draw          the moon, then the hour's dim — inside the room, so under the HUD
          camera()
          Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
 
          Wipe.Draw          over the room and its HUD, whichever screen is up
-         Moon.Draw          the moon, then the hour's dim over the whole screen, menu included
          Debug.Draw         last, over everything — over the menu too
 ```
 
@@ -163,7 +163,7 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Moon.cs](Moon.cs) | The night: sprite `129` placed across the sky by the day of the month, and the hour's dim over the whole screen on top of it. Last of the game's own layers. Reads the clock and nothing else — no room, no state, no `Init`. Static. |
+| [Moon.cs](Moon.cs) | The night: sprite `129` placed across the sky by the day of the month, and the hour's dim over it. Drawn from inside the room, after the ball and before the HUD. Reads the clock and nothing else — no room, no state, no `Init` — which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
 | [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — a fixed 2×2 sprite drawn between the backdrop and the room's cells, and none at all outside daylight. `Present` is also what says whether the player casts a shadow. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
@@ -200,22 +200,22 @@ Each number prints through `Font.PrintOutlined` with a one-pixel black outline, 
 says what it is: **yellow for a hole already sunk, white for one still to play**, read out of `Save`
 when the menu comes up rather than measured with the grid — the hole just finished is one of them.
 
-Every number sits on a **dark green disc**, radius 8, centred on the caption's own ink (`Font.Middle`
-and half the string width, not the cell) so one digit and two are both centred in it. The disc is
-what makes a number readable now that a whole level is drawn behind the grid. It does **not** take the
-cursor's one-pixel drop — the number shifting inside its own disc is the cue.
+Every number sits on a **disc**, radius 8, centred on the caption's own ink (`Font.Middle` and half
+the string width, not the cell) so one digit and two are both centred in it, and ringed by a black
+disc one pixel wider behind it. The disc is what makes a number readable now that a whole level is
+drawn behind the grid.
 
-The cursor is a colour **within** that pair rather than one over the top of it, so a number never has
-to choose which of the two things it is saying:
+Two things say where the cursor is, and both of them are colour:
+
+- **The disc turns white** under it, dark green everywhere else. That is what finds it at a glance —
+  a filled shape changing is far louder than the digit on it changing.
+- **The number takes the warmer half of its own pair**, so it never has to choose between saying
+  where the cursor is and saying whether the hole is done:
 
 | | Not sunk | Sunk |
 |---|---|---|
 | Cursor elsewhere | White | Yellow |
 | **Under the cursor** | **Green** | **Orange** |
-
-It is also **drawn one pixel lower** than the rest, which is what actually finds it: breaking the line
-the row sits on reads at a glance, where a colour shift is a difference you have to look for — and
-with four colours in play, colour alone could no longer carry it.
 
 ← → ↑ ↓ walk the cursor one cell per press, no key repeat. It **clamps** rather than wraps: at the edge
 of the grid the press does nothing. Numbers with no room behind them are stepped over — the cursor
@@ -224,8 +224,10 @@ since a cursor on an undrawn number would be a cursor that vanished. It opens on
 level and is left where it was when the pause menu comes back here, so returning from a level lands on
 that level.
 
-`Z` (`Btn.Jump`) picks. `btnp`, not `btn`, and the player reads jump with `btnp` too — so the press that
-picked cannot go on to be the jump the room's first frame sees.
+`Z` (`Btn.Jump`) or `X` (`Btn.Swing`) picks — either of the two buttons a room answers, since there is
+nothing to tell the player which one opens a level. `btnp`, not `btn`, and the room reads both of them
+with `btnp` too, so the press that picked cannot go on to be the jump or the address the room's first
+frame sees.
 
 The grid is also what "the next level" means. `Next(name)` takes the room the run is on and hands back
 the room one number up, so a gap in the numbering is stepped over exactly as the cursor steps over it,
@@ -247,7 +249,7 @@ level number are things a room being *played* needs. That is `LevelSelect.Previe
 on a cursor move and never per frame. The camera is the room's own — `CELLPOS × 8` — so the cells and
 the flag standing on them land on screen exactly where the level will show them.
 
-Moving the cursor **crosses one picture over the other in 1 second** (`SlideSeconds`), in the
+Moving the cursor **crosses one picture over the other in half a second** (`SlideSeconds`), in the
 direction the move was made on the grid: a press right carries the old level off to the left and
 brings the new one in from the right, a press down carries it up. Both slide a full screen and both
 fade — the outgoing one from opaque to gone, the incoming one from gone to opaque. The offset is
@@ -436,12 +438,13 @@ Two things shape it:
   buried in a tile rather than lying on one and the shadow would be painted up its face. Contiguous
   lit columns go out as one `rect`, so flat ground is still a single call.
 
-The level select's preview does not draw the sun — it reads only `CELLPOS`, `BACKPOS` and `FLAGPOS`.
+The level select's preview draws neither sun nor moon — it reads only `CELLPOS`, `BACKPOS` and
+`FLAGPOS`, and both bodies are drawn from inside a room.
 
 ### The moon and the night
 
-The other half of the same clock, and the one thing outside a room that reads it. `Moon.Draw` is
-both halves of the night in one pass: the moon, then the dark over it.
+The other half of the same clock. `Moon.Draw` is both halves of the night in one pass: the moon, then
+the dark over it.
 
 The dim is the hour's:
 
@@ -461,12 +464,22 @@ public geometry. What moves it is the **day of the month** (`stat(3)`) rather th
 first of a month is against the left margin, the 31st against the right, so it shifts a little each
 night instead of tracking across an evening. A short month simply stops before the right margin.
 
-Both go on **over the wipe and under the debug readout**, in screen pixels with the camera already
-back at the origin: the level select falls dark with a room — both are the same outdoors — and the
-FPS line stays legible at any hour. Being last also means the moon is in front of the terrain and the
-HUD, where the sun is behind the room's own cells. Unlike the sun's hour, the clock is read every
-frame rather than at `Init`: it is two `stat` calls and nothing else, so the night can fall under a
-player who stays on one hole.
+Both go on **inside the room**, called from `Room.Draw` between `Ball.Draw` and the `camera()` reset
+that starts the HUD. So the moon is in front of the terrain and the ball where the sun is behind the
+room's own cells, and the dim falls over all of that — but under the HUD, under the `Wipe` and under
+the debug readout, which all draw after it. The level select does **not** call it, so the menu never
+falls dark even though its preview is the same outdoors.
+
+Unlike the sun's hour, the clock is read every frame rather than at `Init`: it is two `stat` calls
+and nothing else, so the night can fall under a player who stays on one hole.
+
+> **Known mismatch.** `Moon.Draw` measures both the sprite and the dim in **screen** pixels —
+> `Sun.Margin`/`Sun.Span` across, and `rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` — but its
+> call site has the camera at the room's origin, which is world space. The two only agree for a room
+> whose `CELLPOS` is `(0, 0)`. On every other room the whole night is offset by the origin and lands
+> off screen: level 1 dims, levels 2 and up do not. Either the call moves after `camera()` (which
+> also puts the dim back over the HUD) or the two coordinates take the room's origin the way the sun
+> does — the sun's `Init` already adds `room.OriginX`/`OriginY` for exactly this reason.
 
 ---
 
@@ -642,7 +655,7 @@ inverted:
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a one-pixel drop now |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a colour now |
 | `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
@@ -652,7 +665,7 @@ inverted:
 | `CLUBS/ORDER` | `Club` | `LIST` — the club objects in swap order; `SFX` — the swap sounds to pick from |
 | `CLUBS/<name>` | `Club` | `NAME`, `ANGLE` (degrees), `DIST`, `GNDPWR` |
 | `HUD/METER` | `Meter` | `MARGIN` `BARW` `BARH` `BORDER` |
-| `HUD/HITS` | `Hud` | `MARGIN` — the count itself is the room's `HITMAX`. `LABEL` is authored but **no longer read**: the corner shows the number alone |
+| `HUD/HITS` | `Hud` | `MARGIN` — the count itself is the room's `HITMAX`, and the corner shows the number alone, so there is nothing else to author |
 | `HUD/CLUB` | `Club` | `GAP` `SWAPSEC` `SWAPX` `SWAPY` |
 | `ANIM/<name>` | `Anim` | `ID` (sprite ids as Text), `SPEED` (fps), `MODE` — `FW` / `BW` / `RV` / `PP` |
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
@@ -660,9 +673,10 @@ inverted:
 An unknown room, or one missing a field, loads as an empty room at the top-left of the sheet rather
 than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup.
 Twenty rooms are authored, `ROOMS/01` to `ROOMS/20`, numbered `1`-`20`, so the grid is full and every
-sunk hole advances onto the next. Only `01`-`03` have a room of their own on the map sheet; `04`-`20`
-are placeholders, every one of them pointing at `02`'s `CELLPOS` — so the numbers exist, and the
-levels behind them do not yet.
+sunk hole advances onto the next. Only `01`-`05` have a cut of the map sheet of their own, laid out
+left to right along the top row (`CELLPOS` `(0, 0)`, `(32, 0)`, `(64, 0)`, `(96, 0)`, `(128, 0)`);
+`06`-`20` are placeholders, every one of them pointing back at `02`'s `CELLPOS` with its own spawns —
+so the numbers exist, and the levels behind them do not yet.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
@@ -699,8 +713,11 @@ rather than loading it.
 
 - Sinking the ball advances the level, but there is no **scorecard**: no par, no per-hole result
   screen, and nothing at the end of the run but the level select coming back up.
-- Twenty rooms authored but only three drawn: `04`-`20` all carry `02`'s `CELLPOS`, so the grid is
-  full and seventeen of its numbers open the same room. They are placeholders waiting for a map.
+- Twenty rooms authored but only five drawn: `06`-`20` all carry `02`'s `CELLPOS`, so the grid is
+  full and fifteen of its numbers open the same room. They are placeholders waiting for a map.
+- The night is drawn in the wrong space for every room but the first — see
+  [The moon and the night](#the-moon-and-the-night). `Moon.Draw` is called with the room's camera up
+  and measures itself in screen pixels, so levels `2` and above get neither moon nor dim.
 - The level select shows *whether* a hole is done, not **what it was done in**: `Save` holds the
   stroke count and nothing draws it, so there is still no scorecard and no par. The strokes themselves
   reset to `HITMAX` at every `Room.Enter`.
