@@ -34,7 +34,6 @@ internal class Room
     private const string FieldPlayer = "PLYRPOS";
     private const string FieldFlag = "FLAGPOS";
     private const string FieldBall = "BALLPOS";
-    private const string FieldSun = "SUN";
     private const string FieldHitMax = "HITMAX";
     private const string FieldNumber = "NUMBER";
 
@@ -61,14 +60,6 @@ internal class Room
 
     public int BallX { get; private set; }
     public int BallY { get; private set; }
-
-    /// <summary>
-    /// Whether the room authors a SUN, and where it hangs in map-sheet pixels. A room without one is
-    /// an overcast room: no sun drawn, and no shadow under the player either.
-    /// </summary>
-    public bool HasSun { get; private set; }
-    public int SunX { get; private set; }
-    public int SunY { get; private set; }
 
     /// <summary>Strokes the room allows, which the <see cref="Hud"/> counts down.</summary>
     public int HitMax { get; private set; }
@@ -105,6 +96,7 @@ internal class Room
         Club.Init();
 
         // Before the player: the shadow under the body is only cast while there is a sun to cast it.
+        // The room only gives it the corner to hang off — what puts it there is the hour of the day.
         Sun.Init(this);
 
         // The ball before the player: the swing reads it the frame it starts.
@@ -242,9 +234,6 @@ internal class Room
         FlagY = originY;
         BallX = originX;
         BallY = originY;
-        HasSun = false;
-        SunX = originX;
-        SunY = originY;
 
         if (data == null)
         {
@@ -267,12 +256,6 @@ internal class Room
         if (data.Has(FieldBall))
         {
             (BallX, BallY) = data.GetXY(FieldBall);
-        }
-
-        if (data.Has(FieldSun))
-        {
-            (SunX, SunY) = data.GetXY(FieldSun);
-            HasSun = true;
         }
     }
 }

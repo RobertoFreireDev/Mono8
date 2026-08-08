@@ -571,8 +571,8 @@ internal static class Player
     /// </summary>
     private static int Lean()
     {
-        // The sun's authored x, not the middle of its sprite: SUN is where the developer put the
-        // light, and the lean is read off that value as written.
+        // The sun's own x, not the middle of its sprite: the hour puts the light there, and the lean
+        // is read off that value as placed.
         int dx = CenterX - Sun.X;
 
         // Scaled over half a screen, which is as far off-axis as a sun in the room the body is

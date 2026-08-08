@@ -111,7 +111,7 @@ internal class YourGame : IEditor
 ```
 
 - `Init()` runs on **every** Ctrl+R and on pause-menu **Restart Game** — so it must fully reset state, not just set it up the first time. (`Mono8API.PublishGame` flips the console into a game-only build: the editors are never built, Ctrl+R and Esc do nothing, and `Init()` runs once on boot and again only on **Restart Game**. Nothing else about the game changes, and the flag is the developer's — never flip it.)
-- `Update` runs only while the game is playing and the pause menu is closed — and only while the window is focused. Clicking away dims the screen and freezes the frame; `Update` resumes on the click that raises the window, but that click's press and release are swallowed, so `mouselp()`/`mouselr()` never see it. Never drive state off `time()` across that gap: the wall clock keeps running while `Update` does not.
+- `Update` runs only while the game is playing and the pause menu is closed — and only while the window is focused. Clicking away dims the screen and freezes the frame; `Update` resumes on the click that raises the window, but that click's press and release are swallowed, so `mouselp()`/`mouselr()` never see it. Never drive state off the `stat` clock across that gap: the wall clock keeps running while `Update` does not.
 - Never change the class name, the constructor signature, the `IEditor` implementation or the three method signatures. `Exit()` may be added (it has a default implementation).
 - An exception from any of the three does not crash the process — the engine draws the message and freezes. So a crash is silent-ish; prefer defensive reads (`gjson` returns `null`, getters return fallbacks).
 
@@ -342,7 +342,7 @@ abs atan2 cos sin sqrt min max mid flr ceil round sgn   // all double
 float rnd(float max = 1f)   double rnd(double)   int rnd(int max)   // [0, max)
 void srand(seed)
 int dget(index)   void dset(index, value)      // 0-63, dset writes to disk immediately
-double time()     int stat(id)                 // stat(7) = FPS, everything else 0
+int stat(id)                                   // local clock: 0 = secs since midnight, 1-6 = year/month/day/hour/minute/second; 7 = FPS, else 0
 void menuitem(index, label, callback)          // index 0-4, label ≤ 16 chars
 void menuitem(index)                           // remove
 ```

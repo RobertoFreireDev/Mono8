@@ -9,8 +9,6 @@ public interface IMono8API
     // ============================================================
     // SYSTEM
     // ============================================================
-    double time();
-
     int stat(int id);
 
     void menuitem(int index, string label, Action callback);

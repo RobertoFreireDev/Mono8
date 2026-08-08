@@ -289,10 +289,27 @@ internal class Mono8API : IEditorAPI
         Mono8Game.SpriteBatch.DrawBaseBox(colorIndex);
     }
 
+    // 0-6 are the local wall clock, one field per id, and each reads the clock itself — a game that
+    // wants a whole timestamp should take the smallest field first, since the calls can straddle a
+    // tick.
     public int stat(int id)
     {
         switch (id)
         {
+            case 0:
+                return (int)DateTime.Now.TimeOfDay.TotalSeconds;
+            case 1:
+                return DateTime.Now.Year;
+            case 2:
+                return DateTime.Now.Month;
+            case 3:
+                return DateTime.Now.Day;
+            case 4:
+                return DateTime.Now.Hour;
+            case 5:
+                return DateTime.Now.Minute;
+            case 6:
+                return DateTime.Now.Second;
             case 7:
                 return Mono8Game.DisplayFps;
         }
@@ -437,8 +454,6 @@ internal class Mono8API : IEditorAPI
     public int rnd(int max) => max <= 0 ? 0 : _rng.Next(0, max);
 
     public void srand(int seed) => _rng = new Random(seed);
-
-    public double time() => (double)DateTime.Now.TimeOfDay.TotalSeconds;
 
     public double abs(double value) => Math.Abs(value);
 

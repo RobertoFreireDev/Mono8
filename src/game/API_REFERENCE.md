@@ -25,7 +25,7 @@ Two conventions that catch people out:
 
 ## Table of contents
 
-- [System](#system) — `time` `stat` `menuitem`
+- [System](#system) — `stat` `menuitem`
 - [Graphics](#graphics) — `cls` `pixel` `line` `rect` `rectfill` `circ` `circfill` `oval` `ovalfill` `rectinv` `ovalinv` `spr` `sspr` `sprr` `ssprr` `print` `icon` `camera` `pal` `palt`
 - [Map](#map) — `mget` `mset` `map`
 - [Tile collision](#tile-collision) — `mcol`
@@ -42,31 +42,34 @@ Two conventions that catch people out:
 
 ## System
 
-### `double time()`
-
-Seconds elapsed since midnight, from the system wall clock.
-
-**Use it for** a coarse timestamp or a seed. **Do not use it to measure a frame** — use the
-`elapsedSeconds` argument of `Update` instead. It is wall time, so it jumps backwards at midnight
-and drifts with the OS clock.
-
-| Parameter | Meaning |
-|---|---|
-| — | |
-
-Constraints: not a monotonic game clock; not paused when the game pauses, nor while the window is
-unfocused and your `Update` is not running.
-
 ### `int stat(int id)`
 
 One engine statistic by id.
 
 | `id` | Returns |
 |---|---|
+| `0` | seconds since midnight, whole |
+| `1` | year |
+| `2` | month, `1`–`12` |
+| `3` | day of month, `1`–`31` |
+| `4` | hour, `0`–`23` |
+| `5` | minute, `0`–`59` |
+| `6` | second, `0`–`59` |
 | `7` | current FPS |
 | anything else | `0` |
 
-Use it for an on-screen FPS readout while tuning. Every other id is reserved and reads `0` today.
+`7` is the on-screen FPS readout while tuning.
+
+`0`–`6` are the **local** wall clock — the player's own date and time, as the OS reports it. `0` is
+the time of day in whole seconds (`0`–`86399`), the coarse timestamp or seed; `1`–`6` are the fields
+of the same clock. None of them is a game clock: they keep running while the game is paused or the
+window is unfocused, they drift with the OS clock, and they step backwards when it is corrected or
+the timezone leaves DST — `0` also wraps at midnight. Use them for a real-world date or hour (a
+day/night sky, a daily seed), never to measure elapsed game time; accumulate the `elapsedSeconds`
+argument of `Update` for that.
+
+Each id reads the clock separately, so a run of them can straddle a tick. When a whole timestamp has
+to be consistent, read the smallest field first and re-read if it wrapped.
 
 ### `void menuitem(int index, string label, Action callback)`
 
@@ -656,8 +659,8 @@ are seen released on two consecutive frames, so `mousel`, `mouselp` and `mouselr
 counterparts) all read `false` for it — the player's *next* click is the first one your game sees.
 Position and wheel are never suppressed. Fullscreen counts as focused and never dims.
 
-Because `Update` does not run across that gap while `time()` keeps advancing, never derive elapsed
-game time by differencing `time()` — accumulate `elapsedSeconds` instead.
+Because `Update` does not run across that gap while the wall clock keeps advancing, never derive
+elapsed game time by differencing `stat(1)`–`stat(6)` — accumulate `elapsedSeconds` instead.
 
 ---
 
