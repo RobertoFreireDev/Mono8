@@ -125,13 +125,19 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
     private static JsonSheet Sheet => Mono8API.JsonSheet;
 
     /// <summary>
-    /// Re-finds the saved selection by name. A group or object that has since been renamed, deleted
-    /// or never existed leaves nothing selected, and <see cref="Init"/>'s fallback then lands on the
-    /// first group — a row that inspects nothing, so the panel reads NO OBJECT rather than opening
-    /// on some other object the developer never chose.
+    /// Re-finds the saved fold states and selection by name. A group or object that has since been
+    /// renamed, deleted or never existed leaves nothing selected, and <see cref="Init"/>'s fallback
+    /// then lands on the first group — a row that inspects nothing, so the panel reads NO OBJECT
+    /// rather than opening on some other object the developer never chose.
     /// </summary>
     private void ApplyConfig(ConfigSheet config)
     {
+        foreach (string name in config.JsonCollapsed)
+        {
+            var folded = Sheet.FindGroup(name);
+            if (folded != null) folded.Collapsed = true;
+        }
+
         var group = Sheet.FindGroup(config.JsonGroup);
         if (group == null) return;
 
@@ -143,6 +149,10 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
 
         var obj = JsonSheet.FindObject(group, config.JsonObject);
         if (obj == null) return;
+
+        // An object selection outlives its group's fold state; a hand-edited config could still
+        // pair the two, and a selection on a row that does not exist has nothing to scroll to.
+        group.Collapsed = false;
 
         _selected = obj;
         Inspect(obj);
@@ -159,6 +169,12 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
 
         config.JsonGroup = group?.Name ?? string.Empty;
         config.JsonObject = obj?.Name ?? string.Empty;
+
+        config.JsonCollapsed.Clear();
+        foreach (var g in Sheet.Groups)
+        {
+            if (g.Collapsed) config.JsonCollapsed.Add(g.Name);
+        }
     }
 
     public void Init()

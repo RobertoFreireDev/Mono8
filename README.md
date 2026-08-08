@@ -29,6 +29,18 @@ dotnet publish src/mono8.csproj -c Release -r linux-x64 --self-contained true -p
 ```
 
 
+### Shipping the game instead of the editors
+
+`Mono8API.PublishGame` decides which of the two things a build is. It ships `false`, which is the
+authoring console: the splash plays, the Sprite editor opens, `Ctrl+R` runs your game and `Esc` comes
+back. Flip it to **`true`** and the same build boots straight into `YourGame` and stays there — the
+editors are never constructed, and neither `Esc` nor `Ctrl+R` can reach them. `Init()` then runs once
+as the intro ends, and again only on the pause menu's **Restart Game**.
+
+Nothing else changes: the same `data/` folder is loaded, the pause menu is the same, and `Ctrl+S` has
+nothing to save because no editor is running. Flip it before `dotnet publish` and back afterwards, or
+your published game opens on the sprite editor.
+
 ### Getting your assets into a build
 
 A build does **not** pick up the authored project automatically. The engine only ever reads the `data/` folder sitting next to the executable it is running, so after building you have to **copy every file from [src/publishdata/](src/publishdata/) into that folder**, replacing what is there — otherwise the sprites, map, sfx, music and json come up empty.
@@ -108,7 +120,7 @@ Fullscreen is always treated as focused, so it never dims.
 
 ## Project Data
 
-Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx, music and json files at once, plus `config.json` — the editors' own settings. `data.icons` is only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
+Everything you author in the editors lives in the `data/` folder next to the executable, as plain text you can diff and commit. `Ctrl+S` in any editor writes the sprite, flag, autotile, map, sfx, music and json files at once, plus `config.json` — the editors' own settings. `data.icons` and `data.font` are only ever read, and `data.save` is rewritten by `dset` rather than by `Ctrl+S`.
 
 | File | Contents |
 |---|---|
@@ -119,7 +131,8 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 | `data.sfx` | The 64 sound effects. |
 | `data.music` | The 64 music patterns. |
 | `data.json` | Authored game data — groups, objects and typed fields (see below). |
-| `data.icons` | The editors' icon sheet. |
+| `data.icons` | The editors' icon sheet, which [`icon`](#graphics) and [`mouseicon`](#input) also draw from. |
+| `data.font` | The 5×7 glyph sheet [`print`](#graphics) draws with. |
 | `data.save` | The 64 `dget`/`dset` slots, rewritten on every `dset`. |
 | `config.json` | The editors' settings — where each editor was when you last saved (see below). Not game data. |
 
@@ -260,7 +273,7 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `sspr` | `sx, sy, sw, sh, dx, dy, dw = -1, dh = -1, flipX = false, flipY = false, colorOpaqueness = 1f` | Draws the `sw`×`sh` pixel region of the sprite sheet at `sx, sy` into the `dw`×`dh` rectangle at `dx, dy` on screen, stretching it to fit. `dw`/`dh` default to `-1`, meaning "use `sw`/`sh`" — i.e. draw at 1:1 with no scaling. Unlike `spr`, the destination size is arbitrary and is not clamped, so `sspr` can stretch non-uniformly (a different factor horizontally and vertically). |
 | `sprr` | same as `spr` | Fast `spr`. Draws in a single pass, so it ignores `pal` and `palt` (see below). |
 | `ssprr` | same as `sspr` | Fast `sspr`. Draws in a single pass, so it ignores `pal` and `palt` (see below). |
-| `print` | `text, x, y, color = 7, colorOpaqueness = 1f` | Prints text at the given position with the given color, in the case you pass it. `colorOpaqueness` (`0f`-`1f`) fades the text, useful for blend-in/out effects. |
+| `print` | `text, x, y, color = 7, colorOpaqueness = 1f` | Prints text at the given position with the given color, in the case you pass it. The string can recolour itself with `#XX` markers (see below). `colorOpaqueness` (`0f`-`1f`) fades the text, useful for blend-in/out effects. |
 | `icon` | `n, x, y` | Draws icon `n` at the given position. |
 | `camera` | `x = 0, y = 0` | Sets the camera offset applied to subsequent draw calls. |
 | `pal` | — | Resets the palette to its default state. |
@@ -269,7 +282,25 @@ PICO-8 style API. All coordinates are pixel-based unless otherwise noted.
 | `palt` | `colorIndex` | Toggles transparency for a color index. |
 | `palt` | `colorIndex, transparent` | Sets whether a color index is treated as transparent. |
 
-`print` draws the string as you wrote it — the font carries both cases, plus digits and `, . : ; [ ] { } | # $ % ( ) ! ? " ' _ + - = * / \ < > ~`. A character the font has no glyph for prints as `?`.
+`print` draws the string as you wrote it — the font carries both cases, plus digits and `, . : ; [ ] { } | # $ % ( ) ! ? " ' _ + - = * / \ < > ~`. A character the font has no glyph for prints as `?`. Each character advances 4 px, `\n` starts a line 9 px down, `\t` advances 20 px and `\r` is skipped.
+
+#### Colouring inside a string
+
+`print`'s `color` argument colours the whole string, but the string can also recolour itself as it draws, so one call can print two colours without your splitting it:
+
+| In the string | Does |
+|---|---|
+| `#XX` | Switches to palette index `XX` for everything after it. **Two digits, zero-padded** — `#08`, never `#8`. |
+| `#--` | Goes back to the `color` the call was made with. |
+| `##` | Draws a literal `#`. |
+
+`XX` runs `00`-`31`. Anything else after a `#` — a lone `#`, `#8`, an index past `31` — is text like any other and draws as it stands, so nothing you type is silently swallowed. A switch carries across a `\n`, so one marker tints a whole multi-line caption.
+
+```csharp
+API.print("SCORE #10" + score + "#-- PTS", 4, 4, Constants.Colors.White);
+```
+
+A marker draws nothing and takes up no width, so a marked-up string still centres on the same pixel as the plain one — but anything you measure or overdraw yourself has to use the marker-free version, since `text.Length` counts the markers.
 
 Both `spr` and `sspr` draw one pass per palette color, so they respect the current `pal` color remapping and `palt` transparency (by default color `0` is transparent). Sprite pixels whose color is transparent are skipped entirely, letting whatever was drawn earlier show through.
 
@@ -366,6 +397,8 @@ The left analog stick also drives indices `0`-`3`, with a `0.5` deadzone.
 
 ### Sprite Editor
 
+These seven are `IEditorAPI`, not `IMono8API`: they mutate the sprite sheet and exist for the built-in editors. Your game is handed `IMono8API` and cannot call them — it cannot paint over the sheet it is drawing from.
+
 | Function | Parameters | Description |
 |---|---|---|
 | `SetPixel` | `x, y, colorIndex` | Sets a single pixel in the sprite sheet. |
@@ -401,7 +434,7 @@ Following PICO-8, angles are measured in **turns** (`0` to `1`), not radians, an
 | Function | Parameters | Description |
 |---|---|---|
 | `abs` | `value` | Returns the absolute value. |
-| `atan2` | `dy, dx` | Returns the angle of the vector `(dx, dy)`, in turns. |
+| `atan2` | `dy, dx` | Returns the angle of the vector `(dx, dy)`, in turns — `-0.5` to `0.5`, rather than PICO-8's `0` to `1`. `cos` and `sin` take it as it comes; add `1` to a negative one only when the number itself is being compared or stored. |
 | `cos` | `angle` | Returns the cosine of an angle given in turns. |
 | `sin` | `angle` | Returns the *negated* sine of an angle given in turns. |
 | `sqrt` | `value` | Returns the square root. |

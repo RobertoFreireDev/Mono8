@@ -280,11 +280,32 @@ Metrics and behaviour:
 
 - Each character advances **4 px**; a string is `text.Length * 4` px wide.
 - `\n` starts a new line, **9 px** below the previous one.
-- `\t` advances 4 character widths; `\r` is skipped.
+- `\t` advances **20 px** (four glyph cells, so five character advances); `\r` is skipped.
 - Characters the font has no glyph for print as `?`. Available: `0-9 A-Z a-z , . : ; [ ] { } | # $ % ( ) ! ? " ' _ + - = * / \ < > space ~`.
 - No word wrap.
 - Case is preserved. The engine's own text — the pause menu's `menuitem` labels, every editor label —
   is still folded to upper case; `print` is the one path that is not.
+
+**Inline colour markers.** The string can recolour itself as it draws, so one call can print two
+colours without the caller splitting it or knowing where the split lands:
+
+| In the string | Does |
+|---|---|
+| `#XX` | switches to palette index `XX` for everything after it — **two digits, zero-padded**: `#08`, not `#8` |
+| `#--` | goes back to the `color` argument |
+| `##` | draws a literal `#` |
+
+`XX` is `00`-`31`. A `#` that is not one of these three forms — a lone `#`, `#8`, `#42` — is text like
+any other and draws as a `#`, so nothing a developer types is silently swallowed. A switch **carries
+across a `\n`**, so one marker tints a whole multi-line caption.
+
+A marker draws nothing and takes no width, which is what a measurement has to allow for: the engine
+discounts markers when it sizes a string, but `Font.Width` in game code counts characters, so measure
+(and outline — see `Font.PrintOutlined`) with the marker-free version of the caption.
+
+```csharp
+API.print("SCORE #10" + score + "#-- PTS", 4, 4, Constants.Colors.White);
+```
 
 Building the string is your cost, not the engine's: `print($"SCORE {score}")` once per frame is
 fine, a hundred interpolations in a loop is not.
@@ -532,7 +553,7 @@ Buttons are indices. Player 0 uses `0`–`7`, player 1 uses `8`–`15`; `btn(b, 
 |---|---|---|---|---|---|---|---|
 | Left | Right | Up | Down | A (Z) | B (X) | X (C) | Y (V) |
 
-Player 1 keyboard: arrows + Z X C V. Player 2 keyboard: W A S D + G H J K. Gamepads: D-pad and
+Player 0 keyboard: arrows + Z X C V. Player 1 keyboard: W A S D + G H J K. Gamepads: D-pad and
 left stick (deadzone 0.5) for directions, face buttons A B X Y for 4–7. Keyboard and gamepad are
 OR-ed together — either source presses the button.
 
@@ -720,12 +741,13 @@ game code does not have to reach for `System.Math`; use them for consistency (an
 `cos` and `atan2` here use the engine's angle convention).
 
 **Angles are turns, `0`–`1`, not radians. `sin` is negated** so that positive angles rotate the way
-the downward y-axis expects — PICO-8 convention.
+the downward y-axis expects — PICO-8 convention. `cos` and `sin` take any turn, negative or past `1`;
+only `atan2` has a range of its own, and it is `-0.5`…`0.5`.
 
 | Function | Returns | Use it for |
 |---|---|---|
 | `abs(v)` | magnitude of `v` | distance without direction |
-| `atan2(dy, dx)` | angle **in turns** from the origin to (`dx`, `dy`) | facing a target; feed straight back into `cos`/`sin` |
+| `atan2(dy, dx)` | angle **in turns** from the origin to (`dx`, `dy`), `-0.5`…`0.5` — not PICO-8's `0`…`1` | facing a target; feed straight back into `cos`/`sin`, which take any turn. Add `1` first only where the number itself is compared or stored |
 | `cos(a)` | cosine, `a` in turns (`0.25` = quarter turn) | x component of a direction |
 | `sin(a)` | **negated** sine, `a` in turns | y component of a direction, already screen-oriented |
 | `sqrt(v)` | square root | distances; negative input gives `NaN` |

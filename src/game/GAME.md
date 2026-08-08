@@ -167,7 +167,7 @@ four fields together.
 | [SfxList.cs](SfxList.cs) | A sfx array field played one at a time at random — the footsteps and the club swap. Instance. |
 | [Motion.cs](Motion.cs) | The pixel-stepped travel and the gravity clamp the player and the ball both move by. Stateless. |
 | [Btn.cs](Btn.cs) | Button indices by name, so no `btn` call carries a bare number. |
-| [Font.cs](Font.cs) | The engine font's advance, line height and ink middle, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with, its `plain` argument the marker-free string its outline passes use. |
+| [Font.cs](Font.cs) | The engine font's advance, glyph height and ink middle, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with, its `plain` argument the marker-free string its outline passes use. `Height` is the 7-pixel glyph, which is what centring measures; the engine's own `\n` advance is 9 and nothing here prints multi-line. |
 | [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
 
@@ -561,8 +561,10 @@ inverted:
 
 An unknown room, or one missing a field, loads as an empty room at the top-left of the sheet rather
 than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup.
-`ROOMS/A`, `ROOMS/B` and `ROOMS/C` are authored, numbered `1`-`3`, so the menu shows three numbers out
-of twenty and sinking the first hole advances onto the second.
+Twenty rooms are authored, `ROOMS/01` to `ROOMS/20`, numbered `1`-`20`, so the grid is full and every
+sunk hole advances onto the next. Only `01`-`03` have a room of their own on the map sheet; `04`-`20`
+are placeholders, every one of them pointing at `02`'s `CELLPOS` — so the numbers exist, and the
+levels behind them do not yet.
 
 Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 
@@ -596,8 +598,8 @@ rather than loading it.
 
 - Sinking the ball advances the level, but there is no **scorecard**: no par, no per-hole result
   screen, and nothing at the end of the run but the level select coming back up.
-- Three rooms authored. The level select can open any of the twenty, but seventeen of the numbers have
-  no `ROOMS` object claiming them and so are not drawn.
+- Twenty rooms authored but only three drawn: `04`-`20` all carry `02`'s `CELLPOS`, so the grid is
+  full and seventeen of its numbers open the same room. They are placeholders waiting for a map.
 - The level select shows *whether* a hole is done, not **what it was done in**: `Save` holds the
   stroke count and nothing draws it, so there is still no scorecard and no par. The strokes themselves
   reset to `HITMAX` at every `Room.Enter`.

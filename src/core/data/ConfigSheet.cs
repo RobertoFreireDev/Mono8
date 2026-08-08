@@ -75,6 +75,12 @@ internal sealed class ConfigSheet
     public string JsonGroup = string.Empty;
     public string JsonObject = string.Empty;
 
+    /// <summary>
+    /// Names of the groups the Json Editor had folded shut, for the same reason as the selection:
+    /// a group that has since been renamed or deleted simply comes back open.
+    /// </summary>
+    public readonly List<string> JsonCollapsed = new List<string>();
+
     /// <summary>Sparse, ascending by sprite id so the file diffs stably.</summary>
     public readonly List<OnionEntry> Onion = new List<OnionEntry>();
 
@@ -111,6 +117,7 @@ internal sealed class ConfigSheet
 
         JsonGroup = string.Empty;
         JsonObject = string.Empty;
+        JsonCollapsed.Clear();
 
         Onion.Clear();
     }
@@ -182,7 +189,9 @@ internal sealed class ConfigSheet
 
         sb.Append("  \"JSON\": { \"GROUP\": ").Append(Quote(JsonGroup))
           .Append(", \"OBJECT\": ").Append(Quote(JsonObject))
-          .Append(" },\n");
+          .Append(", \"COLLAPSED\": ");
+        AppendStrArray(sb, JsonCollapsed);
+        sb.Append(" },\n");
 
         sb.Append("  \"ONION\": [");
         for (int i = 0; i < Onion.Count; i++)
@@ -209,6 +218,17 @@ internal sealed class ConfigSheet
         {
             if (i > 0) sb.Append(", ");
             sb.Append(values[i]);
+        }
+        sb.Append(']');
+    }
+
+    private static void AppendStrArray(System.Text.StringBuilder sb, List<string> values)
+    {
+        sb.Append('[');
+        for (int i = 0; i < values.Count; i++)
+        {
+            if (i > 0) sb.Append(", ");
+            sb.Append(Quote(values[i]));
         }
         sb.Append(']');
     }
@@ -277,6 +297,7 @@ internal sealed class ConfigSheet
         var json = Member(root, "JSON");
         ReadStr(json, "GROUP", ref JsonGroup);
         ReadStr(json, "OBJECT", ref JsonObject);
+        ReadStrList(json, "COLLAPSED", JsonCollapsed, Constants.JsonData.MaxGroups);
 
         BuildOnion(Member(root, "ONION"));
     }
@@ -329,6 +350,22 @@ internal sealed class ConfigSheet
     {
         var value = Member(obj, key);
         if (value != null && value.Kind == RawKind.String) target = value.Literal;
+    }
+
+    /// <summary>
+    /// Fills <paramref name="target"/> from a string array, dropping non-strings and anything past
+    /// <paramref name="limit"/> — a hand-mangled file cannot grow the list beyond what can exist.
+    /// </summary>
+    private static void ReadStrList(RawValue obj, string key, List<string> target, int limit)
+    {
+        var array = Member(obj, key);
+        if (array == null || array.Kind != RawKind.Array) return;
+
+        foreach (var item in array.Items)
+        {
+            if (target.Count >= limit) break;
+            if (item.Kind == RawKind.String && !target.Contains(item.Literal)) target.Add(item.Literal);
+        }
     }
 
     private static void ReadBoolArray(RawValue obj, string key, bool[] target)

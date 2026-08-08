@@ -59,7 +59,7 @@ When the developer *does* give you ids, put them in named `const int` fields at 
 ```csharp
 private const int SprPlayer = 64;   // 2x2
 private const int SfxJump = 3;
-private const int FlagSolid = 0;
+private const int FlagSolid = 1;    // this project's solid flag; see Collision
 ```
 
 Read the current data files when you need to confirm what exists — they live in [src/publishdata/](src/publishdata/), which is where the editor mirrors every save and what git tracks:
@@ -110,7 +110,7 @@ internal class YourGame : IEditor
 }
 ```
 
-- `Init()` runs on **every** Ctrl+R and on pause-menu **Restart Game** — so it must fully reset state, not just set it up the first time.
+- `Init()` runs on **every** Ctrl+R and on pause-menu **Restart Game** — so it must fully reset state, not just set it up the first time. (`Mono8API.PublishGame` flips the console into a game-only build: the editors are never built, Ctrl+R and Esc do nothing, and `Init()` runs once on boot and again only on **Restart Game**. Nothing else about the game changes, and the flag is the developer's — never flip it.)
 - `Update` runs only while the game is playing and the pause menu is closed — and only while the window is focused. Clicking away dims the screen and freezes the frame; `Update` resumes on the click that raises the window, but that click's press and release are swallowed, so `mouselp()`/`mouselr()` never see it. Never drive state off `time()` across that gap: the wall clock keeps running while `Update` does not.
 - Never change the class name, the constructor signature, the `IEditor` implementation or the three method signatures. `Exit()` may be added (it has a default implementation).
 - An exception from any of the three does not crash the process — the engine draws the message and freezes. So a crash is silent-ish; prefer defensive reads (`gjson` returns `null`, getters return fallbacks).
@@ -131,14 +131,16 @@ Match the surrounding code: file-scoped namespaces, 4-space indent, `private` fi
 
 ## API reference
 
-Full prose reference is in [README.md](README.md#api-reference); the signatures are in [src/IMono8API.cs](src/IMono8API.cs). Condensed:
+The signatures are in [src/IMono8API.cs](src/IMono8API.cs) and the engine's own prose reference is in
+[README.md](README.md#api-reference).
 
 The full per-function reference — every member of `IMono8API` with what it is, when to use it, its
 parameters and its constraints — is [src/game/API_REFERENCE.md](src/game/API_REFERENCE.md). Read it
 when you need the exact behaviour of a call: argument ranges, what happens out of range, and the
 handful of places the engine surprises you (`cls` is drawn through the camera transform; `circfill`
 with a negative radius throws; `music`'s `fadeLength` and `channelMask` are accepted but ignored;
-`mset`/`fset` changes survive `Init()`; `pal` also remaps shapes, `print` and `icon`, while `palt`
+`mset`/`fset` changes survive `Init()`; `atan2` returns `-0.5`-`0.5` turns rather than PICO-8's
+`0`-`1`; `pal` also remaps shapes, `print` and `icon`, while `palt`
 only affects `spr`/`sspr`/`icon`). It is documentation, not game code — do not delete or restructure
 it, and if you notice it disagreeing with `src/IMono8API.cs`, say so rather than rewriting it
 wholesale. The condensed version below is enough for routine work.
@@ -166,6 +168,7 @@ pal()  pal(c0, c1)  palt()  palt(c)  palt(c, transparent)
 - `scale` on `spr` is clamped to `0.125`-`8`. `sspr`'s destination size is arbitrary and can stretch non-uniformly.
 - `pal(c0, c1)` remaps any draw that names a color index — `cls`, the shapes, `print`, `icon`, `spr`, `sspr`. `palt` is narrower: it only affects the per-color pass, so `spr`, `sspr` and `icon` honor it while shapes and `print` do not. **`sprr`, `ssprr` and `map` ignore both** (single pre-baked pass) — color `0` is still transparent there, and `opacity` still works. `pal()` with no arguments resets the remap *and* transparency. Use `sprr`/`ssprr` for many sprites needing no palette tricks; use `spr`/`sspr` when you need recoloring or custom transparency.
 - `print` draws the string **in the case you pass it**. The font carries both cases, digits and common punctuation; a character it has no glyph for prints as `?`. (`menuitem` labels are the exception — the pause menu still folds those to upper case.)
+- `print` also recolours **inside** the string: `#XX` switches to palette index `XX` (two digits, zero-padded), `#--` goes back to the `color` argument, `##` draws a literal `#`. Anything else after a `#` is text. A marker draws nothing and takes no width, so measure and outline a marked-up caption with a marker-free copy of it.
 - `camera(x, y)` offsets every later draw call. Reset it with `camera()` before drawing the HUD.
 - `rectinv`/`ovalinv` are the inverse fills: the whole screen in `color` *except* the hole at `x, y, w, h`, so they are a mask with a hole — a spotlight, an iris transition. Alone among the shapes the **fill follows the camera** and always covers the viewport, while the hole stays in world space, so there is no camera to reset first. `ditherSpriteId` stipples the one-tile ring just outside the hole; `0` leaves a hard edge.
 

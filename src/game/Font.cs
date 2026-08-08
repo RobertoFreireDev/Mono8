@@ -9,7 +9,10 @@ internal static class Font
     /// <summary>Pixels one character advances the cursor.</summary>
     public const int Advance = 4;
 
-    /// <summary>Height of one printed line in pixels.</summary>
+    /// <summary>
+    /// Height of one glyph in pixels — what centring a caption in a box measures by. Not the
+    /// engine's line advance, which is 9: nothing here prints a '\n'.
+    /// </summary>
     public const int Height = 7;
 
     /// <summary>

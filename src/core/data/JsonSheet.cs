@@ -31,7 +31,10 @@ internal sealed class JsonGroup
     public string Name;
     public readonly List<JsonObject> Objects = new List<JsonObject>();
 
-    /// <summary>Fold state for the tree panel. UI state, kept here for convenience; never persisted.</summary>
+    /// <summary>
+    /// Fold state for the tree panel. UI state, kept here for convenience rather than in the editor;
+    /// it is persisted by name in <c>config.json</c>, not in <c>data.json</c>.
+    /// </summary>
     public bool Collapsed = false;
 
     public JsonGroup(string name) => Name = name;
