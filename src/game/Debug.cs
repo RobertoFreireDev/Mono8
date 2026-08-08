@@ -16,6 +16,10 @@ internal static class Debug
 
     public static bool Enabled;
 
+    // Whether the entry is up, so a re-register that comes from somewhere other than the toggle —
+    // Clear, when the save is deleted under it — cannot put it back on a screen that took it down.
+    private static bool Shown;
+
     public static void Init()
     {
         // The entry itself is not registered here: Init lands on the level select, which puts it up
@@ -40,9 +44,28 @@ internal static class Debug
     /// The entry is a room's, not the level select's — there is nothing to overlay on a menu. Both
     /// called by <see cref="LevelSelect"/>, which is what knows which of the two is on screen.
     /// </summary>
-    public static void Show() => Register();
+    public static void Show()
+    {
+        Shown = true;
+        Register();
+    }
 
-    public static void Hide() => YourGame.API.menuitem(MenuIndex);
+    public static void Hide()
+    {
+        Shown = false;
+        YourGame.API.menuitem(MenuIndex);
+    }
+
+    /// <summary>
+    /// Back to the default, for a save being deleted: slot 0 is persistence data like any other, and
+    /// one that still remembered the toggle would not have been deleted. The slot itself is zeroed by
+    /// <see cref="Save"/>, which reads as off — this is the in-memory half catching up.
+    /// </summary>
+    public static void Clear()
+    {
+        Enabled = false;
+        Register();
+    }
 
     private static void Toggle()
     {
@@ -54,6 +77,9 @@ internal static class Debug
     // The label carries the state, so it has to be rewritten on every flip. 16 chars max.
     private static void Register()
     {
-        YourGame.API.menuitem(MenuIndex, Enabled ? "DEBUG: ON" : "DEBUG: OFF", Toggle);
+        if (Shown)
+        {
+            YourGame.API.menuitem(MenuIndex, Enabled ? "DEBUG: ON" : "DEBUG: OFF", Toggle);
+        }
     }
 }

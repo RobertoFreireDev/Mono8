@@ -53,10 +53,6 @@ internal static class LevelSelect
     private const int DefaultCellW = 32;
     private const int DefaultCellH = 20;
 
-    // Pixels the number under the cursor is dropped. One is enough to read as picked out of a row —
-    // it breaks the line the others sit on.
-    private const int CursorDrop = 1;
-
     // The disc every number is read against. Radius rather than diameter, so it is what circfill
     // takes; 8 clears two digits and still leaves a gap in a 32x20 cell.
     private const int DiscRadius = 8;
@@ -68,7 +64,7 @@ internal static class LevelSelect
     // The grid offers one cell per level number there can be, and no more.
     private const int MaxLevels = Levels.MaxNumber;
 
-    // Debug owns entry 0.
+    // Debug owns entry 0, YourGame 2, Save 3.
     private const int MenuIndex = 1;
     private const string MenuLabel = "LEVELS";
 
@@ -163,10 +159,7 @@ internal static class LevelSelect
 
         // The hole that was just sunk is one of these, so the results are re-read on the way back
         // rather than measured once with the grid.
-        for (int i = 0; i < Count; i++)
-        {
-            Done[i] = Save.Played(i + 1);
-        }
+        Refresh();
 
         // Re-read on the way back rather than measured with the grid, for the same reason the
         // results are: a Ctrl+S in the JSON editor while a level was up rebuilds the data, and the
@@ -174,9 +167,11 @@ internal static class LevelSelect
         Wave.Load(FlagAnim);
         Settle();
 
-        // The pause menu is down to Continue and Exit while the menu is what is on screen: nothing to
-        // go back to, nothing to debug, and Restart only re-runs Init, which lands right back here.
+        // The room entries come down while the menu is what is on screen: no level to restart,
+        // nothing to go back to and nothing to overlay. Deleting the save is not one of them — that
+        // one is up on both screens, and this is the screen it shows in.
         YourGame.API.menuitem(MenuIndex);
+        YourGame.HideRestart();
         Debug.Hide();
     }
 
@@ -185,7 +180,21 @@ internal static class LevelSelect
     {
         Active = false;
         YourGame.API.menuitem(MenuIndex, MenuLabel, Show);
+        YourGame.ShowRestart();
         Debug.Show();
+    }
+
+    /// <summary>
+    /// Re-reads which levels have been sunk. <see cref="Show"/> takes them on the way in, since the
+    /// hole just finished is one of them; this is for the other thing that can change them under a
+    /// grid already laid out — the save being deleted from the pause menu.
+    /// </summary>
+    public static void Refresh()
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            Done[i] = Save.Played(i + 1);
+        }
     }
 
     /// <summary>
@@ -328,7 +337,8 @@ internal static class LevelSelect
             // number on its own would take whatever tile happened to fall under it — and the level
             // moving under a still grid is what says the grid is not part of it. It does not take
             // the cursor's drop: the number shifting inside its own disc is the cue.
-            api.circfill(DiscX[i], DiscY[i], DiscRadius, Constants.Colors.DarkGreen);
+            api.circfill(DiscX[i], DiscY[i], DiscRadius + 1, Constants.Colors.Black);
+            api.circfill(DiscX[i], DiscY[i], DiscRadius, on ? Constants.Colors.White : Constants.Colors.DarkGreen);
 
             // Two pairs, not two signals fighting over one number: a hole already sunk is yellow and
             // orange under the cursor, one still to play white and green. The cursor keeps its own
@@ -339,7 +349,7 @@ internal static class LevelSelect
 
             // Dropped as well as coloured: with no pointer on screen, the row breaking out of line is
             // what finds the cursor at a glance, and colour alone is a difference you have to look for.
-            Font.PrintOutlined(Captions[i], TextX[i], on ? TextY[i] + CursorDrop : TextY[i], color);
+            Font.PrintOutlined(Captions[i], TextX[i], TextY[i], color);
         }
     }
 

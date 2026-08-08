@@ -37,13 +37,28 @@ The level select takes no mouse: ← → ↑ ↓ walk the cursor around the grid
 on.
 
 Pause menu (Enter opens it, and confirms once it is open — it does not toggle, so the way out is
-*Continue*) carries the `DEBUG: ON/OFF` toggle, persisted in `dget`/`dset` slot 0, and `LEVELS`,
-which goes back to the level select. Restart also lands there, since it re-runs `Init`.
+*Continue*) carries four entries of the game's own, between the engine's *Continue* and its
+*Restart Game* / *Exit*:
 
-All three are room entries. On the level select the pause menu is down to *Continue* and *Exit*:
-there is no room to debug or go back to, and Restart would only re-run `Init` onto the screen already
-showing. `LevelSelect.Show`/`Close` put the three up and take them down together — `menuitem` for the
-two custom ones, `menurestart(false)` for the engine's built-in Restart.
+| Entry | Does | Up on |
+|---|---|---|
+| `DEBUG: ON/OFF` | the overlay switch, persisted in `dget`/`dset` slot 0 | a room |
+| `LEVELS` | back to the level select | a room |
+| `RESTART LEVEL` | the level over again — spawns, strokes and all | a room |
+| `DELETE SAVE` | every persistence slot back to empty | both screens |
+
+The first three are a room's: on the level select there is nothing to overlay, nothing to go back to
+and no level to restart, so `LevelSelect.Show`/`Close` take them down and put them back up together.
+`DELETE SAVE` is the exception — it is registered once in `Save.Init` and never taken down, since the
+grid is where progress is looked at and so the menu is the screen a wipe is most wanted on. The
+engine's own *Restart Game* re-runs `Init`, which lands on the level select.
+
+Each index lives with whatever owns the action — `Debug` 0, `LevelSelect` 1, `YourGame` 2, `Save` 3 —
+and the engine lists them in index order, so the index is also the row. The engine allows five.
+
+`RESTART LEVEL` is `YourGame`'s because every room entry goes through `YourGame.Enter`, and it drops
+the `Wipe` on the way: a hole sunk and then restarted is no longer on its way to the next level, and
+an iris left closing would advance straight past the level just restarted.
 
 ---
 
@@ -131,7 +146,7 @@ four fields together.
 
 | File | Owns |
 |---|---|
-| [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered. |
+| [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered — which is why the pause menu's `RESTART LEVEL` is here too. |
 | [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, which have been sunk, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also the preview of the level the cursor is on, and the slide from one to the next. Also what "the next level" means. Static. |
 | [Levels.cs](Levels.cs) | Which room is which level. Reads every object under `ROOMS` once at `Init` and indexes them by their `NUMBER`, so the object name stays the developer's and the number is what the grid and the save slots key on. Static. |
 | [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
@@ -144,7 +159,7 @@ four fields together.
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
 | [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX`. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as. Static. |
-| [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Static. |
+| [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
 | [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. Instance. |
@@ -452,6 +467,15 @@ of white. It takes them in `Show`, not in `Layout` — the menu can only come ba
 and the hole that was just sunk is one of the numbers about to be drawn. The stroke count itself is
 stored but not shown anywhere.
 
+`DELETE SAVE` is the one thing that unwrites it. **Every** slot goes, not only the levels: slot 0 is
+`Debug`'s and is persistence like any other, and a deleted save that still remembered the toggle would
+not have been deleted. Zeroing is followed by the same `Read` `Init` does, so what is left says "not
+played" in the terms a fresh save does rather than in terms of its own, and the two places holding a
+copy of what went are caught up behind it — `Debug.Clear` for the flag slot 0 carried, and
+`LevelSelect.Refresh` for the grid, which caches the results in `Show` and may well be the screen the
+entry was chosen from. A slot already reading `0` is left alone, since `dset` rewrites the whole file
+on every call.
+
 ---
 
 ## Out of bounds
@@ -488,7 +512,9 @@ an authoring error rather than a crash, and it shows as one.
 `Debug.Enabled` is off by default and toggled from the pause menu, from the entry `LevelSelect` puts
 up with the room (`Debug.Show`/`Hide`; `Debug.Init` only reads the saved value). It persists in
 `dget`/`dset` slot 0 offset by one — `1` off, `2` on — so a fresh save reading `0` lands on off
-rather than on.
+rather than on. `Debug.Clear` is what `DELETE SAVE` calls to put it back, and the reason `Debug` tracks
+whether its entry is up at all: the label carries the state, so a reset has to rewrite it — but only on
+a screen that has the entry, and the save can be deleted from the level select, which does not.
 
 `Debug.Draw` itself only puts FPS, `Swing.State` and the power reading in the top-left corner. Every
 box is drawn by whoever owns it, each guarded against an unauthored size that `rect` would draw

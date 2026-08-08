@@ -17,7 +17,13 @@ namespace mono8.game;
 /// </summary>
 internal class YourGame : IEditor
 {
-    private readonly Room _room = new Room();
+    // Static so the pause-menu entry can reach it: the engine builds one YourGame for the lifetime of
+    // the process, and every room entry already goes through Enter.
+    private static readonly Room _room = new Room();
+
+    // Debug owns entry 0, LevelSelect 1, Save 3.
+    private const int RestartIndex = 2;
+    private const string RestartLabel = "RESTART LEVEL";
 
     public static IMono8API API;
 
@@ -108,10 +114,33 @@ internal class YourGame : IEditor
     // Every room entry goes through here, so the menu's cursor never falls behind the level actually
     // being played: pausing out of the third hole comes back to the menu on 3, not on the 1 picked
     // to start the run.
-    private void Enter(string name)
+    private static void Enter(string name)
     {
         LevelSelect.Focus(name);
         _room.Enter(name);
+    }
+
+    /// <summary>
+    /// The pause menu's RESTART LEVEL, put up with the room and taken down with it — there is no level
+    /// to restart while the level select is on screen. Both called by <see cref="LevelSelect"/>, which
+    /// is what knows which of the two is up, exactly as <see cref="Debug"/>'s pair is.
+    /// </summary>
+    public static void ShowRestart() => API.menuitem(RestartIndex, RestartLabel, RestartLevel);
+
+    public static void HideRestart() => API.menuitem(RestartIndex);
+
+    // The level over again — spawns, strokes and all — which is the same reading a body walking out of
+    // the room gets. The wipe goes with it: a hole sunk and then restarted is no longer on its way to
+    // the next level, and leaving the iris closing would advance past the level just restarted.
+    private static void RestartLevel()
+    {
+        if (LevelSelect.Active)
+        {
+            return;
+        }
+
+        Wipe.Stop();
+        Enter(_room.Name);
     }
 
     public void Draw()

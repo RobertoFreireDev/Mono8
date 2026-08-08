@@ -21,11 +21,25 @@ internal static class Save
     // from: the last level that can be recorded is the last slot there is.
     private const int SlotCount = Levels.MaxNumber + 1;
 
+    // The one pause-menu entry that is up on both screens: the grid is where progress is looked at,
+    // so the menu is where a wipe is most wanted. LevelSelect owns 1, Debug 0, YourGame 2.
+    private const int MenuIndex = 3;
+    private const string MenuLabel = "DELETE SAVE";
+
     // Read once at Init and kept here, so asking after a level is an array read rather than a trip
     // through the save file.
     private static readonly int[] Hits = new int[SlotCount];
 
     public static void Init()
+    {
+        Read();
+
+        // Registered once and never taken down: unlike the room entries there is no screen this makes
+        // no sense on.
+        YourGame.API.menuitem(MenuIndex, MenuLabel, Delete);
+    }
+
+    private static void Read()
     {
         var api = YourGame.API;
 
@@ -89,5 +103,32 @@ internal static class Save
 
         Hits[number] = hits;
         YourGame.API.dset(number, hits);
+    }
+
+    /// <summary>
+    /// The pause menu's DELETE SAVE: back to a save that has never been written. Every slot goes, not
+    /// just the levels — slot 0 is <see cref="Debug"/>'s and is persistence like any other — and then
+    /// the file is read back in, so what is left says "not played" in the same terms a fresh save does
+    /// rather than in terms of its own.
+    /// </summary>
+    private static void Delete()
+    {
+        var api = YourGame.API;
+
+        // dset rewrites the whole file on every call, so a slot already empty is left alone.
+        for (int slot = 0; slot < SlotCount; slot++)
+        {
+            if (api.dget(slot) != 0)
+            {
+                api.dset(slot, 0);
+            }
+        }
+
+        Read();
+
+        // The two things holding a copy of what was just deleted: the toggle slot 0 carried, and the
+        // grid, which takes the results when it comes up and may be the screen this was chosen from.
+        Debug.Clear();
+        LevelSelect.Refresh();
     }
 }
