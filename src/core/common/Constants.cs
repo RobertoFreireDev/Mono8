@@ -51,13 +51,21 @@ public static class Constants
         public const int Music = 64;
         public const int IconSheetX = 256;
         public const int IconSheetY = 24;
+        // A glyph cell is 5x7, not the 8x8 TileSize the sprite and icon sheets are cut on.
         public const int FontCharX = 5;
         public const int FontCharY = 7;
-        public const int FontSheetColumns = 19;
+        // Exactly the sprite sheet's shape, so data.font can be pasted over data.gfx whole, drawn
+        // in the Sprite Editor, and pasted back. 256 is not a multiple of 5 and 232 is not a
+        // multiple of 7, so the last pixel of every row and the last row of the sheet fall outside
+        // the cell grid and are never read.
+        public const int FontSheetX = SpriteSheetX; // 256
+        public const int FontSheetY = SpriteSheetY; // 240
+        // Sprite 0's tile is held permanently blank by the sheet and refuses edits, so the glyph
+        // grid starts below it rather than losing its first cells to a region nothing can draw in.
+        public const int FontOriginY = TileSize;
+        public const int FontSheetColumns = FontSheetX / FontCharX; // 51
+        public const int FontSheetRows = (FontSheetY - FontOriginY) / FontCharY; // 33
         // Only the first 92 cells are spelled out in Text's character list; the rest is room to grow.
-        public const int FontSheetRows = 20;
-        public const int FontSheetX = FontSheetColumns * FontCharX; // 95
-        public const int FontSheetY = FontSheetRows * FontCharY; // 140
         public const int MaxFontIndex = FontSheetColumns * FontSheetRows - 1;
         public const int SpriteSheetX = 256;
         public const int SpriteSheetY = 48 * 5;

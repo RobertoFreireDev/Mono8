@@ -7,12 +7,14 @@ public static class Text
     private const int Columns = Constants.GameDataSizes.FontSheetColumns;
     private const int CharWidth = Constants.GameDataSizes.FontCharX;
     private const int CharHeight = Constants.GameDataSizes.FontCharY;
+    private const int OriginY = Constants.GameDataSizes.FontOriginY;
 
     private static readonly Dictionary<char, Texture2D> CharTextures = new Dictionary<char, Texture2D>();
 
     /// <summary>
     /// The glyph cells of <c>data.font</c> in reading order: cell <c>i</c> is at column
-    /// <c>i % Columns</c>, row <c>i / Columns</c>. The sheet has room for
+    /// <c>i % Columns</c>, row <c>i / Columns</c>, so the 51 cells of a row are read across before
+    /// the next row starts. The sheet has room for
     /// <see cref="Constants.GameDataSizes.MaxFontIndex"/> + 1 cells, so a new character is a glyph
     /// drawn in the next free cell plus its entry appended here.
     /// </summary>
@@ -59,12 +61,14 @@ public static class Text
     public static int Width(string s) => string.IsNullOrEmpty(s) ? 0 : s.Length * CharAdvance;
 
     /// <summary>
-    /// Cuts <c>data.font</c> into one texture per character. The sheet is a
-    /// <see cref="PixelGrid"/> like the sprite and icon sheets, but its cell is 5x7 rather than the
-    /// 8x8 tile everything else uses, so it is sliced on <see cref="CharWidth"/>/<see cref="CharHeight"/>
-    /// and not on <c>TileSize</c>. Each glyph becomes a white-on-transparent mask that
-    /// <see cref="DrawText"/> tints, so only whether a pixel is colour 0 matters — the digit the
-    /// developer authored a lit pixel with does not.
+    /// Cuts <c>data.font</c> into one texture per character. The sheet is a <see cref="PixelGrid"/>
+    /// the same 256x240 as the sprite sheet — so it can be pasted over <c>data.gfx</c> and drawn in
+    /// the Sprite Editor — but its cell is 5x7 rather than the 8x8 tile everything else uses, so it
+    /// is sliced on <see cref="CharWidth"/>/<see cref="CharHeight"/> and not on <c>TileSize</c>.
+    /// The grid starts at <see cref="OriginY"/> to clear sprite 0's tile, which that editor holds
+    /// blank and will not let anything be drawn into. Each glyph becomes a white-on-transparent
+    /// mask that <see cref="DrawText"/> tints, so only whether a pixel is colour 0 matters — the
+    /// digit the developer authored a lit pixel with does not.
     /// </summary>
     public static void LoadFont(string[] sheet)
     {
@@ -74,7 +78,7 @@ public static class Text
         for (int i = 0; i < _charIndexes.Count && i <= Constants.GameDataSizes.MaxFontIndex; i++)
         {
             int x = (i % Columns) * CharWidth;
-            int y = (i / Columns) * CharHeight;
+            int y = OriginY + (i / Columns) * CharHeight;
 
             for (int py = 0; py < CharHeight; py++)
                 for (int px = 0; px < CharWidth; px++)
