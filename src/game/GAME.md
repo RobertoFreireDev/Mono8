@@ -1,155 +1,95 @@
 # Mono8 — Golf
 
-The current state of the game in [src/game/](.). Read this before changing anything here: it says what
-each file owns, how a frame runs, and where every tuning value comes from.
+The state of the game in [src/game/](.). **Every class documents itself** — the XML doc comment on
+each type says what it owns and why it works the way it does, and the tricky invariants are commented
+at the line. This file holds only what reading one file cannot tell you: the contracts that span
+files, what the developer has authored so far, and what is known broken.
 
-Everything is authored in [src/publishdata/data.json](../publishdata/data.json). **Nothing is tuned in
-code** — sprite ids, speeds, hit boxes, spawn points, sfx ids and HUD geometry are all read through
-`gjson` in `Init()`. When you need a new number, name the group/object/field the developer has to
-author rather than hardcoding it.
+**Nothing is tuned in code.** Sprite ids, speeds, hit boxes, spawns, sfx and HUD geometry are read
+through `gjson` in `Init()`. When you need a new number, name the group/object/field for the
+developer to author rather than hardcoding it.
 
 ---
 
 ## What the game is
 
-A side-on golf platformer on one screen. The player walks, jumps and climbs stairs around a room cut
-out of the map sheet, walks up to the ball, addresses it, swings, and tries to sink it in the cup the
-flag marks. A counter in the corner holds the strokes the room allows and counts them off — every
-stroke that actually sent the ball takes one, and running out restarts the level.
-
-Sinking the ball ends the hole: the controls go dead, an iris closes onto the player, and the next
-level comes up behind it. Run out of levels and it puts you back on the menu.
-
-The game opens on the **level select** — a grid of numbers, one per room, walked with the d-pad.
-
-Controls:
+A side-on golf platformer, one hole per screen. The player walks, jumps and climbs stairs around a
+room cut out of the map sheet, addresses the ball, swings, and tries to sink it in the cup the flag
+marks. A stroke counter counts down from the room's `HITMAX`; running out restarts the level. Sinking
+the ball closes an iris onto the player and brings the next level up behind it. The game opens on a
+**level select** grid, which is also where the run ends.
 
 | Button | Key | Does |
 |---|---|---|
-| 0 / 1 | ← → | Walk |
+| 0 / 1 | ← → | Walk (and walk the menu cursor) |
 | 2 / 3 | ↑ ↓ | Take a stair / climb it |
-| 4 | Z | Jump |
-| 5 | X | Swing — one press per state: address → pull back → swing through |
-| 6 | C | Back out of a swing that has not been taken yet |
+| 4 | Z | Jump — also picks a level on the menu |
+| 5 | X | Swing, one press per state: address → pull back → swing through — also picks |
+| 6 | C | Back out of a swing not yet taken |
 | 7 | V | Next club |
 
-The level select takes no mouse: ← → ↑ ↓ walk the cursor around the grid, and Z or X picks the level
-it is on.
+No mouse anywhere: `Init` calls `API.mouse(false)`.
 
-Pause menu (Enter opens it, and confirms once it is open — it does not toggle, so the way out is
-*Continue*) carries four entries of the game's own, between the engine's *Continue* and its
-*Restart Game* / *Exit*:
+### Pause menu
 
-| Entry | Does | Up on |
-|---|---|---|
-| `DEBUG: ON/OFF` | the overlay switch, persisted in `dget`/`dset` slot 0 | a room |
-| `LEVELS` | back to the level select | a room |
-| `RESTART LEVEL` | the level over again — spawns, strokes and all | a room |
-| `DELETE SAVE` | every persistence slot back to empty | both screens |
+The engine allows five entries and lists them in index order, so **the index is the row**. Each
+belongs to whoever owns the action, and taking one down is `menuitem(index)` with no label:
 
-The first three are a room's: on the level select there is nothing to overlay, nothing to go back to
-and no level to restart, so `LevelSelect.Show`/`Close` take them down and put them back up together.
-`DELETE SAVE` is the exception — it is registered once in `Save.Init` and never taken down, since the
-grid is where progress is looked at and so the menu is the screen a wipe is most wanted on. The
-engine's own *Restart Game* re-runs `Init`, which lands on the level select.
+| Index | Entry | Owner | Up on |
+|---|---|---|---|
+| 0 | `DEBUG: ON/OFF` | `Debug` | a room |
+| 1 | `LEVELS` | `LevelSelect` | a room |
+| 2 | `RESTART LEVEL` | `YourGame` | a room |
+| 3 | `DELETE SAVE` | `Save` | both screens |
 
-Each index lives with whatever owns the action — `Debug` 0, `LevelSelect` 1, `YourGame` 2, `Save` 3 —
-and the engine lists them in index order, so the index is also the row. The engine allows five.
-
-`RESTART LEVEL` is `YourGame`'s because every room entry goes through `YourGame.Enter`, and it drops
-the `Wipe` on the way: a hole sunk and then restarted is no longer on its way to the next level, and
-an iris left closing would advance straight past the level just restarted.
+`LevelSelect.Show`/`Close` raise and lower the first three together — on the menu there is nothing to
+overlay, go back to or restart. `DELETE SAVE` is registered once in `Save.Init` and never taken down.
 
 ---
 
 ## Frame flow
 
-`YourGame` is a forward to either the level select or the current `Room`; the room runs its
-occupants. `LevelSelect.Active` is the switch, and only one of the two runs in a frame.
+`YourGame` forwards to either the level select or the one `Room` instance; `LevelSelect.Active` is
+the switch and only one runs per frame. **Every room entry goes through `YourGame.Enter`** — which is
+why `RESTART LEVEL` lives there and why the menu cursor never falls behind the level being played.
 
 ```
-Init()   API.mouse(false)     nothing is aimed — the pointer would only be in the way
-         Debug.Init()
-         Levels.Init()        walk ROOMS, read each NUMBER — which room is which level
-         Save.Init()          the levels finished so far, read out of data.save
-         Wipe.Init()          nothing on screen — a restart lands on the menu
-         LevelSelect.Init()   MENU/GRID lays the grid out, Levels says which numbers are levels
+Init()    Debug → Levels → Save → Wipe → LevelSelect      (Levels first: the grid and the save slots
+                                                           are both indexed by room NUMBER)
 
-Update() menu up:
-         LevelSelect.Update   the d-pad walks the cursor, and the Z that picks
-         a pick  →  YourGame.Enter(name)
-                      LevelSelect.Focus    the cursor follows the level being played
-                      Room.Enter(name)
-                        Room.Load(name)    read ROOMS/<name>
-                        Club.Init()        the bag first — the ball leaves the club face
-                        Sun.Init(room)     before the player: the shadow only falls where there is a sun
-                                           the hour places it; the room only lends its corner
-                        Moon.Init()        after the sun: the moon hangs off the sky the sun authors
-                        Night.Init()       the dark the moon comes out in — the hours, nothing else
-                        Clouds.Init(room)  a sky filled fresh — the room lends only its corner
-                        Ball.Init(room)    before the player: the swing reads it frame 1
-                        Player.Init(room)    → Dust.Init, Steps.Init, Swing.Init → Meter.Init
-                        Flag.Init(room)
-                        Hud.Init(HITMAX)   the room's strokes, counted down
+Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
+          menu down: Room.Update  (Player → Ball → Flag → Club → Clouds → out-of-bounds / spent strokes)
+                     Ball.Holed?  → Save.Complete, then Wipe.Start — once
+                     Wipe.Update(player, in screen pixels)
+                     Wipe.Closed? → YourGame.Advance: next level, or back to the menu
 
-         menu down:
-         Player.Update      walk / climb / gravity, then Dust, Steps, Swing (→ Meter)
-         Ball.Update        gravity, bounce, roll, drop into the cup
-         Flag.Update        wave clip
-         Club.Update        club swap — after the player, so the swing state it checks is this frame's
-         Clouds.Update      the drift, and the re-roll of one that has crossed the screen
-         out of bounds?     player or ball off the room  →  Room.Enter(Name), the level over again
-                            skipped while the wipe is up
-         Ball.Holed?        →  Save.Complete(room, Hud.Taken), then Wipe.Start() — once
-         Wipe.Update        the iris, focused on the player wherever the frame left them
-         Wipe.Closed?       →  YourGame.Advance(): the next level, or back to the menu
-
-Draw()   menu up:
-         LevelSelect.Draw   cls, the previewed level (sliding), the title, the discs and numbers
-
-         menu down:
-         map(BACKPOS)       backdrop layer, screen pixels — the screen is never cleared
-         camera(origin)     the room's corner onto (0, 0)
-         Sun.Draw           between the maps — sky, so the room's own cells pass in front of it
-         map(CELLPOS)       the room itself
-         Flag.Draw
-         Ball.DrawHoleDebug over the flag it is measured from
-         Player.Draw        shadow, Dust under the body, body, club sprite over it, miss text
-         Ball.Draw
-         Moon.Draw          the moon alone — inside the room, so under the HUD
-         Clouds.Draw        the sky's nearest layer: over the room, over both bodies, under the HUD
-         Night.Draw         the hour's dim, over the clouds too — still under the HUD
-         camera()
-         Meter.Draw / Club.Draw / Hud.Draw     HUD, screen pixels
-
-         Wipe.Draw          over the room and its HUD, whichever screen is up
-         Debug.Draw         last, over everything — over the menu too
+Draw()    menu up:   LevelSelect.Draw
+          menu down: map(BACKPOS) → camera(origin) → Sun → map(CELLPOS) → Flag → Player → Ball
+                     → Moon → Clouds → Night → camera() → Meter → Club → Hud
+          both:      Wipe.Draw, then Debug.Draw over everything
 ```
 
-Every room entry goes through `YourGame.Enter`, whether the level select picked it or the last hole
-advanced onto it, so `Room.Enter` is called from one place and the menu's cursor is moved from one
-place. The room does not update the frame it is entered: its first frame is the next one.
+`Room.Enter` order matters in three places, and each is commented at the call: `Club` before the ball
+can leave a club face, `Sun` before `Player` (no sun, no shadow), `Moon` after `Sun` (it measures
+itself against the sun's sky), `Ball` before `Player` (the swing reads it on frame 1).
 
-`Wipe` is the one thing that spans two rooms, so it is `YourGame`'s and nothing inside a room resets
-it. It runs *after* the room rather than instead of it: while it is up the room keeps moving — the
-body falls, the club finishes the swing it was mid-way through — and only the controls are gone.
+A room does not update the frame it is entered — its first frame is the next one. `Wipe` is the one
+thing that outlives a room, so it is `YourGame`'s and nothing inside a room resets it; it runs
+*after* the room rather than instead of it, so a body still falls while the screen closes.
 
-A room is exactly one screen (`Room.CellW` × `Room.CellH` = 32×18 cells) cut out of the map sheet
-wherever its `CELLPOS` says, so there are two spaces and one conversion between them:
+### The two spaces
 
-- **map-sheet pixels** (cell × 8) — everything in the room. Positions, hit boxes, terrain queries;
-  it is the space `mcol` works in, so nothing has to be translated to ask the map a question.
-- **screen pixels** — the HUD, the backdrop, the `Wipe`, the level select.
+A room is exactly one screen (`Room.CellW` × `CellH` = 32×18 cells) cut out of the map sheet.
+Everything inside a room lives in **map-sheet pixels**; the HUD, the backdrop, the `Wipe` and the
+level select live in **screen pixels**.
 
-`Room.Draw` sets `camera(OriginX, OriginY)` for the room layer and resets it for the HUD, so a room
-anywhere on the sheet lands on the screen the same way. `Room.OriginX` / `OriginY` is `CELLPOS × 8`,
-and world minus origin is screen — the one conversion anything outside a room needs, which is how
-`YourGame` hands the player's position to the `Wipe`.
+The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are map-sheet pixels taken exactly as written —
+`CELLPOS` says which screenful the room is and nothing more, so **moving a room means moving all four
+fields together**.
 
-The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are map-sheet pixels too, taken exactly as
-written — `CELLPOS` says which screenful of the sheet the room is, and nothing more. So a spawn is
-authored with the coordinate the map editor shows for that tile, and moving a room means moving all
-four fields together.
+`Room.OriginX`/`OriginY` is `CELLPOS × 8`, and **world minus origin is screen** — the one conversion
+anything outside a room needs. `Sun` and `Clouds` measure in screen pixels and add the origin
+themselves; `Moon` and `Night` do not, which is the known bug below.
 
 ---
 
@@ -157,588 +97,68 @@ four fields together.
 
 | File | Owns |
 |---|---|
-| [YourGame.cs](YourGame.cs) | Engine entry point. Forwards the three methods to the level select or to `_room`, owns the `Wipe` that carries one room into the next, and is the one place a room is entered — which is why the pause menu's `RESTART LEVEL` is here too. |
-| [LevelSelect.cs](LevelSelect.cs) | The level grid: which numbers are levels, which have been sunk, where each one prints, where the cursor can walk, and the pause-menu entry that comes back to it. Also the preview of the level the cursor is on, and the slide from one to the next. Also what "the next level" means. Static. |
-| [Levels.cs](Levels.cs) | Which room is which level. Reads every object under `ROOMS` once at `Init` and indexes them by their `NUMBER`, so the object name stays the developer's and the number is what the grid and the save slots key on. Static. |
-| [Wipe.cs](Wipe.cs) | The iris between levels — the `ovalinv` mask closing onto the player and opening back out, and the switch the player's controls are off behind. Static. |
-| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: which cells it cuts out of the sheet, where the backdrop is, and the spawn points. Its spawns are authored in map-sheet pixels and taken as written. Owns the room's edges — `Left`/`Right` are public, since the player walks into them — and its `HITMAX` and `NUMBER`, and restarts the level when a body leaves the edges or the strokes run out. |
-| [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball. Takes the room's sides as walls, so the walk never leaves the screen sideways. Static. |
-| [Ball.cs](Ball.cs) | Ball physics, bounce, roll, and sinking into the cup. Drawn as a blinking `SIZE`-square rect, not a sprite. Static. |
-| [Swing.cs](Swing.cs) | The swing state machine and the power reading. Owned by the player, drawn over it. Static. |
-| [Meter.cs](Meter.cs) | The strength bar that sweeps while the club is back, filled in ten colour bands weakest-first. Static. |
-| [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
-| [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
-| [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Moon.cs](Moon.cs) | The moon, placed across the sky by the day of the month — `SPR` and `MONTHDAY` under `DAYCYCLE/NIGHT`. The sprite and nothing else: it is out only while `Night.Dim` says there is a night, and the dark that follows is the `Night`'s. Drawn from inside the room, after the ball and before the clouds. Reads the clock and its own object and nothing else — no room, which is also why it is in the wrong space at its call site (see [The moon and the night](#the-moon-and-the-night)). Static. |
-| [Night.cs](Night.cs) | The dark: which hours are night, how dark each band is, and the one full-screen `rectfill` that lays it on. The bands and opacities under `DAYCYCLE/NIGHT`. Drawn last of the room's layers, over the clouds as well as the ground, so nothing in the sky stays lit at midnight. `Dim` is public and read off the clock on every call — the moon asks it whether it is out. Static. |
-| [Sun.cs](Sun.cs) | The sun, placed across the screen by the local hour off `stat(4)` — drawn between the backdrop and the room's cells, and none at all outside daylight. Owns `DAYCYCLE/SUN`, which is the sky itself: `Margin`, `Tiles` and the `Span` derived from them are public because the moon crosses the same line. `Present` is also what says whether the player casts a shadow. Static. |
-| [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky. Each object under `CLOUDS` bar `CONFIG` is a *kind* of cloud; `CONFIG` says how many fly at once, where they start, how fast they drift and how much air they keep between them. Drawn after the sun and the moon and before the night's dim, so they are the nearest layer of the sky and still fall dark with it. Static. |
-| [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
-| [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
-| [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
-| [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
-| [Anim.cs](Anim.cs) | Reusable sprite flipbook from an `ANIM/<name>` object. Instance. |
-| [SfxList.cs](SfxList.cs) | A sfx array field played one at a time at random — the footsteps and the club swap. Instance. |
-| [Motion.cs](Motion.cs) | The pixel-stepped travel and the gravity clamp the player and the ball both move by. Stateless. |
-| [Btn.cs](Btn.cs) | Button indices by name, so no `btn` call carries a bare number. |
-| [Font.cs](Font.cs) | The engine font's advance, glyph height and ink middle, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with, its `plain` argument the marker-free string its outline passes use. `Height` is the 7-pixel glyph, which is what centring measures; the engine's own `\n` advance is 9 and nothing here prints multi-line. |
-| [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
-| [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
+| [YourGame.cs](YourGame.cs) | Entry point; forwards to the menu or `_room`, owns the `Wipe` and `RESTART LEVEL`, is the one place a room is entered |
+| [LevelSelect.cs](LevelSelect.cs) | The grid, the cursor, the sliding preview of the level under it, and what "the next level" means |
+| [Levels.cs](Levels.cs) | Which room is which level — indexes `ROOMS` by `NUMBER` once at `Init` |
+| [Wipe.cs](Wipe.cs) | The `ovalinv` iris between levels, and the switch the player's controls are off behind |
+| [Room.cs](Room.cs) | One room from `ROOMS/<name>`: its cut of the sheet, spawns, edges, `HITMAX`, `NUMBER`; restarts the level on a loss |
+| [Player.cs](Player.cs) | Walk, jump, stair climb, pixel-stepped collision, address/align to the ball, the sun's shadow |
+| [Ball.cs](Ball.cs) | Ball physics, bounce, roll, sinking into the cup. Drawn as a blinking rect, not a sprite |
+| [Swing.cs](Swing.cs) | The four-state swing machine and the power reading |
+| [Meter.cs](Meter.cs) | The strength bar |
+| [Club.cs](Club.cs) | The bag: selection, what it does to the shot, the swapping label |
+| [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless |
+| [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it |
+| [Sun.cs](Sun.cs) | The sun by the hour, its halo, and **the sky's geometry** (`Margin`, `Tiles`, `Span`) the moon shares |
+| [Moon.cs](Moon.cs) | The moon by the day of the month. Sprite only — the dark is `Night`'s |
+| [Night.cs](Night.cs) | The hours that are night and the one full-screen dim. `Dim` is what the moon asks whether it is out |
+| [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky |
+| [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `RightX` where the club label starts |
+| [Save.cs](Save.cs) | The levels finished, one persistence slot each. Owns `DELETE SAVE` |
+| [Dust.cs](Dust.cs) | Foot dust pool, fixed size |
+| [Steps.cs](Steps.cs) | Footstep sfx on an interval while walking |
+| [Anim.cs](Anim.cs) | Sprite flipbook from an `ANIM/<name>` object. Instance |
+| [SfxList.cs](SfxList.cs) | A sfx array played one at a time at random. Instance |
+| [Motion.cs](Motion.cs) | The pixel-stepped travel and gravity clamp the player and the ball share |
+| [Btn.cs](Btn.cs) | Button indices by name |
+| [Font.cs](Font.cs) | Font metrics and `PrintOutlined`, the one call every caption is drawn with |
+| [Debug.cs](Debug.cs) | The `Enabled` switch every overlay reads. Boxes belong to whoever owns them |
+| [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code |
 
-Most of the game is `static` — there is one player, one ball, one swing. `Room`, `Anim` and `SfxList`
-are the exceptions: `YourGame` holds a room instance so entering another is just another `Enter`, the
-player, the flag and the swing each hold their own clips, and the footsteps and the club swap each
-hold their own sounds.
+Most of the game is `static` — one player, one ball, one swing. `Room`, `Anim` and `SfxList` are the
+exceptions.
 
 **Every type here is in scope engine-wide** — [src/GlobalUsings.cs](../GlobalUsings.cs) carries
-`global using mono8.game`, so a new game type whose name collides with a MonoGame one breaks the
+`global using mono8.game`, so a game type whose name collides with a MonoGame one breaks the
 *engine's* build. That is why the buttons are `Btn` and not `Buttons`.
 
 ---
 
-## The level select
-
-A grid of level numbers centred on the screen, laid out by `MENU/GRID` — authored as the 5×4 of
-twenty the game asks for, and falling back to that same 5×4 if the object goes missing. **Level N is the room whose `NUMBER` is N**, whatever the developer called
-the object — `Levels` is what finds it. There is no list of levels anywhere else, so authoring a room
-with `NUMBER: 7` is what makes level 7 exist. A number with no room behind it is not drawn at all: the
-gap in the grid is the disabled state.
-
-Each number prints through `Font.PrintOutlined` with a one-pixel black outline, in the colour that
-says what it is: **yellow for a hole already sunk, white for one still to play**, read out of `Save`
-when the menu comes up rather than measured with the grid — the hole just finished is one of them.
-
-Every number sits on a **disc**, radius 8, centred on the caption's own ink (`Font.Middle` and half
-the string width, not the cell) so one digit and two are both centred in it, and ringed by a black
-disc one pixel wider behind it. The disc is what makes a number readable now that a whole level is
-drawn behind the grid.
-
-Two things say where the cursor is, and both of them are colour:
-
-- **The disc turns white** under it, dark green everywhere else. That is what finds it at a glance —
-  a filled shape changing is far louder than the digit on it changing.
-- **The number takes the warmer half of its own pair**, so it never has to choose between saying
-  where the cursor is and saying whether the hole is done:
-
-| | Not sunk | Sunk |
-|---|---|---|
-| Cursor elsewhere | White | Yellow |
-| **Under the cursor** | **Green** | **Orange** |
-
-← → ↑ ↓ walk the cursor one cell per press, no key repeat. It **clamps** rather than wraps: at the edge
-of the grid the press does nothing. Numbers with no room behind them are stepped over — the cursor
-keeps going in the direction pressed until it finds an authored one, and stays put if it does not,
-since a cursor on an undrawn number would be a cursor that vanished. It opens on the lowest authored
-level and is left where it was when the pause menu comes back here, so returning from a level lands on
-that level.
-
-`Z` (`Btn.Jump`) or `X` (`Btn.Swing`) picks — either of the two buttons a room answers, since there is
-nothing to tell the player which one opens a level. `btnp`, not `btn`, and the room reads both of them
-with `btnp` too, so the press that picked cannot go on to be the jump or the address the room's first
-frame sees.
-
-The grid is also what "the next level" means. `Next(name)` takes the room the run is on and hands back
-the room one number up, so a gap in the numbering is stepped over exactly as the cursor steps over it,
-and `null` — no level above this one — is what sends the game back to the menu. `Focus(name)` moves the
-cursor onto a level, called on every room entry so a run that has walked from 1 to 4 comes back here
-on 4. Both take the **room's object name**, which is what a room carries around; `Levels.Number` turns
-it back into the cell it belongs in.
-
-The whole grid — which room each number stands for, whether it is authored, where it prints, where its
-disc is centred — is measured once in `Init`, so a frame of the menu allocates nothing and asks json
-nothing.
-
-### The preview
-
-Behind the grid is the level the cursor is on, drawn the way `Room.Draw` draws it: the backdrop, the
-room's cells, and the flag on its wave clip. The menu reads **only what the picture needs** out of
-`ROOMS/<name>` — `CELLPOS`, `BACKPOS`, `FLAGPOS`, and nothing else, since spawns, strokes and the
-level number are things a room being *played* needs. That is `LevelSelect.Preview`, a struct, loaded
-on a cursor move and never per frame. The camera is the room's own — `CELLPOS × 8` — so the cells and
-the flag standing on them land on screen exactly where the level will show them.
-
-Moving the cursor **crosses one picture over the other in half a second** (`SlideSeconds`), in the
-direction the move was made on the grid: a press right carries the old level off to the left and
-brings the new one in from the right, a press down carries it up. Both slide a full screen and both
-fade — the outgoing one from opaque to gone, the incoming one from gone to opaque. The offset is
-taken off the *camera* rather than added to each draw, so a picture never comes apart while it moves.
-A press part way through a slide drops whatever was still on its way out and starts again from what is
-showing, so the picture never lags the cursor.
-
-`Focus` and `Show` **settle** instead: the cursor was put there rather than walked there, and the menu
-is not on screen when `Focus` is called. `Show` also re-reads the picture and re-loads the flag clip,
-for the same reason it re-reads the results — a Ctrl+S while a level was up rebuilt the objects.
-
-The menu **no longer clears to dark green** — the preview is the backdrop now. It still clears, to
-black: mid-slide the two pictures do not cover the screen between them, and a fade over an uncleared
-frame smears rather than crossing over.
-
-The menu is where the game starts and where the pause menu's `LEVELS` entry goes back to. That entry,
-the `DEBUG` toggle and `RESTART LEVEL` are registered only while a room is running, and the menu
-clears all three while it is up.
-
-`GAME/START` is no longer read: the level select replaced the fixed opening room, so the object can be
-deleted or repurposed.
-
----
-
-## The swing
-
-`Swing` is a four-state machine, one press per state, with `PRESS` seconds minimum between presses and
-the button re-armed only by letting go — it cannot be mashed through.
-
-```
-Idle ──X──> Ready ──X──> Pull ──X──> Hit ──(HITSEC / FAILSEC)──> Idle
-             │            │
-             └────C───────┘  cancel: club away, meter dropped
-```
-
-- **Idle → Ready** only if `Player.CanStartSwing()` — both feet on the ground, the ball still in play
-  (one already dropping into the cup is not), and the ball inside the `CLUBX` + `REACH` window.
-  `Player.AlignToBall()` then slides the player a pixel at a time so the club head lands on the ball,
-  stopping flush if a wall is in the way. `Meter.Show()` puts the empty bar up.
-- **Ready → Pull** plays `ANIM/GOLFPULL` (one-shot) and starts the meter sweeping.
-- **Pull → Hit** waits for the pull clip to finish (`Clip.Done` — there is no swinging through a club
-  still going back), then reads `Meter.Value` **once**, right there. Under `MISS` the swing fails
-  outright (`Failed`, the player shouts `FAILTXT`, no sfx, no shot counted); otherwise `MISS..1` is
-  stretched onto `MINHIT..1` so any connecting swing moves the ball. Plays `ANIM/GOLFHIT`.
-- The ball leaves on the **last frame** of the hit clip, not the press — `Clip.Done`, once per hit.
-
-While `Swing.Active` the player is committed: no walking, no jumping, no stair grab, no club swap.
-
-`Ball.Hit(toLeft, power)` reads `BALL/HITX` and `HITY` as a **speed and a launch angle**, not two
-velocities, so the club can loft or shorten the shot without either being re-authored:
-
-```
-speed = |(HITX, HITY)| * power * Club.Distance
-angle = clamp(atan2(HITY, HITX) + Club.Angle, 0, 0.25 turns)   // 0 when power <= Club.GroundPower
-```
-
-That last clause is the putter: at or under `GNDPWR` the shot stays flat however lofted the club is.
-
-### The bag
-
-`CLUBS/ORDER.LIST` names the club objects in swap order and V walks them, blocked while `Swing.Active`
-so the club addressed is the club that hits. Each swap plays one of `ORDER.SFX` at random. A club named
-in `LIST` but never authored is skipped rather than loaded as a zero-distance one, and an empty bag
-leaves the ball hitting exactly as `BALL/HITX`/`HITY` say — `Angle` 0, `Distance` 1, `GroundPower` 0.
-
-The label sits over the meter bar, set in past the strokes count that shares the row (`Hud.RightX`, one
-character of air, plus `SWAPX` so a label mid-turn cannot ride over the number), and is drawn whether or
-not the bar is up, so a club can be picked while walking. Over `HUD/CLUB.SWAPSEC` the outgoing name drops away and the incoming one comes down
-from above, both set back by `SWAPX`/`SWAPY` at their extremes so the pair reads as one face turning
-rather than two labels sliding past each other. A second press part way through picks the turn up from
-whatever is showing.
-
----
-
-## Animation and the idle still
-
-`Anim` walks an `ANIM/<name>` object: `ID` the sprite ids (authored as Text, parsed once on load),
-`SPEED` in frames per second, `MODE` matched without regard to case — `FW` forward, `BW` or `RV`
-backward, `PP` ping-pong. A clip loops unless it is loaded with `loop: false`, which makes it a
-one-shot that holds the frame it ends on and reports `Done` — that flag is what the swing times both of
-its clips on. An unauthored `SPEED` or a single-frame list can never reach an end on its own, so a
-one-shot over one is `Done` the moment it starts.
-
-The player runs one clip at a time and only while actually travelling, so a walk into a wall does not
-march on the spot. Off a stair, stopping rewinds `PLRWALK` and the body falls back to
-`PLAYER/STATS.SPR` — the idle still, which is also what an unauthored clip falls back to. On a stair
-the frame is held instead, since a rung is a place to stand. Crossing between the two clips rewinds the
-one being taken up, and addressing the ball is that same idle still with the club sprite swinging over
-it.
-
----
-
-## Terrain and collision
-
-Two sprite flags, both authored in the sprite editor:
-
-| Flag | Meaning |
-|---|---|
-| `1` | **Solid** — nothing passes through it. `Terrain.Solid`, and what `Ball` collides against. |
-| `0` | **Stair** — a climbable column. A tile carrying both caps a stair: plain floor to anyone walking over it, a doorway to anyone on it. |
-
-`Terrain.Blocked` is that second reading — solid *minus* stair tiles — and is what `Player.SolidAt`
-switches to while `Climbing`. That branch is the whole stair feature: a climb passes through the cap
-tiles while a real ceiling or floor still stops it.
-
-Both the player and the ball move **one pixel at a time**, x and y separately, with a fractional
-remainder carried between frames (`Motion.Pixels`). At these speeds a frame of travel is several
-pixels and stepping is what keeps anything from tunnelling through a thin wall; it also lands the
-stop flush against quadrant-precise autotile edges, which have no tile boundary to snap to. What a
-blocked step means is each body's own: the player stops, the ball bounces.
-
-Stairs: ↑ takes any stair the body already stands in; ↓ takes the one under its feet (so a stair
-capping a platform is entered from above), gated on there being floor there to leave. The grab centres
-the body on the column. A climb is released when the body has cleared every stair tile, or when it
-lands on floor while not pressing up.
-
----
-
-## The cup
-
-The hole is read off the **flag**, not the map: `BALL/HOLEPOS` and `HOLESIZE` are a rect in pixels from
-the flag sprite's top-left. The ball drops in when it is on the ground, moving slower than `HOLESPD` on
-both axes, and its centre is inside that rect. It then sinks `SINKDEP` pixels straight down at
-`SINKSPD`, ignoring terrain (the cup is a hole in ground the map still reads as solid), plays sfx 1,
-and clears `Present` / sets `Holed`.
-
-`Holed` stays set until the room is re-entered, and it is what starts the wipe onto the next level.
-
----
-
-## The sun and the shadow
-
-The sun is hung by the clock, not by the room. `Sun.Init` reads the local hour off `stat(4)` and
-places it across the screen: `MARGIN` pixels of clearance at the left, the right and the top, swept
-left to right over the daylight hours so `DAWNHR` is against the left margin and `DUSKHR` against the
-right. Outside those two hours there is no sun at all, and that is an overcast hole — nothing else
-about it changes. As authored that is two tiles of margin and `06:00`–`18:00`.
-
-The room contributes only its `CELLPOS` corner, as the offset that turns that screen position into
-the map-sheet pixels everything else in a room is measured in.
-
-The hour is sampled once per `Room.Enter`, so the sun moves between levels rather than during one.
-`DAYCYCLE/SUN` is re-read on the same call, so a Ctrl+S retune lands on the next room entry.
-
-The sprite is one block for every room — `SPR`, drawn `TILES` square, authored as sprite `1` at `2×2`
-— because every room's sun is the same sun. It draws **between the backdrop and the room's own
-cells**, so it sits in the sky the backdrop paints and the terrain passes in front of it rather than
-being lit through.
-
-Over the sprite go the translucent discs of `GLOWRAD`, centred on it and drawn in list order so the
-widest is last and they layer into a halo rather than one flat wash — as authored, `16`/`20`/`24`
-pixels in the matching `GLOWCOL` (`BrightOrange`/`Orange`/`Yellow`) at `GLOWOPA` `0.2`. `GLOWRAD` and
-`GLOWCOL` are read as a pair by index; a radius of 0 or less is dropped rather than loaded, and a
-radius with no colour beside it draws `Yellow`. Those are the midday radii — they are scaled by how
-far into the day it is, `0` at dawn and dusk and `1` at the hour midway between, so the glow opens up
-towards noon and is gone entirely at either end. A disc smaller than a tile is skipped rather than
-drawn: it would be lost inside the sprite anyway, and it keeps a negative radius — which `circfill`
-throws on — from ever reaching the call.
-
-The sky's own geometry is authored on the **sun** and nothing else: `Sun.Margin`, `Sun.Tiles` and the
-`Sun.Span` derived from the two (`ResolutionX - 2 × MARGIN - TILES × 8`, floored at 0) are the line
-the moon crosses as well. There is one sky, so it is authored once. Degenerate authoring is read
-rather than thrown on — a `TILES` under 1 is taken as 1, a `DUSKHR` at or before `DAWNHR` is a day
-with no hours in it and reads as overcast.
-
-`Sun.Present` is also the switch on the player's shadow: a black smear one pixel tall at
-`ShadowOpacity`, centred on the body, drawn first of everything `Player.Draw` puts down — under the
-dust as well as the body.
-
-It is not gated on `OnGround`. Instead the ground is looked for a pixel at a time under the body,
-with the same `SolidAt` test `RefreshOnGround` uses, and how far down it is found is what the shadow
-is made of:
-
-| Ground under the feet | Width |
-|---|---|
-| 1px (standing on it) | 6 |
-| 2px | 4 |
-| 3px | 2 |
-| 4px or more | none — the search stops at `ShadowMaxDrop` |
-
-A pixel off each side per pixel of air, so a jump pulls the shadow in to nothing over its first
-few pixels rather than blinking it out on the frame it starts. `ShadowMaxDrop` is `ShadowWidth / 2`
-rather than a number of its own: at a drop of 4 the two sides would have met, so there is nothing
-past it worth probing for. The row the shadow draws on follows the ground down with it.
-
-Two things shape it:
-
-- **It leans away from the sun**, `-2` to `+2` pixels (`ShadowLean`). The lean is the horizontal
-  distance from `Sun.X` — the sun's own left edge, not the middle of the sprite it draws — to the
-  body's centre, scaled over half a screen and clamped. A sun over the body casts straight down, one
-  at the far side of the room casts at the limit, so the lean swings from morning to evening. It says which side the light is on; it
-  is not an attempt to trace where the shadow would really fall.
-- **It is clipped to the ground it lands on.** Each of its six columns has to be a *surface* at the
-  shadow's own row: solid there, and open one pixel above. Solid fails over a drop — a body on the
-  lip of a platform loses the part hanging over nothing rather than smearing it across mid-air — and
-  open-above fails inside a step or a wall the lean has carried the shadow into, where the row is
-  buried in a tile rather than lying on one and the shadow would be painted up its face. Contiguous
-  lit columns go out as one `rect`, so flat ground is still a single call.
-
-The level select's preview draws neither sun nor moon — it reads only `CELLPOS`, `BACKPOS` and
-`FLAGPOS`, and both bodies are drawn from inside a room.
-
-### The moon and the night
-
-The other half of the same clock, and **two classes over one object**: `Moon` is the body in the sky,
-`Night` is the dark it comes out in. They split `DAYCYCLE/NIGHT` between them — `SPR` and `MONTHDAY`
-are the moon's, the bands and their opacities are the night's — and each loads its own half in its
-own `Init`, so neither reads a field the other owns.
-
-The one thing that crosses between them is `Night.Dim`, the opacity this hour asks for and `0` for an
-hour that is not night at all. `Moon.Draw` opens by asking it: no dark, no moon. So the hours are
-decided in one place and the two can never disagree about whether it is night.
-
-They are split because they draw at **different depths**, with the clouds between them —
-`Moon.Draw`, `Clouds.Draw`, `Night.Draw`. The moon is a body in the sky and the clouds pass in front
-of it; the dark is not a layer of the sky at all but a wash over the whole frame, so it goes on last
-and everything in front of it — terrain, bodies, clouds, moon included — falls dark together.
-
-The dim is the hour's, and the bands are `DAYCYCLE/NIGHT`'s:
-
-| Hours | Dim | Authored as |
-|---|---|---|
-| `DEEPFROM`–`DEEPTO` | `DEEPOPA` | `22:00`–`02:00` at `0.4` |
-| `DUSKFROM`–`DEEPFROM`, `DEEPTO`–`DAWNTO` | `TWILOPA` | `18:00`–`20:00`, `04:00`–`06:00` at `0.2` |
-| anything else | nothing drawn at all — no dark, and no moon |  |
-
-Deep night is the one band that runs past midnight, so it is read as two halves where the twilights
-are read as one — which is also why `DEEPFROM` above `DEEPTO` is the shape the code expects rather
-than a mistake. The hours between the bands — `20:00`–`22:00` and `02:00`–`04:00` as authored — are
-undimmed and moonless.
-
-The moon is `SPR` (sprite `129`), drawn at the sun's `TILES`, crossing the same sky the sun does:
-`Sun.Margin` down from the top, and `Sun.Margin` to `Sun.Margin + Sun.Span` across, which is why
-those are the sun's public geometry. **The night authors no size and no margin of its own** — `Span`
-is measured off the sun's `TILES`, so a moon of another size would overrun the line it shares.
-
-What moves it is the **day of the month** (`stat(3)`) rather than the hour, over `MONTHDAY` days —
-authored as `31`, the longest month, so the first of a month is against the left margin and the 31st
-against the right and it shifts a little each night instead of tracking across an evening. A short
-month simply stops before the right margin, and a `MONTHDAY` of 1 or less pins it at the left one
-rather than dividing by zero.
-
-All three go on **inside the room**, called from `Room.Draw` between `Ball.Draw` and the `camera()`
-reset that starts the HUD. So the moon is in front of the terrain and the ball where the sun is
-behind the room's own cells, and the dim falls over all of that — but under the HUD, under the `Wipe`
-and under the debug readout, which all draw after it. The level select calls **neither**, so the menu
-never falls dark even though its preview is the same outdoors.
-
-Unlike the sun's hour, the clock is read every frame rather than at `Init`: `Night.Dim` is one `stat`
-call, so the night can fall under a player who stays on one hole. It is read twice a frame — once by
-the moon's gate, once by the night's own draw — which is two dictionary-free `stat` calls and cheaper
-than a cached value that could go stale mid-hole. Both `Init`s exist only to read the object; the
-tuning is taken on `Room.Enter` like everything else's, and `Moon.Init` is called after `Sun.Init`
-because the sky it measures itself against is the sun's. `Night.Init` hangs off nothing and its order
-is free.
-
-> **Known mismatch.** Both classes measure themselves in **screen** pixels — the moon at
-> `Sun.Margin`/`Sun.Span` across, the dark at `rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` —
-> but their call site has the camera at the room's origin, which is world space. The two only agree
-> for a room whose `CELLPOS` is `(0, 0)`. On every other room both are offset by the origin and land
-> off screen: level 1 dims, levels 2 and up do not. Either the calls move after `camera()` (which
-> also puts the dim back over the HUD) or the coordinates take the room's origin the way the sun and
-> the clouds do — `Sun.Init` and `Clouds.Init` both add `room.OriginX`/`OriginY` for exactly this
-> reason. Splitting the two did not fix it and was not meant to; it only made the dark a call of its
-> own that can be moved on its own.
-
----
-
-## The clouds
-
-The third thing in the sky, and the only one that moves during a level. `CLOUDS` splits in two: every
-object except `CONFIG` is a **kind** of cloud — `SPRIDX` and its size in `TILESX` × `TILESY` tiles —
-and `CONFIG` is everything about how they fly. So the sheet says what a cloud looks like and the
-config says how busy the sky is; the two are independent, and a kind can be up more than once.
-
-| `CONFIG` field | Holds |
-|---|---|
-| `MINCLOUD` `MAXCLOUD` | how many are alive at once — drawn between the two on room entry |
-| `STRTPOSX` | the band a cloud is started along, `[min, max]` |
-| `STRTPOSY` | the band it hangs in, `[min, max]` |
-| `SPEED` | the drift speeds to pick one of, px/s, rightward |
-| `MINDISTX` `MINDISTY` | the clearance one cloud keeps from another |
-
-**How many** is settled once per `Room.Enter` and holds for the level: a cloud that crosses the screen
-comes back on at the left rather than being retired, so the count never drifts. **What each one is** —
-kind, mirroring, row and speed — is re-rolled on the way in *and* every time one returns, so a sky
-watched long enough never repeats an arrangement. `spr`'s `flipX` is rolled with it, which reads the
-three authored kinds as six; `flipY` is deliberately not, since a cloud upside down is a different
-cloud.
-
-Positions are **screen pixels off the room's corner**, the way the `Sun`'s are — `Clouds.Draw` runs
-with the room's camera up, so `Room.OriginX`/`OriginY` is what puts them in map-sheet space. This is
-the fix the `Moon` and the `Night` still need.
-
-**The clearance is a box, not a radius**: two clouds are crowded only when they are inside `MINDISTX`
-*and* `MINDISTY` of each other, so two on the same row with a screen between them are fine and so are
-two stacked at opposite ends of the sky. It is measured between the sprite boxes rather than their
-corners, so a 2×2 kind keeps its distance as honestly as a 2×1 one. Placement rolls a row up to eight
-times looking for a gap; a sky asking for more clouds than the clearance leaves room for falls back to
-**queuing** the cloud a full `MINDISTX` behind the leftmost one there is, which is clear by
-construction and drifts in as the ones ahead move on. So a tight `CONFIG` thins the sky rather than
-stacking it or hanging the search.
-
-They draw **after the sun, the moon and the room itself** and before the HUD — the nearest layer of
-the sky, in front of the terrain rather than behind it — and **before `Night.Draw`**, so the dim
-falls over them like everything else. That ordering is why the night is split from the moon at all:
-the clouds sit between the two, in front of the body and under the dark.
-
-Degenerate authoring is read rather than thrown on: a band authored backwards is swapped, a `TILESX`
-under 1 is taken as 1, a kind with no `SPRIDX` is dropped rather than flown invisibly, a `SPEED` of 0
-or less is dropped (it would never reach the edge that sends it back), a negative clearance is read as
-none, and `MAXCLOUD` is capped at the pool of 32. With no kind authored at all the sky is simply
-empty.
-
----
-
-## Between levels
-
-Sinking the ball is the end of the level, so `YourGame` closes the screen on it. `Wipe` is a five-state
-run of one `ovalinv` call, and it is the only thing in the game that outlives a room — which is why it
-is `YourGame`'s and why nothing a room does to itself resets it.
-
-```
-None ──Ball.Holed──> Wait ──WAITSEC──> Close ──OUTSEC──> Held ──> Open ──INSEC──> None
-                                                           │
-                                                           └── no next level: Stop(), straight to None
-```
-
-- **Wait** is the room still fully on screen, and is what leaves the ball in the cup long enough to be
-  seen going in rather than the screen shutting on the frame it lands.
-- **Close** shrinks the hole from an oval that just swallows the screen down to nothing, centred on the
-  player. The focus is re-read every frame, so a body still falling keeps the iris on it.
-- **Held** is the one frame the screen is covered, which is the one frame a room can be swapped
-  without it being seen. `YourGame.Advance` reads it: `LevelSelect.Next` names the level, and the
-  room is entered right there. With no next level the mask is dropped outright and the level select
-  comes up — the menu is its own screen and there is nothing behind it to reveal.
-- **Open** runs the same oval the other way, around whoever is standing in the room that came up.
-
-The hole is an ellipse in the screen's own proportions, so it closes evenly instead of pinching. It
-starts at the size that just swallows the furthest corner from the focus, which is why the reveal is
-clean wherever in the room the player is standing. `ovalinv` reads a hole of nothing as the covered
-screen, so `Held` needs no case of its own.
-
-The ring around the hole is the dither sprite `DITHER` tiled one tile deep. That sprite's holes are
-authored in **white**, not colour 0, so the draw is wrapped in `palt(7, true)` — and the mask colour
-has to be the sprite's other colour or the band reads as a stripe rather than as the mask thinning
-out. `COLOR` and `DITHER` are a pair, not two independent choices.
-
-**While the wipe is up the player has no controls.** `Player.Controlled` is the one switch: no walk,
-no jump, no stair grab, no new swing. Gravity is deliberately not part of it — a body caught in the
-air still settles while the screen closes on it — and a swing already mid-flight still plays itself
-out. `Room`'s out-of-bounds restart is off for the same stretch: the hole is already won, and
-restarting a level nobody is going to see again would only undo the level about to be loaded.
-
----
-
-## Strokes
-
-`ROOMS/<name>.HITMAX` is how many strokes the room allows. `Hud` takes it at `Room.Enter`, prints it
-through `Font.PrintOutlined`, and counts it down — `Swing.Launch` calls `CountHit` only for a stroke
-that actually sent the ball, so a whiff is free. The caption is rebuilt only when the number moves, and
-the count is floored at zero.
-
-The count is the **number alone** — no label — at the left end of the row over the meter bar, inset by
-`HUD/HITS.MARGIN`, with the `Club` label set in beside it and both on `Club.LabelY`. It is always
-**two digits, zero-padded**: `01`, `04`, `20`, and a room authored above `99` reads `99` rather than
-printing a third digit into the label. So the slot is a fixed two characters, `Hud.RightX` is a
-constant offset from `MARGIN`, and nothing on the row is placed off the number of the moment.
-
-The last strokes are called out in colour, since a number down in the corner is easy to miss while
-lining up a shot: **two left is yellow, one is red**, and zero stays red — the frames before the room
-restarts are the most urgent the count ever is, not the least. Anything above two is white. The colour
-rides on `print`'s inline marker rather than on the call's colour argument: the caption is `#085`, `#`
-plus the palette index as two digits. `Hud` caches the marker-free `HitPlain` beside it, because that
-is what `Font.PrintOutlined` must draw the four black passes with — a marker would recolour the outline
-too — and what any measurement of the caption has to go by, since a marker draws nothing.
-
-Spent strokes lose the level, but not on the stroke itself: the count runs out as the last ball leaves
-the club, and that shot is still the one that can drop in. `Room.Update` waits for `Ball.AtRest` — down,
-stopped and still in play — and then re-enters the room. A ball that is sinking is not at rest, so a
-final putt that goes in wins the hole instead.
-
-`Ball.AtRest` reads the ground contact and the roll (`VelX == 0f`, which `Rolled` and `Bounced` both
-settle to exactly), not both velocities: gravity puts a little back into `VelY` every frame the ball is
-standing there, and only a step that meets the ground takes it away again.
-
-A room that authors no `HITMAX` gets `Room.DefaultHitMax` (5), and a `HITMAX` of 0 or less is read as
-unlimited rather than as a level lost on its first frame.
-
----
-
-## Progress
-
-`Save` is the run kept across runs: the engine's 64 persistence slots, **one per level**, read once in
-`Init` and cached in an array so asking after a level costs nothing.
-
-| Slot | Holds |
-|---|---|
-| `0` | `Debug.Enabled`, offset by one |
-| `1`-`63` | level N's result — the strokes it was sunk in, or `-1` for a level never finished |
-
-**Level N is slot N**, and N is the room's `NUMBER` — not its object name, which is the developer's to
-rename at will. `Room.Number` is what `Save.Complete` is handed, and `Levels.Exists` is what `Save.Init`
-asks. A room that authors no `NUMBER`, or one outside `1`-`63`, has no slot and is never recorded, which
-is what keeps a `ROOMS` object that is not a level out of the save.
-
-A fresh save reads `0` in every slot, so `0` is *nothing written here yet* rather than a hole finished
-in no strokes. `Save.Init` maps it to `-1`, and writes that `-1` back for every level that has a room
-behind it — so the file says "not played" in its own terms rather than by omission. Slots with no
-level behind them are only mapped in memory: there is nothing there to record.
-
-**Only a sunk hole writes.** `YourGame.Update` calls `Save.Complete` on the frame `Ball.Holed` starts
-the wipe, which is the one frame a hole is finished on — losing the room to spent strokes, walking out
-of bounds and backing out to the level select never reach it, so those leave the slot as it was. The
-count written is `Hud.Taken`, counted up as the strokes are struck rather than read off the count
-left, which floors at zero and says nothing at all in a room that allows unlimited strokes. Replaying
-a level to the same score does not write again — `dset` rewrites the whole file on every call.
-
-`LevelSelect` is what reads the results back: a level `Save.Played` says is done prints yellow instead
-of white. It takes them in `Show`, not in `Layout` — the menu can only come back up through `Show`,
-and the hole that was just sunk is one of the numbers about to be drawn. The stroke count itself is
-stored but not shown anywhere.
-
-`DELETE SAVE` is the one thing that unwrites it. **Every** slot goes, not only the levels: slot 0 is
-`Debug`'s and is persistence like any other, and a deleted save that still remembered the toggle would
-not have been deleted. Zeroing is followed by the same `Read` `Init` does, so what is left says "not
-played" in the terms a fresh save does rather than in terms of its own, and the two places holding a
-copy of what went are caught up behind it — `Debug.Clear` for the flag slot 0 carried, and
-`LevelSelect.Refresh` for the grid, which caches the results in `Show` and may well be the screen the
-entry was chosen from. A slot already reading `0` is left alone, since `dset` rewrites the whole file
-on every call.
-
----
-
-## Out of bounds
-
-A room is one screen and there is nothing outside it, so a body that leaves is never coming back —
-the hole is unplayable from there. `Room.Update` asks last, on the positions the frame settled on,
-and a loss re-enters the room: same level, everything back at its spawn, the strokes back at `HITMAX`.
-
-- **Left, right and bottom** lose a body. The **top is open**: a lofted shot arcs over the screen and
-  gravity brings it back, and that is the shot the game is about.
-- **The player cannot reach the sides.** `Room.Left` / `Room.Right` are walls to the walk:
-  `Player.BlockedAt` is the map's solid *plus* those two, so a body stops flush against the edge of
-  the screen exactly as it stops against terrain, and the alignment slide into a ball by the wall
-  stops there too. Losing a still-playable hole to a stray step was never the point of the test —
-  what it is there for is the fall out of the bottom, which is untouched, and the ball, which is
-  free to leave any of the three. The wall is tested by the **direction** of the step rather than
-  by where it lands, so a `PLYRPOS` authored outside its own room can still walk back in instead of
-  being pinned; the out-of-bounds test below is still what catches one authored past the bottom.
-- The test is *every* pixel past one edge, so clipping a corner on the way past is not a loss.
-- The player is measured by `SPRSIZE`, the ball by `SIZE`; an unauthored one reads as 1 rather than
-  0, which would take a body flush against the left edge as already gone.
-- A ball dropping into the cup is exempt (`Ball.InPlay`) — it is leaving on purpose, and a cup at the
-  bottom of the screen could sink it past the edge.
-- The whole test is off while the `Wipe` is up: the hole is already won and the room is on its way
-  out, so a player left in mid-air when the ball dropped falls out of it harmlessly.
-
-A room whose `PLYRPOS` or `BALLPOS` puts a body outside its own cells restarts every frame. That is
-an authoring error rather than a crash, and it shows as one.
-
----
-
-## The debug overlay
-
-`Debug.Enabled` is off by default and toggled from the pause menu, from the entry `LevelSelect` puts
-up with the room (`Debug.Show`/`Hide`; `Debug.Init` only reads the saved value). It persists in
-`dget`/`dset` slot 0 offset by one — `1` off, `2` on — so a fresh save reading `0` lands on off
-rather than on. `Debug.Clear` is what `DELETE SAVE` calls to put it back, and the reason `Debug` tracks
-whether its entry is up at all: the label carries the state, so a reset has to rewrite it — but only on
-a screen that has the entry, and the save can be deleted from the level select, which does not.
-
-`Debug.Draw` itself only puts FPS, `Swing.State` and the power reading in the top-left corner. Every
-box is drawn by whoever owns it, each guarded against an unauthored size that `rect` would draw
-inverted:
-
-| Drawn by | Shows |
-|---|---|
-| `Player.Draw` | the `HITPOS`/`HITSIZE` rect `SolidAt` actually tests — yellow while climbing, red otherwise |
-| `Player.DrawAddressDebug` | the `CLUBX` + `REACH` window, green once the ball is inside it |
-| `Ball.DrawHoleDebug` | the cup rect, over the flag it is measured from so it stays readable |
+## Contracts across files
+
+- **Level N is the room whose `NUMBER` is N**, whatever the object is called. There is no list of
+  levels anywhere else: authoring a room with `NUMBER: 7` is what makes level 7 exist, and a number
+  with no room behind it is a gap the grid skips and the cursor steps over. `Levels` turns a name
+  into a number and back.
+- **`Save` slot N is level N.** Slot 0 is `Debug`'s (offset by one: `1` off, `2` on, so a fresh save
+  reads off). Slots 1-63 hold the strokes a hole was sunk in, or `-1` for never finished — `0` means
+  *nothing written yet*, which `Save.Init` maps to `-1`. `Levels.MaxNumber` is 63 because that is the
+  last persistence slot there is. Only a sunk hole writes; losing, leaving or backing out never does.
+- **Flag `0` is a stair** alongside the project's solid flag `1`. A tile carrying both caps a stair —
+  floor to anyone walking over it, a doorway to anyone on it. `Terrain.Blocked` is solid *minus*
+  stair and is what a climb passes through.
+- **Sfx ids fixed in code:** `0` club on ball, `1` ball into the cup. Everything else is authored as
+  a json list and read through `SfxList`. **Sprite ids fixed in code: none.**
+- **Both bodies move one pixel at a time**, x and y separately, with a fractional remainder carried
+  between frames (`Motion.Pixels`) — at these speeds a frame is several pixels and stepping is what
+  stops tunnelling through thin walls and lands stops flush against quadrant-precise autotile edges.
+  What a blocked step *means* is each body's own: the player stops, the ball bounces.
+- **The cup is read off the flag, not the map** — `BALL/HOLEPOS`/`HOLESIZE` is a rect from the flag
+  sprite's top-left. No `FLAGPOS`, no flag, and so no cup.
+- **`Sun.Margin`, `Sun.Tiles` and `Sun.Span` are the sky's, not the sun's.** There is one sky and it
+  is authored once, on `DAYCYCLE/SUN`; the moon crosses the same line and authors no size of its own.
+- **The player's shadow is gated on `Sun.Present`**, and the level select's preview draws neither sun
+  nor moon — both are drawn from inside a room.
 
 ---
 
@@ -746,84 +166,69 @@ inverted:
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (grid, default 5×4), `CELL` (cell size in pixels, default `(32, 20)`), `TITLE` (caption over the grid, none by default). Authored as the 5×4 of twenty with `SELECT LEVEL` over it. `PAD` is authored but **no longer read**: it sized the mouse hover box, and the cursor is a colour now |
-| `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (map cells), `BACKPOS` (backdrop cells, absolute — defaults to `(256, 0)`, the start of map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet pixels, absolute — inside the room `CELLPOS` cuts out), `HITMAX` (strokes allowed, default 5), `NUMBER` (which level it is, `1`-`63`). **`NUMBER` is what the menu shows and what the save slot is** — the object name is free, and the next number up with a room behind it is the level sinking this one advances to |
-| `GAME/WIPE` | `Wipe` | `WAITSEC` (hold on the sunk ball, default `0.5`), `OUTSEC` `INSEC` (close and open, default `0.6` each), `COLOR` (mask palette index, default `17`), `DITHER` (ring sprite, default `117`) — **not authored yet; the defaults run without it**. Read on every close rather than at `Init`, so a Ctrl+S retune lands on the next hole |
-| `DAYCYCLE/SUN` | `Sun`, and `Moon` for the sky | `SPR` `TILES` (the body, in 8×8 tiles), `MARGIN` (clearance at the left, right and top, in screen pixels), `DAWNHR` `DUSKHR` (whole hours; outside them, no sun), `GLOWRAD` `GLOWCOL` (the halo discs, read as a pair by index, widest last), `GLOWOPA`. **`TILES` and `MARGIN` are the sky's, not the sun's** — `Sun.Span` is measured off them and the moon crosses the same line |
-| `DAYCYCLE/NIGHT` | `Moon` and `Night`, a half each | **`Moon`:** `SPR`, `MONTHDAY` (days the moon crosses the sky over). **`Night`:** `DEEPFROM` `DEEPTO` (deep night, wrapping midnight) `DEEPOPA`, `DUSKFROM` `DAWNTO` (the twilights either side) `TWILOPA`. No size or margin of its own — those are `DAYCYCLE/SUN`'s |
-| `CLOUDS/<name>` | `Clouds` | One kind of cloud: `SPRIDX`, `TILESX`, `TILESY`. Every object in the group except `CONFIG` is one |
-| `CLOUDS/CONFIG` | `Clouds` | `MINCLOUD` `MAXCLOUD` (how many fly at once), `STRTPOSX` `STRTPOSY` (the start bands, `[min, max]`), `SPEED` (drift speeds to pick from, px/s), `MINDISTX` `MINDISTY` (clearance between clouds). **`MINCLOUD`, `MAXCLOUD`, `MINDISTX` and `MINDISTY` are not authored yet** — the code defaults (`3`/`6`, `16`/`8`) run until they are |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (default 5×4), `CELL` (px, default `(32, 20)`), `TITLE`. `PAD` is authored but **no longer read** |
+| `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (cells), `BACKPOS` (cells, absolute, default `(256, 0)` = map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet px, absolute), `HITMAX` (default 5; ≤0 = unlimited), `NUMBER` (`1`-`63`) |
+| `GAME/WIPE` | `Wipe` | `WAITSEC` `OUTSEC` `INSEC` `COLOR` `DITHER` — **not authored; defaults run**. `COLOR` and `DITHER` are a pair: the dither sprite's holes are white, so the draw is wrapped in `palt(7, true)` and the mask colour must be the sprite's other colour |
+| `DAYCYCLE/SUN` | `Sun`, and `Moon` for the sky | `SPR` `TILES`, `MARGIN`, `DAWNHR` `DUSKHR` (outside them, no sun at all), `GLOWRAD` `GLOWCOL` (paired by index, widest last) `GLOWOPA` |
+| `DAYCYCLE/NIGHT` | `Moon` and `Night`, a half each | **`Moon`:** `SPR`, `MONTHDAY`. **`Night`:** `DEEPFROM` `DEEPTO` (wraps midnight, so `DEEPFROM` > `DEEPTO` is the expected shape) `DEEPOPA`, `DUSKFROM` `DAWNTO` `TWILOPA`. Hours between the bands are undimmed and moonless |
+| `CLOUDS/<name>` | `Clouds` | One *kind* of cloud: `SPRIDX` `TILESX` `TILESY`. Every object but `CONFIG` is one |
+| `CLOUDS/CONFIG` | `Clouds` | `MINCLOUD` `MAXCLOUD`, `STRTPOSX` `STRTPOSY` (`[min, max]` bands), `SPEED` (px/s, rightward), `MINDISTX` `MINDISTY` (clearance, a box not a radius) |
 | `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
-| `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD` |
-| `SWING/POWER` | `Swing`, `Meter` | `SWEEP` (seconds for one out-and-back), `MISS`, `MINHIT` |
-| `SWING/CLUB` | `Swing` | `SPR` (club at rest), `PRESS`, `HITSEC`, `FAILSEC` |
-| `CLUBS/ORDER` | `Club` | `LIST` — the club objects in swap order; `SFX` — the swap sounds to pick from |
-| `CLUBS/<name>` | `Club` | `NAME`, `ANGLE` (degrees), `DIST`, `GNDPWR` |
+| `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD`. **`HITX`/`HITY` are a speed and a launch angle**, not two velocities, so a club lofts or shortens the shot without either being re-authored |
+| `SWING/POWER` | `Swing`, `Meter` | `SWEEP` `MISS` `MINHIT` |
+| `SWING/CLUB` | `Swing` | `SPR` `PRESS` `HITSEC` `FAILSEC` |
+| `CLUBS/ORDER` | `Club` | `LIST` (club objects in swap order) `SFX` |
+| `CLUBS/<name>` | `Club` | `NAME` `ANGLE` (degrees) `DIST` `GNDPWR` (at or under it the shot stays flat — the putter) |
 | `HUD/METER` | `Meter` | `MARGIN` `BARW` `BARH` `BORDER` |
-| `HUD/HITS` | `Hud` | `MARGIN` — the count itself is the room's `HITMAX`, and the corner shows the number alone, so there is nothing else to author |
+| `HUD/HITS` | `Hud` | `MARGIN` |
 | `HUD/CLUB` | `Club` | `GAP` `SWAPSEC` `SWAPX` `SWAPY` |
-| `ANIM/<name>` | `Anim` | `ID` (sprite ids as Text), `SPEED` (fps), `MODE` — `FW` / `BW` / `RV` / `PP` |
+| `ANIM/<name>` | `Anim` | `ID` (sprite ids as Text) `SPEED` (fps) `MODE` — `FW` / `BW` / `RV` / `PP` |
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
 
-An unknown room, or one missing a field, loads as an empty room at the top-left of the sheet rather
-than failing. A room without `FLAGPOS` has no flag — and with no flag to measure from, no cup.
-Twenty rooms are authored, `ROOMS/01` to `ROOMS/20`, numbered `1`-`20`, so the grid is full and every
-sunk hole advances onto the next. Only `01`-`05` have a cut of the map sheet of their own, laid out
-left to right along the top row (`CELLPOS` `(0, 0)`, `(32, 0)`, `(64, 0)`, `(96, 0)`, `(128, 0)`);
-`06`-`20` are placeholders, every one of them pointing back at `02`'s `CELLPOS` with its own spawns —
-so the numbers exist, and the levels behind them do not yet.
+`GAME/START` is dead — the level select replaced the fixed opening room. It can be deleted.
 
-Clips currently authored: `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
+### Authored so far
 
-Sprite ids fixed in code: none. The sun and the moon were the last two — both are `DAYCYCLE`'s now,
-and their old ids (`1` and `129`, 2×2) are the fallbacks the code runs on until the group is authored.
-
-Sfx ids fixed in code: `0` club on ball, `1` ball into the cup. Everything else (footsteps, club swap)
-is authored as a list in json and read through `SfxList`, which drops a negative or wrong-typed entry
-rather than loading it.
+- **Twenty rooms**, `ROOMS/01`-`20`, numbered `1`-`20`. Only `01`-`05` have a cut of the map sheet of
+  their own, along the top row (`CELLPOS` `(0, 0)`, `(32, 0)`, `(64, 0)`, `(96, 0)`, `(128, 0)`);
+  `06`-`20` all point back at `02`'s `CELLPOS` with their own spawns — the numbers exist, the levels
+  do not.
+- **Clips:** `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
+- **Clubs:** `DRIVER`, `WEDGE`, `PUTTER`.
+- **Clouds:** three kinds (`O1`-`O3`), `CONFIG` fully authored.
+- **`DAYCYCLE`** fully authored, `DUSKHR` retuned to `15`.
+- **Unauthored:** `GAME/WIPE` only.
 
 ---
 
-## Conventions this code follows
+## Conventions on top of CLAUDE.md's
 
-- **Re-read every `Init()`.** Ctrl+S in the JSON editor rebuilds the data without a restart, and the
-  rebuild makes *new* objects — a cached `Mono8JsonObject` from before the save is orphaned. Every
-  loader zeroes its fields first, then reads, so a half-authored object still runs.
-- **Never throw.** Null-check the `gjson` result, pass a real fallback to each getter, gate `GetXY` on
-  `Has` where `(0, 0)` would be wrong. An exception freezes the engine with a message rather than
-  crashing, so failures are quiet.
+- **Every loader zeroes its fields before reading**, so a half-authored object still runs.
+- **Read degenerate authoring rather than failing on it.** A band authored backwards is swapped, a
+  size under 1 is taken as 1, a zero or negative speed/radius is dropped, an empty list is an empty
+  feature.
 - **Guard the degenerate draw.** An unauthored `SIZE`/`HITSIZE`/`BARW` is 0, and `rect` with an empty
   extent draws inverted — every debug and HUD rect checks first.
-- **No per-frame allocation.** Fixed pools (`Dust`, `Club`, `SfxList`), captions rebuilt only when the
-  number moves (`Hud.SetLeft`), `Swing.State` returns literals.
-- **One home per shared number.** The cell size is `Terrain.TileSize`, the font metrics are `Font`,
-  the button indices are `Btn` — a literal `8`, `4` or `5` in game code is a bug waiting to drift.
-- **Comments say why, not what.** The density here is deliberate: the tricky invariants (the one-pixel
-  step-in on a stair grab, reading the meter before anything else can move it, the ball leaving on the
-  clip's last frame) are commented; the obvious is not.
+- **One home per shared number.** `Terrain.TileSize`, `Font`, `Btn` — a literal `8`, `4` or `5` in
+  game code is a bug waiting to drift.
 
 ---
+
+## Known bug
+
+**The moon and the night are drawn in the wrong space for every room but the first.** Both measure
+themselves in screen pixels — the moon at `Sun.Margin`/`Sun.Span`, the dark at
+`rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` — but `Room.Draw` calls them with the camera at
+the room's origin. The two agree only for a room whose `CELLPOS` is `(0, 0)`: level 1 dims, levels 2
+and up get neither moon nor dark. Either the calls move after `camera()` (which also puts the dim
+over the HUD) or the coordinates take `room.OriginX`/`OriginY` the way `Sun.Init` and `Clouds.Init`
+already do.
 
 ## Not done yet
 
-- Sinking the ball advances the level, but there is no **scorecard**: no par, no per-hole result
-  screen, and nothing at the end of the run but the level select coming back up.
-- Twenty rooms authored but only five drawn: `06`-`20` all carry `02`'s `CELLPOS`, so the grid is
-  full and fifteen of its numbers open the same room. They are placeholders waiting for a map.
-- The night is drawn in the wrong space for every room but the first — see
-  [The moon and the night](#the-moon-and-the-night). `Moon.Draw` and `Night.Draw` are both called
-  with the room's camera up and both measure themselves in screen pixels, so levels `2` and above get
-  neither moon nor dim.
-- The level select shows *whether* a hole is done, not **what it was done in**: `Save` holds the
-  stroke count and nothing draws it, so there is still no scorecard and no par. The strokes themselves
-  reset to `HITMAX` at every `Room.Enter`.
-- Running out of strokes restarts the room with no notice of any kind: no "out of shots" caption, no
-  pause, no sound — the level is simply back at its spawns the frame the ball stops.
-- `GAME/WIPE` is not authored. The wipe runs on its code defaults until it is, and `GAME/START` is
-  still the dead object the level select replaced.
-- `DAYCYCLE/SUN` and `DAYCYCLE/NIGHT` are authored, and the values in them are the numbers that used
-  to be `const` in the files — bar `DUSKHR`, retuned to `15`. The defaults still stand behind them
-  for a field that goes missing.
-- `CLOUDS/CONFIG` is half authored: `STRTPOSX`, `STRTPOSY` and `SPEED` are there, but `MINCLOUD`,
-  `MAXCLOUD`, `MINDISTX` and `MINDISTY` are not, so the number of clouds and the air between them are
-  the code's (`3`-`6` clouds, `16`×`8` clearance) until the four are added.
+- **No scorecard.** `Save` holds the stroke count and nothing draws it: the grid shows *whether* a
+  hole is done, not what it was done in. No par, no per-hole result screen, nothing at the end of a
+  run but the level select coming back up.
+- **Fifteen placeholder rooms** (`06`-`20`) waiting for a map.
+- **Running out of strokes restarts the room with no notice** — no caption, no pause, no sound.
+- **`GAME/WIPE` is unauthored**; the wipe runs on code defaults.
