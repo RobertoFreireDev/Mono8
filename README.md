@@ -37,9 +37,10 @@ back. Flip it to **`true`** and the same build boots straight into `YourGame` an
 editors are never constructed, and neither `Esc` nor `Ctrl+R` can reach them. `Init()` then runs once
 as the intro ends, and again only on the pause menu's **Restart Game**.
 
-Nothing else changes: the same `data/` folder is loaded, the pause menu is the same, and `Ctrl+S` has
-nothing to save because no editor is running. Flip it before `dotnet publish` and back afterwards, or
-your published game opens on the sprite editor.
+A published build also boots **fullscreen** rather than windowed; `F2` still toggles it. Nothing else
+changes: the same `data/` folder is loaded, the pause menu is the same, and `Ctrl+S` has nothing to
+save because no editor is running. Flip it before `dotnet publish` and back afterwards, or your
+published game opens on the sprite editor.
 
 ### Getting your assets into a build
 
@@ -109,6 +110,17 @@ On launch a short splash screen plays, then the Sprite editor opens. The icon bu
 |---|---|
 | `F2` | Toggles fullscreen. |
 | `Alt+F4` | Quits the application. |
+
+### The window
+
+The console is 256×144 whatever the window is. On launch the window opens at the largest **whole
+multiple** of that which still fits the display with room for the title bar and the taskbar, centred
+— 6× (1536×864) on a 1080p screen, 9× on a 1440p one. A published build opens fullscreen instead.
+
+The window resizes freely, but the picture inside it always steps in whole multiples: the console is
+drawn at the largest integer scale that fits and centred, with the leftover filled black. That is
+what keeps a pixel a square block of pixels at every size — and it is why a window one pixel short of
+the next step draws at the step below with a wider border, rather than stretching to fill.
 
 ### When the window loses focus
 
