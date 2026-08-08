@@ -99,11 +99,12 @@ internal class Room
         // The room only gives it the corner to hang off — what puts it there is the hour of the day.
         Sun.Init(this);
 
-        // After the sun, never before: the moon hangs off the sky the sun's object authors.
-        Moon.Init();
+        // After the sun, never before: the moon hangs off the sky the sun's object authors. Like the
+        // sun it takes the room's corner and nothing else.
+        Moon.Init(this);
 
-        // The dark the moon comes out in, which is only the hours — nothing else hangs off it.
-        Night.Init();
+        // The dark the moon comes out in — the hours, and the corner of the screenful they fall over.
+        Night.Init(this);
 
         // The sky is filled fresh on every entry, so a level is never re-entered under the same
         // clouds. Like the sun it takes only the room's corner.

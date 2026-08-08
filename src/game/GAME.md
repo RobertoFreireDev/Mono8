@@ -88,8 +88,9 @@ The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are map-sheet pixels taken
 fields together**.
 
 `Room.OriginX`/`OriginY` is `CELLPOS × 8`, and **world minus origin is screen** — the one conversion
-anything outside a room needs. `Sun` and `Clouds` measure in screen pixels and add the origin
-themselves; `Moon` and `Night` do not, which is the known bug below.
+anything outside a room needs. All four sky bodies — `Sun`, `Moon`, `Clouds`, `Night` — are authored
+and measured in screen pixels and add the origin themselves, since they are drawn with the room's
+camera up: `Sun` bakes it into `X`/`Y` at `Init`, the other three cache the corner and add it at draw.
 
 ---
 
@@ -111,7 +112,7 @@ themselves; `Moon` and `Night` do not, which is the known bug below.
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it |
 | [Sun.cs](Sun.cs) | The sun by the hour, its halo, and **the sky's geometry** (`Margin`, `Tiles`, `Span`) the moon shares |
 | [Moon.cs](Moon.cs) | The moon by the day of the month. Sprite only — the dark is `Night`'s |
-| [Night.cs](Night.cs) | The hours that are night and the one full-screen dim. `Dim` is what the moon asks whether it is out |
+| [Night.cs](Night.cs) | The hours that are night and the one dim over the room's screenful. `Dim` is what the moon asks whether it is out |
 | [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky |
 | [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `RightX` where the club label starts |
 | [Save.cs](Save.cs) | The levels finished, one persistence slot each. Owns `DELETE SAVE` |
@@ -213,16 +214,6 @@ exceptions.
   game code is a bug waiting to drift.
 
 ---
-
-## Known bug
-
-**The moon and the night are drawn in the wrong space for every room but the first.** Both measure
-themselves in screen pixels — the moon at `Sun.Margin`/`Sun.Span`, the dark at
-`rectfill(0, 0, ResolutionX - 1, ResolutionY - 1)` — but `Room.Draw` calls them with the camera at
-the room's origin. The two agree only for a room whose `CELLPOS` is `(0, 0)`: level 1 dims, levels 2
-and up get neither moon nor dark. Either the calls move after `camera()` (which also puts the dim
-over the HUD) or the coordinates take `room.OriginX`/`OriginY` the way `Sun.Init` and `Clouds.Init`
-already do.
 
 ## Not done yet
 

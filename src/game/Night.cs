@@ -1,13 +1,14 @@
 namespace mono8.game;
 
 /// <summary>
-/// The wash of dark the night falls in: one flat rectangle over the whole screen at the opacity the
-/// hour asks for, and the hours themselves. Nothing is placed in it — the body in the night sky is
-/// the <see cref="Moon"/>, which draws before this and is dimmed by it like everything else.
+/// The wash of dark the night falls in: one flat rectangle over the room's screenful at the opacity
+/// the hour asks for, and the hours themselves. Nothing is placed in it — the body in the night sky
+/// is the <see cref="Moon"/>, which draws before this and is dimmed by it like everything else.
 ///
 /// Drawn last of the room's own layers, over the terrain, the bodies and the <see cref="Clouds"/>
-/// alike, so a cloud at midnight is as dark as the ground under it. Its half of DAYCYCLE / NIGHT is
-/// the bands and their opacities; it reads the clock and nothing else — no room, no state.
+/// alike, so a cloud at midnight is as dark as the ground under it — and before the camera goes back,
+/// so the HUD stays out of it. Its half of DAYCYCLE / NIGHT is the bands and their opacities; beyond
+/// them it reads the clock and the room's corner, and nothing else.
 /// </summary>
 internal static class Night
 {
@@ -41,6 +42,9 @@ internal static class Night
     private static float DeepOpacity;
     private static float TwilightOpacity;
 
+    private static int OriginX;
+    private static int OriginY;
+
     /// <summary>
     /// How dark this hour is, and 0 for an hour that is not night at all — which is also how the
     /// <see cref="Moon"/> asks whether it is out.
@@ -68,8 +72,15 @@ internal static class Night
         }
     }
 
-    public static void Init()
+    /// <summary>
+    /// <paramref name="room"/> lends nothing but its corner — which screenful of the sheet falls
+    /// dark. The hours themselves are the NIGHT object's.
+    /// </summary>
+    public static void Init(Room room)
     {
+        OriginX = room.OriginX;
+        OriginY = room.OriginY;
+
         DeepFromHour = DefaultDeepFromHour;
         DeepToHour = DefaultDeepToHour;
         DuskFromHour = DefaultDuskFromHour;
@@ -100,10 +111,11 @@ internal static class Night
             return;
         }
 
-        // Screen pixels, and rectfill takes the far corner rather than a size. See the known mismatch
-        // in GAME.md: the call site still has the room's camera up, so the dark only covers the
-        // screen on a room whose CELLPOS is (0, 0).
-        YourGame.API.rectfill(0, 0, Constants.Screen.ResolutionX - 1, Constants.Screen.ResolutionY - 1,
+        // One screenful, taken off the room's corner because the call site has the room's camera up —
+        // and a room is exactly one screen, so this covers it and nothing of the room beside it.
+        // rectfill takes the far corner rather than a size.
+        YourGame.API.rectfill(OriginX, OriginY,
+            OriginX + Constants.Screen.ResolutionX - 1, OriginY + Constants.Screen.ResolutionY - 1,
             Constants.Colors.Black, dim);
     }
 }
