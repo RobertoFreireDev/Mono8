@@ -1,0 +1,6 @@
+# The editors write every data file with LF and byte-exact sizes. With
+# core.autocrlf=true Git checks them out as CRLF, records the CRLF size in the
+# index, then reports every file as modified forever — the size no longer
+# matches even though the content does. Never convert them.
+src/publishdata/** -text
+src/data/** -text
