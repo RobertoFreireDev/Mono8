@@ -42,21 +42,21 @@
       "NUMBER:i": 3
     },
     "04": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "BALLPOS:p": [302, 96],
+      "CELLPOS:p": [96, 0],
+      "FLAGPOS:p": [947, 105],
+      "PLYRPOS:p": [809, 40],
+      "BALLPOS:p": [820, 40],
       "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
+      "HITMAX:i": 3,
       "NUMBER:i": 4
     },
     "05": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "BALLPOS:p": [302, 96],
+      "CELLPOS:p": [128, 0],
+      "FLAGPOS:p": [1192, 105],
+      "PLYRPOS:p": [1040, 104],
+      "BALLPOS:p": [1044, 104],
       "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
+      "HITMAX:i": 4,
       "NUMBER:i": 5
     },
     "06": {
