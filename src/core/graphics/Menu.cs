@@ -2,7 +2,7 @@ namespace mono8.core.graphics;
 
 internal static class Menu
 {
-    private const int MaxCustomItems = 3;
+    private const int MaxCustomItems = 5;
     private const int MaxLabelLength = 16;
 
     /// <summary>Built-in entries; <see cref="Builtin.Custom"/> defers to the item's own callback.</summary>
@@ -17,17 +17,10 @@ internal static class Menu
     private static readonly List<MenuEntry> _items = new();
 
     private static bool Paused = false;
-    private static bool _restartVisible = true;
     private static int _selectedIndex = 0;
     private static int _continueCountdown = 0;
 
     public static bool IsPaused() => Paused;
-
-    /// <summary>
-    /// Shows or hides the built-in Restart entry. For screens a re-run of Init is meaningless on —
-    /// a title or a level select, which Init lands on anyway.
-    /// </summary>
-    public static void SetRestartVisible(bool visible) => _restartVisible = visible;
 
     public static void SetItem(int index, string label, Action callback)
     {
@@ -48,7 +41,7 @@ internal static class Menu
         _items.Add(new MenuEntry("Continue", null, Builtin.Continue));
         foreach (var item in _customItems)
             if (item.HasValue) _items.Add(new MenuEntry(item.Value.Label, item.Value.Callback, Builtin.Custom));
-        if (_restartVisible) _items.Add(new MenuEntry("Restart", null, Builtin.Restart));
+        _items.Add(new MenuEntry("Restart Game", null, Builtin.Restart));
         _items.Add(new MenuEntry("Exit", null, Builtin.Exit));
         return _items;
     }
@@ -134,8 +127,8 @@ internal static class Menu
         int x0 = Constants.Screen.ResolutionX / 2 - (w / 2);
         int y0 = Constants.Screen.ResolutionY / 2 - (h / 2);
 
-        Mono8Game.SpriteBatch.DrawRectFill(x0, y0, w, h, ColorPalette.BlackColorIndex);
-        Mono8Game.SpriteBatch.DrawRect(x0 + 1, y0 + 1, w - 2, h - 2, ColorPalette.WhiteColorIndex);
+        Mono8Game.SpriteBatch.DrawRectFill(x0, y0, w, h, ColorPalette.BlackColorIndex, 0.8f);
+        Mono8Game.SpriteBatch.DrawRect(x0 + 1, y0 + 1, w - 2, h - 2, ColorPalette.WhiteColorIndex, 0.8f);
 
         for (int i = 0; i < items.Count; i++)
         {

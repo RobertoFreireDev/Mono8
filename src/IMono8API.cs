@@ -17,8 +17,6 @@ public interface IMono8API
 
     void menuitem(int index);
 
-    void menurestart(bool visible);
-
     // ============================================================
     // GRAPHICS
     // ============================================================

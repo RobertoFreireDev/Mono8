@@ -177,7 +177,6 @@ internal static class LevelSelect
         // The pause menu is down to Continue and Exit while the menu is what is on screen: nothing to
         // go back to, nothing to debug, and Restart only re-runs Init, which lands right back here.
         YourGame.API.menuitem(MenuIndex);
-        YourGame.API.menurestart(false);
         Debug.Hide();
     }
 
@@ -186,7 +185,6 @@ internal static class LevelSelect
     {
         Active = false;
         YourGame.API.menuitem(MenuIndex, MenuLabel, Show);
-        YourGame.API.menurestart(true);
         Debug.Show();
     }
 
