@@ -27,6 +27,18 @@ internal static class Sun
     // stat ids for the wall clock — 4 is the hour.
     private const int StatHour = 4;
 
+    // The glow: three translucent discs over the sprite, drawn widest last so they layer into a
+    // halo rather than one flat disc. These radii are what midday draws — the rest of the day scales
+    // them down with the sun's height, so dawn and dusk have none at all.
+    private static readonly int[] GlowRadius = { 14, 16, 18 };
+    private static readonly int[] GlowColor =
+    {
+        Constants.Colors.BrightOrange,
+        Constants.Colors.Orange,
+        Constants.Colors.Yellow,
+    };
+    private const float GlowOpacity = 0.2f;
+
     /// <summary>
     /// Whether the sun is up, and where it hangs in map-sheet pixels. <see cref="X"/> is also what
     /// says which side of a body the light comes from, and so which way the shadow under it leans —
@@ -35,6 +47,10 @@ internal static class Sun
     public static bool Present;
     public static int X;
     public static int Y;
+
+    // How high the sun is, 0 at either end of the day and 1 at the hour midway between them. The
+    // sprite itself does not move up the sky — this is only what the glow is sized off.
+    private static float Height;
 
     public static void Init(Room room)
     {
@@ -53,13 +69,37 @@ internal static class Sun
 
         X = room.OriginX + Margin + span * hoursIn / (DuskHour - DawnHour);
         Y = room.OriginY + Margin;
+
+        // Distance from the middle of the day, as a fraction of half of it — so the two ends are 0
+        // and the hour between them is 1. Off the clamp above rather than the raw hour, so a sun
+        // that is down cannot come out negative.
+        int halfDay = (DuskHour - DawnHour) / 2;
+        Height = 1f - (float)YourGame.API.abs(hoursIn - halfDay) / halfDay;
     }
 
     public static void Draw()
     {
-        if (Present)
+        if (!Present)
         {
-            YourGame.API.spr(Spr, X, Y, Tiles, Tiles);
+            return;
+        }
+
+        var api = YourGame.API;
+
+        api.spr(Spr, X, Y, Tiles, Tiles);
+
+        // The glow is centred on the sprite; X, Y are its corner.
+        int centerX = X + Tiles * Terrain.TileSize / 2;
+        int centerY = Y + Tiles * Terrain.TileSize / 2;
+
+        for (int i = 0; i < GlowRadius.Length; i++)
+        {
+            int radius = (int)(GlowRadius[i] * Height);
+
+            if (radius > Terrain.TileSize * Tiles)
+            {
+                api.circfill(centerX, centerY, radius, GlowColor[i], GlowOpacity);
+            }
         }
     }
 }

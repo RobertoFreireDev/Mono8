@@ -393,6 +393,12 @@ The sprite is fixed in code — sprite `1`, drawn `2×2` — because every room'
 It draws **between the backdrop and the room's own cells**, so it sits in the sky the backdrop paints
 and the terrain passes in front of it rather than being lit through.
 
+Over the sprite go three translucent discs centred on it, widest last so they layer into a halo
+rather than one flat wash: `14`/`16`/`18` pixels in `BrightOrange`/`Orange`/`Yellow` at `0.2`. Those
+are the midday radii — they are scaled by how far into the day it is, `0` at `06:00` and `18:00` and
+`1` at `12:00`, so the glow opens up towards noon and is gone entirely at either end. A radius that
+rounds to nothing is skipped rather than passed to `circfill`, which throws on a negative one.
+
 `Sun.Present` is also the switch on the player's shadow: a black smear one pixel tall at
 `ShadowOpacity`, centred on the body, drawn first of everything `Player.Draw` puts down — under the
 dust as well as the body.
