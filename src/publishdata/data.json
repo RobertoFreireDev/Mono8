@@ -319,5 +319,27 @@
       "SPEED:i": 8,
       "MODE:t": "FW"
     }
+  },
+  "DAYCYCLE": {
+    "SUN": {
+      "SPR:i": 1,
+      "TILES:i": 2,
+      "MARGIN:i": 16,
+      "DAWNHR:i": 6,
+      "DUSKHR:i": 18,
+      "GLOWRAD:i": [16, 20, 24],
+      "GLOWCOL:i": [25, 9, 10],
+      "GLOWOPA:d": 0.2
+    },
+    "NIGHT": {
+      "SPR:i": 129,
+      "MONTHDAY:i": 31,
+      "DEEPFROM:i": 22,
+      "DEEPTO:i": 2,
+      "DUSKFROM:i": 18,
+      "DAWNTO:i": 6,
+      "DEEPOPA:d": 0.4,
+      "TWILOPA:d": 0.2
+    }
   }
 }
