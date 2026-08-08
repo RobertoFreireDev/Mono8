@@ -22,7 +22,8 @@ public class Mono8Game : Game
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         Window.AllowUserResizing = true;
-        IsMouseVisible = true;
+        // The console draws its own pointer; see MousePointer.
+        IsMouseVisible = false;
         ColorPalette.SetColorPalette();
         IsFixedTimeStep = true;
         Window.ClientSizeChanged += OnResize;
@@ -81,6 +82,10 @@ public class Mono8Game : Game
         // First thing in the frame: the intro path and the early return below both depend on it being current.
         bool wasFocused = Screen.IsFocused;
         Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);
+
+        // Unfocused holds the last frame, so a drawn pointer would sit frozen on it — hand the OS one
+        // back for as long as the window is not ours to draw into.
+        IsMouseVisible = !Screen.IsFocused;
 
         if (!Screen.IsFocused)
         {
@@ -145,6 +150,15 @@ public class Mono8Game : Game
             _intro.Draw(GameAPI);
         }
         SpriteBatch.End();
+        // Last, and in screen space: the frame it sits on top of may have left the camera anywhere.
+        // The intro takes no input, so it gets no pointer.
+        if (_intro.IsFinished)
+        {
+            Camera2D.Camera(0, 0);
+            SpriteBatch.Begin();
+            MousePointer.Draw();
+            SpriteBatch.End();
+        }
         GraphicsDevice.SetRenderTarget(null);
         GraphicsDevice.Clear(Color.Black);
         SpriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque, SamplerState.PointClamp, effect: null);

@@ -598,13 +598,17 @@ int worldX = mx + camX;
 
 ### `void mouse(bool visible)`
 
-Shows or hides the system cursor over the window. Hiding it stops nothing else — the buttons and
-`mousexy()` keep reporting — so a game that wants its own pointer hides this one and draws a sprite
-at `mousexy()`.
+Shows or hides the pointer the console draws over the window. It is not the OS cursor — that one is
+hidden — but an 8x8 icon drawn in screen pixels, so its top-left corner is exactly the pixel
+`mousexy()` reports whatever the window scale is and whether or not it is fullscreen, and it is
+clipped at the screen edge rather than spilling onto the letterbox. Hiding it stops nothing else —
+the buttons and `mousexy()` keep reporting — so a game that wants its own pointer hides this one and
+draws a sprite at `mousexy()`.
 
 Constraints: the setting lasts only as long as the game runs. Leaving play with Esc restores the
-cursor, because the editors are mouse-driven and would otherwise be left without one. Call it from
-`Init()` so Restart re-applies it.
+pointer, because the editors are mouse-driven and would otherwise be left without one. Call it from
+`Init()` so Restart re-applies it. The OS cursor comes back on its own while the window is
+unfocused, since the frame it would be drawn into is frozen.
 
 ```csharp
 public void Init()

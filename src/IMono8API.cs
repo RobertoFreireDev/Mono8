@@ -212,8 +212,10 @@ public interface IMono8API
     (int x, int y) mousexy();
 
     /// <summary>
-    /// Shows or hides the system cursor over the window. Hiding it changes nothing else: the buttons
-    /// and <see cref="mousexy"/> keep reporting, so a game can hide the pointer and draw its own.
+    /// Shows or hides the pointer the console draws over the window — an 8x8 icon whose top-left
+    /// corner is the pixel <see cref="mousexy"/> reports, at every window scale and in fullscreen.
+    /// Hiding it changes nothing else: the buttons and <see cref="mousexy"/> keep reporting, so a
+    /// game can hide the pointer and draw its own.
     /// <para>
     /// The setting belongs to the running game only — leaving play with Esc hands a visible cursor
     /// back to the editors, which are mouse-driven. Set it from <c>Init</c> so Restart re-applies it.

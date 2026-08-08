@@ -193,7 +193,7 @@ internal class Mono8API : IEditorAPI
     public bool mouserr() => MouseInputBinding.RightReleased();
     public bool mouser() => MouseInputBinding.RightPressed();
     public (int x, int y) mousexy() => MouseInputBinding.PosXY();
-    public void mouse(bool visible) => Mono8Game.Instance.IsMouseVisible = visible;
+    public void mouse(bool visible) => MousePointer.Visible = visible;
 
     public void camera(float x = 0, float y = 0)
     {

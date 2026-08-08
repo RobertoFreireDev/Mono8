@@ -45,6 +45,28 @@ public static class ColorPalette
 
     public static void PaltReset() => ResetPaltFlags();
 
+    private static readonly int[] _suspendedDrawPalette = new int[Constants.GameDataSizes.ColorPalette];
+    private static readonly bool[] _suspendedPaltFlags = new bool[Constants.GameDataSizes.ColorPalette];
+
+    /// <summary>
+    /// Stashes the remap and transparency flags and puts the defaults back, so engine chrome drawn
+    /// after a frame is not tinted or erased by whatever <c>pal</c>/<c>palt</c> that frame left set.
+    /// Not nestable: exactly one <see cref="ResumeDrawPalette"/> per call.
+    /// </summary>
+    public static void SuspendDrawPalette()
+    {
+        Array.Copy(_drawPalette, _suspendedDrawPalette, _drawPalette.Length);
+        Array.Copy(_paltFlags, _suspendedPaltFlags, _paltFlags.Length);
+        for (int i = 0; i < _drawPalette.Length; i++) _drawPalette[i] = i;
+        ResetPaltFlags();
+    }
+
+    public static void ResumeDrawPalette()
+    {
+        Array.Copy(_suspendedDrawPalette, _drawPalette, _drawPalette.Length);
+        Array.Copy(_suspendedPaltFlags, _paltFlags, _paltFlags.Length);
+    }
+
     public static void Palt(int colorIndex, bool transparent)
     {
         if (colorIndex >= 0 && colorIndex < _paltFlags.Length)
