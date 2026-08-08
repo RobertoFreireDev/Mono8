@@ -210,8 +210,6 @@ exceptions.
   feature.
 - **Guard the degenerate draw.** An unauthored `SIZE`/`HITSIZE`/`BARW` is 0, and `rect` with an empty
   extent draws inverted — every debug and HUD rect checks first.
-- **One home per shared number.** `Terrain.TileSize`, `Font`, `Btn` — a literal `8`, `4` or `5` in
-  game code is a bug waiting to drift.
 
 ---
 
