@@ -136,6 +136,7 @@ internal class MusicEditor : IEditor, IEditorConfig
         if (KeybrdInput.JustPressed(Keys.Space)) TogglePlayback();
 
         var mouse = _api.mousexy();
+        EditorUI.HoverPointer(IsOverControl(mouse));
         UpdatePatternStrip(mouse);
         UpdateLoopControls(mouse);
         UpdateChannels(mouse);
@@ -216,6 +217,37 @@ internal class MusicEditor : IEditor, IEditorConfig
         if (patternIndex < viewStart) viewStart = patternIndex;
         else if (patternIndex > viewStart + VisiblePatterns - 1) viewStart = patternIndex - (VisiblePatterns - 1);
         viewStart = Math.Clamp(viewStart, 0, MusicSheet.Count - VisiblePatterns);
+    }
+
+    /// <summary>
+    /// Whether the cursor rests on a control. Follows the click chains below rather than the drawn
+    /// boxes: a strip slot past the last pattern and an off channel's SFX number and pencil are
+    /// drawn or blank but take no click, so neither puts the pointer up. The note columns are a grid
+    /// the cursor edits in place and are left out.
+    /// </summary>
+    private bool IsOverControl((int x, int y) mouse)
+    {
+        if (prevArrow.Contains(mouse.x, mouse.y) || nextArrow.Contains(mouse.x, mouse.y)) return true;
+
+        for (int slot = 0; slot < VisiblePatterns; slot++)
+        {
+            if (viewStart + slot >= MusicSheet.Count) break;
+            if (PatBox(slot).Contains(mouse.x, mouse.y)) return true;
+        }
+
+        if (loopStartBtn.Bounds.Contains(mouse.x, mouse.y)) return true;
+        if (loopEndBtn.Bounds.Contains(mouse.x, mouse.y)) return true;
+        if (stopBtn.Bounds.Contains(mouse.x, mouse.y)) return true;
+
+        for (int c = 0; c < ChannelCount; c++)
+        {
+            if (ToggleRect(c).Contains(mouse.x, mouse.y)) return true;
+            if (!Music.IsChannelOn(patternIndex, c)) continue;
+            if (SfxNumRect(c).Contains(mouse.x, mouse.y)) return true;
+            if (PencilRect(c).Contains(mouse.x, mouse.y)) return true;
+        }
+
+        return false;
     }
 
     private void UpdatePatternStrip((int x, int y) mouse)

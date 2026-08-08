@@ -366,6 +366,10 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
             if (!IsLineVisible(y) || mouse.y < y || mouse.y >= y + RowH) continue;
 
             _events.SetHover(TypeHint(_inspected.Fields[block.Field], block.Item));
+
+            // The badge is the one control in the panel; the name and the value open an edit on a
+            // second click, and the rows around them are a list rather than buttons.
+            EditorUI.HoverPointer(true);
             return;
         }
     }
@@ -445,6 +449,7 @@ internal sealed class JsonEditor : IEditor, IEditorConfig
             if (!ActionRect(set, i).Contains(mouse.x, mouse.y)) continue;
 
             _events.SetHover(ActionHint(set[i]));
+            EditorUI.HoverPointer(true);
             if (_api.mouselp()) RunAction(set[i]);
             return;
         }

@@ -80,6 +80,16 @@ internal sealed class SpriteNavigator
         SelectedSprite = SpriteUnderMouse(mouse);
     }
 
+    /// <summary>Whether the cursor rests on a page button. The sheet itself is a canvas, not a control.</summary>
+    public bool IsOverPageButton((int x, int y) mouse)
+    {
+        for (int i = 0; i < _pageButtons.Length; i++)
+        {
+            if (_pageButtons[i].Contains(mouse.x, mouse.y)) return true;
+        }
+        return false;
+    }
+
     /// <summary>Switches page if a page button was clicked. Returns true when the click was consumed.</summary>
     public bool TryPickPage((int x, int y) mouse)
     {

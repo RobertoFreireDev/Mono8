@@ -170,8 +170,13 @@ internal class SfxEditor : IEditor, IEditorConfig
 
         // Read-only pass over every control, kept out of the click chains below because those take
         // their own branches per region. The shared menu bar sits above everything, so it wins.
-        string controlLabel = Mono8API.MenuBar.HoverLabel ?? HoverLabelAt(_api.mousexy());
+        string ownLabel = HoverLabelAt(_api.mousexy());
+        string controlLabel = Mono8API.MenuBar.HoverLabel ?? ownLabel;
         if (controlLabel != null) eventNotifier.SetHover(controlLabel);
+
+        // Every control here carries a label, so the label doubles as the hit test. The pitch, volume
+        // and note regions are canvases and have none.
+        EditorUI.HoverPointer(ownLabel != null);
 
         if (KeybrdInput.IsSaveShortcutPressed())
         {

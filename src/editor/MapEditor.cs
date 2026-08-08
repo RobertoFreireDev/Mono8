@@ -299,6 +299,8 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         string controlLabel = Mono8API.MenuBar.HoverLabel ?? HoverLabelAt(mouse);
         if (controlLabel != null) eventNotifier.SetHover(controlLabel);
 
+        EditorUI.HoverPointer(IsOverControl(mouse));
+
         if (!dragging && !panning && mapArea.Contains(mouse.x, mouse.y) && !IsOverButtonRow(mouse))
         {
             UpdateZoom(mouse, mapArea);
@@ -464,6 +466,29 @@ internal class MapEditor : IEditor, IAutotileGrid, IEditorConfig
         if (autotileButton.Bounds.Contains(mouse.x, mouse.y)) return "AUTOTILE";
 
         return null;
+    }
+
+    /// <summary>
+    /// Whether the cursor rests on a control. Separate from <see cref="HoverLabelAt"/>, which goes
+    /// null on the enabled layer's own pair: those two buttons carry no action to name but are still
+    /// buttons, and the pointer marks the row as chrome rather than as one more thing to paint on.
+    /// </summary>
+    private bool IsOverControl((int x, int y) mouse)
+    {
+        if (FullMapView) return false;
+
+        foreach (var (button, _) in toolButtons)
+        {
+            if (button.Bounds.Contains(mouse.x, mouse.y)) return true;
+        }
+
+        for (int layer = 0; layer < LayerCount; layer++)
+        {
+            if (LayerButtonRect(layer).Contains(mouse.x, mouse.y)) return true;
+            if (ViewHideButtonRect(layer).Contains(mouse.x, mouse.y)) return true;
+        }
+
+        return autotileButton.Bounds.Contains(mouse.x, mouse.y) || navigator.IsOverPageButton(mouse);
     }
 
     // The extra (rounded-up) map row can overlap the dark grey tool/page-button row;

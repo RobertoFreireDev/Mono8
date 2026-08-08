@@ -131,6 +131,9 @@ internal class Mono8API : IEditorAPI
                 }
                 else
                 {
+                    // The chrome raises the hover pointer from its own Update, so the frame starts
+                    // from the game's pointer and only what the cursor actually rests on puts it up.
+                    MousePointer.SetOverrideIcon(MousePointer.None);
                     MenuBar.Update();
                     Editors.Active.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
                 }

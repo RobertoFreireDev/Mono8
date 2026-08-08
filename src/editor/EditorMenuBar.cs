@@ -6,7 +6,6 @@ internal class EditorMenuBar
     private const int MapViewFullIcon = 14;
     private const int SfxViewPrimaryIcon = 30;
     private const int SfxViewAltIcon = 31;
-    private const int HoverPointerIcon = 67;
 
     private readonly IMono8API _api;
     private readonly EditorRegistry _registry;
@@ -48,7 +47,7 @@ internal class EditorMenuBar
         HoverLabel = HoverLabelAt(mouse);
 
         // A label means a button under the cursor, bar background and everything below it do not.
-        MousePointer.SetOverrideIcon(HoverLabel != null ? HoverPointerIcon : MousePointer.None);
+        EditorUI.HoverPointer(HoverLabel != null);
 
         if (_registry.Active is MapEditor mapEditor && _mapViewToggle.IsClicked(_api, mouse))
         {

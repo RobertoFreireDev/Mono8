@@ -10,6 +10,19 @@ internal static class EditorUI
     public const string NothingToUndoLabel = "NOTHING TO UNDO";
     public const string NothingToRedoLabel = "NOTHING TO REDO";
 
+    /// <summary>The pointer shown over anything in the editors that answers to a click.</summary>
+    private const int HoverPointerIcon = 67;
+
+    /// <summary>
+    /// Puts the hover pointer up while <paramref name="over"/> says the cursor rests on a control.
+    /// Only ever raises: the pointer is lowered once at the top of the editor frame, so each piece
+    /// of chrome speaks for its own controls alone and none can pull another's down again.
+    /// </summary>
+    public static void HoverPointer(bool over)
+    {
+        if (over) MousePointer.SetOverrideIcon(HoverPointerIcon);
+    }
+
     /// <summary>A filled box with a label in its top-left corner.</summary>
     public static void Box(IMono8API api, Rectangle b, string text, int bg, int fg)
     {
