@@ -11,8 +11,9 @@ namespace mono8.game;
 /// walks them, so adding a club is a matter of authoring one and naming it in the list. An
 /// unauthored bag leaves the ball hitting exactly as it did before there were clubs.
 ///
-/// The label is HUD — screen pixels, sitting over the <see cref="Meter"/> bar, and drawn whether or
-/// not the bar is up so the club can be picked while walking.
+/// The label is HUD — screen pixels, sitting over the <see cref="Meter"/> bar and to the right of the
+/// <see cref="Hud"/> strokes count that shares the row, and drawn whether or not the bar is up so the
+/// club can be picked while walking.
 /// </summary>
 internal static class Club
 {
@@ -43,6 +44,12 @@ internal static class Club
     private static int Index;
 
     private static int LabelGap;
+
+    /// <summary>
+    /// The y the bottom-left captions sit on — the row over the <see cref="Meter"/> bar, which the
+    /// <see cref="Hud"/> count shares.
+    /// </summary>
+    public static int LabelY => Meter.TopY - LabelGap - Font.Height;
 
     // The swap: how long the two labels are on screen together, and how far apart they are at the
     // ends of it. The club that is leaving drops away and the one arriving comes down from above,
@@ -138,8 +145,10 @@ internal static class Club
             return;
         }
 
-        int x = Meter.LeftX;
-        int y = Meter.TopY - LabelGap - Font.Height;
+        // Set in past the strokes count, which shares the row. SwapX is in the gap because a label
+        // mid-turn is pulled that far left, and it must not ride over the number when it is.
+        int x = Hud.RightX + Font.Advance + SwapX;
+        int y = LabelY;
 
         // How far through the turn: 1 once it is over, which is also what an unauthored SWAPSEC
         // leaves it at, so the label just changes.

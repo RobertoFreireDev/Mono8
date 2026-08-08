@@ -57,8 +57,70 @@ public static class Text
         return sb.Length == s.Length ? s : sb.ToString();
     }
 
-    /// <summary>Width in pixels of <paramref name="s"/> drawn on one line.</summary>
-    public static int Width(string s) => string.IsNullOrEmpty(s) ? 0 : s.Length * CharAdvance;
+    /// <summary>
+    /// Width in pixels of <paramref name="s"/> drawn on one line, with the colour markers
+    /// <see cref="DrawText"/> eats discounted so a marked-up string still centres and still sizes a
+    /// button correctly.
+    /// </summary>
+    public static int Width(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return 0;
+
+        int drawn = 0;
+        int unused = 0;
+
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == ColorMarker)
+            {
+                int consumed = ReadColorMarker(s, i, 0, ref unused);
+                if (consumed > 0)
+                {
+                    i += consumed - 1;
+                    continue;
+                }
+
+                if (i + 1 < s.Length && s[i + 1] == ColorMarker) i++;
+            }
+
+            drawn++;
+        }
+
+        return drawn * CharAdvance;
+    }
+
+    /// <summary>Introduces an inline colour change; doubled it is a literal '#'.</summary>
+    private const char ColorMarker = '#';
+
+    /// <summary>
+    /// Reads the colour marker starting at <paramref name="i"/>, which is known to be a
+    /// <see cref="ColorMarker"/>: <c>#XX</c> switches to palette index <c>XX</c> (two digits, always
+    /// zero-padded, 00 to <see cref="Constants.GameDataSizes.ColorPaletteMax"/>) and <c>#--</c> goes
+    /// back to the colour the draw was called with. Returns how many characters the marker spans, or
+    /// 0 when this '#' is not one — an out-of-range or malformed index is text like any other, so
+    /// nothing a developer types can be silently swallowed.
+    /// </summary>
+    private static int ReadColorMarker(string s, int i, int baseColor, ref int color)
+    {
+        if (i + 2 >= s.Length) return 0;
+
+        char high = s[i + 1];
+        char low = s[i + 2];
+
+        if (high == '-' && low == '-')
+        {
+            color = baseColor;
+            return 3;
+        }
+
+        if (high < '0' || high > '9' || low < '0' || low > '9') return 0;
+
+        int index = (high - '0') * 10 + (low - '0');
+        if (index > Constants.GameDataSizes.ColorPaletteMax) return 0;
+
+        color = index;
+        return 3;
+    }
 
     /// <summary>
     /// Cuts <c>data.font</c> into one texture per character. The sheet is a <see cref="PixelGrid"/>
@@ -102,12 +164,18 @@ public static class Text
     /// caller has always got and what <c>print</c> is documented to give a game, so it stays the
     /// default and only the JSON editor's Text values opt out — those are the one thing on screen
     /// whose case the developer typed and the file keeps.
+    ///
+    /// <para><paramref name="text"/> may recolour itself as it goes: <c>#XX</c> switches to palette
+    /// index <c>XX</c> for everything after it, <c>#--</c> goes back to <paramref name="colorIndex"/>,
+    /// and <c>##</c> draws a literal '#'. The switch carries across a '\n', so a whole wrapped
+    /// paragraph can be tinted by one marker. See <see cref="ReadColorMarker"/>.</para>
     /// </summary>
     public static void DrawText(string text, Vector2 position, int colorIndex, bool wraptext = false, int wrapLimit = 0, float colorOpaqueness = 1f, bool preserveCase = false)
     {
         string[] lines = (preserveCase ? text : text.ToUpper()).Split('\n');
         var copyPos = new Vector2(position.X, position.Y);
         int additionalLines = 0;
+        int color = colorIndex;
 
         if (wrapLimit == 0)
         {
@@ -139,6 +207,19 @@ public static class Text
                     continue;
                 }
 
+                if (key == ColorMarker)
+                {
+                    int consumed = ReadColorMarker(lines[i], j, colorIndex, ref color);
+                    if (consumed > 0)
+                    {
+                        j += consumed - 1;
+                        continue;
+                    }
+
+                    // Not a marker, so this is the '##' escape or a lone '#'; either way one glyph.
+                    if (j + 1 < lines[i].Length && lines[i][j + 1] == ColorMarker) j++;
+                }
+
                 // A font sheet the developer has not drawn a glyph into still has its (blank)
                 // texture, so this only misses when the character is not in the index at all.
                 if (!CharTextures.TryGetValue(key, out var charTexture) &&
@@ -151,7 +232,7 @@ public static class Text
                 Mono8Game.SpriteBatch.Draw(
                     charTexture,
                     new Vector2((int)position.X, (int)position.Y),
-                    colorIndex,
+                    color,
                     colorOpaqueness);
 
                 position += new Vector2(CharAdvance, 0);

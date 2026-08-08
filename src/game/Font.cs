@@ -30,14 +30,21 @@ internal static class Font
     /// the game has no say in — the room, the meter, the map. Five passes: the four neighbours, then
     /// the text itself over them.
     /// </summary>
-    public static void PrintOutlined(string text, int x, int y, int color, float opacity = 1f)
+    /// <param name="plain">
+    /// What the four black passes draw, when <paramref name="text"/> carries <c>print</c>'s inline
+    /// <c>#XX</c> colour markers — a marker would recolour the outline too, so the caller hands over
+    /// the marker-free version of the same caption. Both lay out identically, since a marker draws
+    /// nothing. Null is right for every caption that is a single colour.
+    /// </param>
+    public static void PrintOutlined(string text, int x, int y, int color, float opacity = 1f, string plain = null)
     {
         var api = YourGame.API;
+        string outline = plain ?? text;
 
-        api.print(text, x - 1, y, Constants.Colors.Black, opacity);
-        api.print(text, x + 1, y, Constants.Colors.Black, opacity);
-        api.print(text, x, y - 1, Constants.Colors.Black, opacity);
-        api.print(text, x, y + 1, Constants.Colors.Black, opacity);
+        api.print(outline, x - 1, y, Constants.Colors.Black, opacity);
+        api.print(outline, x + 1, y, Constants.Colors.Black, opacity);
+        api.print(outline, x, y - 1, Constants.Colors.Black, opacity);
+        api.print(outline, x, y + 1, Constants.Colors.Black, opacity);
         api.print(text, x, y, color, opacity);
     }
 }

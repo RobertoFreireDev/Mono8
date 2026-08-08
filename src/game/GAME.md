@@ -159,7 +159,7 @@ four fields together.
 | [Club.cs](Club.cs) | The bag: which club is selected, what it does to the shot, and the swapping label over the meter. Static. |
 | [Terrain.cs](Terrain.cs) | The map read as terrain — solid, stair columns. Stateless. |
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it. Static. |
-| [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX`. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as. Static. |
+| [Hud.cs](Hud.cs) | The strokes left, counted down from the room's `HITMAX` and drawn as two zero-padded digits at the left end of the row over the meter. `OutOfShots` is what loses the level, `Taken` is what a sunk hole is recorded as, `RightX` is where the `Club` label starts. Static. |
 | [Save.cs](Save.cs) | The levels finished, one `dget`/`dset` slot each — the strokes a hole was sunk in, or `-1` for one never finished. Read once at `Init`, written only by a hole dropping in. Owns the pause menu's `DELETE SAVE`, which puts every slot back to empty. Static. |
 | [Dust.cs](Dust.cs) | Foot dust particle pool, fixed size, allocated once. Static. |
 | [Steps.cs](Steps.cs) | Footstep sfx on a wall-clock interval while walking. Static. |
@@ -167,7 +167,7 @@ four fields together.
 | [SfxList.cs](SfxList.cs) | A sfx array field played one at a time at random — the footsteps and the club swap. Instance. |
 | [Motion.cs](Motion.cs) | The pixel-stepped travel and the gravity clamp the player and the ball both move by. Stateless. |
 | [Btn.cs](Btn.cs) | Button indices by name, so no `btn` call carries a bare number. |
-| [Font.cs](Font.cs) | The engine font's advance, line height and ink middle, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with. |
+| [Font.cs](Font.cs) | The engine font's advance, line height and ink middle, the string width captions are placed by, and `PrintOutlined` — the one call every caption in the game is drawn with, its `plain` argument the marker-free string its outline passes use. |
 | [Debug.cs](Debug.cs) | The one `Enabled` switch every overlay reads, toggled from the pause menu, persisted in slot 0. Draws the corner readout; the boxes belong to whoever owns them. |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code. |
 
@@ -307,8 +307,9 @@ so the club addressed is the club that hits. Each swap plays one of `ORDER.SFX` 
 in `LIST` but never authored is skipped rather than loaded as a zero-distance one, and an empty bag
 leaves the ball hitting exactly as `BALL/HITX`/`HITY` say — `Angle` 0, `Distance` 1, `GroundPower` 0.
 
-The label sits over the meter bar and is drawn whether or not the bar is up, so a club can be picked
-while walking. Over `HUD/CLUB.SWAPSEC` the outgoing name drops away and the incoming one comes down
+The label sits over the meter bar, set in past the strokes count that shares the row (`Hud.RightX`, one
+character of air, plus `SWAPX` so a label mid-turn cannot ride over the number), and is drawn whether or
+not the bar is up, so a club can be picked while walking. Over `HUD/CLUB.SWAPSEC` the outgoing name drops away and the incoming one comes down
 from above, both set back by `SWAPX`/`SWAPY` at their extremes so the pair reads as one face turning
 rather than two labels sliding past each other. A second press part way through picks the turn up from
 whatever is showing.
@@ -414,13 +415,23 @@ restarting a level nobody is going to see again would only undo the level about 
 ## Strokes
 
 `ROOMS/<name>.HITMAX` is how many strokes the room allows. `Hud` takes it at `Room.Enter`, prints it
-top-right through `Font.PrintOutlined`, and counts it down — `Swing.Launch` calls `CountHit` only for a
-stroke that actually sent the ball, so a whiff is free. The caption is rebuilt only when the number
-moves, and the count is floored at zero.
+through `Font.PrintOutlined`, and counts it down — `Swing.Launch` calls `CountHit` only for a stroke
+that actually sent the ball, so a whiff is free. The caption is rebuilt only when the number moves, and
+the count is floored at zero.
 
-The last strokes are called out in colour, since a number in the corner is easy to miss while lining up
-a shot: **two left is yellow, one is red**, and zero stays red — the frames before the room restarts
-are the most urgent the count ever is, not the least. Anything above two is white.
+The count is the **number alone** — no label — at the left end of the row over the meter bar, inset by
+`HUD/HITS.MARGIN`, with the `Club` label set in beside it and both on `Club.LabelY`. It is always
+**two digits, zero-padded**: `01`, `04`, `20`, and a room authored above `99` reads `99` rather than
+printing a third digit into the label. So the slot is a fixed two characters, `Hud.RightX` is a
+constant offset from `MARGIN`, and nothing on the row is placed off the number of the moment.
+
+The last strokes are called out in colour, since a number down in the corner is easy to miss while
+lining up a shot: **two left is yellow, one is red**, and zero stays red — the frames before the room
+restarts are the most urgent the count ever is, not the least. Anything above two is white. The colour
+rides on `print`'s inline marker rather than on the call's colour argument: the caption is `#085`, `#`
+plus the palette index as two digits. `Hud` caches the marker-free `HitPlain` beside it, because that
+is what `Font.PrintOutlined` must draw the four black passes with — a marker would recolour the outline
+too — and what any measurement of the caption has to go by, since a marker draws nothing.
 
 Spent strokes lose the level, but not on the stroke itself: the count runs out as the last ball leaves
 the club, and that shot is still the one that can drop in. `Room.Update` waits for `Ball.AtRest` — down,
@@ -543,7 +554,7 @@ inverted:
 | `CLUBS/ORDER` | `Club` | `LIST` — the club objects in swap order; `SFX` — the swap sounds to pick from |
 | `CLUBS/<name>` | `Club` | `NAME`, `ANGLE` (degrees), `DIST`, `GNDPWR` |
 | `HUD/METER` | `Meter` | `MARGIN` `BARW` `BARH` `BORDER` |
-| `HUD/HITS` | `Hud` | `LABEL` `MARGIN` — the count itself is the room's `HITMAX` |
+| `HUD/HITS` | `Hud` | `MARGIN` — the count itself is the room's `HITMAX`. `LABEL` is authored but **no longer read**: the corner shows the number alone |
 | `HUD/CLUB` | `Club` | `GAP` `SWAPSEC` `SWAPX` `SWAPY` |
 | `ANIM/<name>` | `Anim` | `ID` (sprite ids as Text), `SPEED` (fps), `MODE` — `FW` / `BW` / `RV` / `PP` |
 | `ANIM/PLRWALK` | also `Dust`, `Steps` | `PRTMAX` `PRTRATE` `PRTLIFE` `PRTPOS` `PRTVEL` `PRTGRAV` `PRTBIG`; `SFX` `SFXSEC` |
