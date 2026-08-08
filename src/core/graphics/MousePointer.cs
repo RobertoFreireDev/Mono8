@@ -10,9 +10,31 @@ namespace mono8.core.graphics;
 /// </summary>
 internal static class MousePointer
 {
-    private const int PointerIcon = 66;
+    public const int None = -1;
+
+    private const int DefaultIcon = 66;
+    private const int IconCount =
+        Constants.GameDataSizes.IconSheetX / Constants.GameDataSizes.TileSize *
+        (Constants.GameDataSizes.IconSheetY / Constants.GameDataSizes.TileSize);
 
     public static bool Visible = true;
+
+    // Unlike Visible, this outlives the game session: the pointer the developer chose stays chosen
+    // until the process ends, editors included.
+    private static int _icon = DefaultIcon;
+
+    // What the editor chrome wants the pointer to be right now — over a menu bar button, say. Kept
+    // apart from _icon so that letting go of it returns to whatever the game chose, not to the
+    // built-in pointer.
+    private static int _overrideIcon = None;
+
+    /// <summary>Anything outside the sheet restores the built-in pointer rather than drawing garbage.</summary>
+    public static void SetIcon(int n) => _icon = InSheet(n) ? n : DefaultIcon;
+
+    /// <summary>The chrome pointer, or <see cref="None"/> to hand the pointer back to the game's.</summary>
+    public static void SetOverrideIcon(int n) => _overrideIcon = InSheet(n) ? n : None;
+
+    private static bool InSheet(int n) => n >= 0 && n < IconCount;
 
     public static void Draw()
     {
@@ -26,7 +48,7 @@ internal static class MousePointer
         // The pointer is chrome, not part of the scene, so it ignores the pal/palt the frame left set
         // rather than being tinted or erased by it.
         ColorPalette.SuspendDrawPalette();
-        IconSheet.Draw(PointerIcon, x, y);
+        IconSheet.Draw(_overrideIcon != None ? _overrideIcon : _icon, x, y);
         ColorPalette.ResumeDrawPalette();
     }
 }

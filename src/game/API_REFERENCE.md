@@ -617,6 +617,26 @@ public void Init()
 }
 ```
 
+### `void mouseicon(int n)`
+
+Swaps the icon the pointer is drawn with. `n` indexes the same built-in icon sheet `icon()` draws
+from, so the whole sheet is available as a cursor; the icon's top-left pixel is still the one
+`mousexy()` reports, which is where the tip of the new pointer belongs.
+
+| Parameter | Meaning | Constraints |
+|---|---|---|
+| `n` | icon index | `0`–`95`; anything outside restores the built-in pointer |
+
+Constraints: unlike `mouse(bool)`, the choice is **not** scoped to the game session — it holds until
+the application closes, so leaving play with Esc hands the editors the pointer the game picked. It is
+never written to disk either: the next run starts from the built-in one. Set it back yourself
+(`mouseicon(-1)`) if the editors should keep the default.
+
+```csharp
+API.mouseicon(67);   // crosshair while aiming
+API.mouseicon(-1);   // back to the built-in pointer
+```
+
 ### While the window is unfocused
 
 Clicking away from the window dims the screen 30%, holds the last frame and stops calling your

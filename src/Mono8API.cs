@@ -142,6 +142,9 @@ internal class Mono8API : IEditorAPI
     public void InitGame()
     {
         _playingGame = true;
+        // The bar sets its hover pointer from its own Update, which stops running now — so a Ctrl+R
+        // with the cursor left on a bar button would carry that pointer into the game.
+        MousePointer.SetOverrideIcon(MousePointer.None);
         _game.Init();
     }
 
@@ -194,6 +197,7 @@ internal class Mono8API : IEditorAPI
     public bool mouser() => MouseInputBinding.RightPressed();
     public (int x, int y) mousexy() => MouseInputBinding.PosXY();
     public void mouse(bool visible) => MousePointer.Visible = visible;
+    public void mouseicon(int n) => MousePointer.SetIcon(n);
 
     public void camera(float x = 0, float y = 0)
     {

@@ -223,6 +223,19 @@ public interface IMono8API
     /// </summary>
     void mouse(bool visible);
 
+    /// <summary>
+    /// Swaps the icon the pointer is drawn with, <paramref name="n"/> indexing the built-in icon
+    /// sheet exactly as <see cref="icon"/> does. Its top-left pixel stays the one
+    /// <see cref="mousexy"/> reports, so draw the tip of the new pointer in that corner.
+    /// Anything outside the sheet restores the built-in pointer.
+    /// <para>
+    /// Unlike <see cref="mouse(bool)"/> the choice is not the game session's — it holds until the
+    /// application closes, so leaving play with Esc hands the editors the same pointer. Nothing is
+    /// written to disk; the next run starts from the built-in one again.
+    /// </para>
+    /// </summary>
+    void mouseicon(int n);
+
     // ============================================================
     // AUDIO
     // ============================================================
