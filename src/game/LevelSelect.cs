@@ -317,6 +317,15 @@ internal static class LevelSelect
             (int)(SlideY * Constants.Screen.ResolutionY * (1f - t)),
             t);
 
+        // The same dark the room would be under, over both halves of the slide at once rather than
+        // per preview: it is one night, and dimming each picture separately would show the seam
+        // where they cross. (0, 0) because the previews have put the camera back — the menu is drawn
+        // in screen pixels, so the screenful that falls dark starts at the screen's own corner.
+        //
+        // Under the grid, though: the numbers are the menu's and not the level's, and a cursor you
+        // have to find through a wash of black is a cursor lost at midnight.
+        Night.Draw(0, 0);
+
         if (Title.Length > 0)
         {
             Font.PrintOutlined(Title, TitleX, TitleY, Constants.Colors.White);

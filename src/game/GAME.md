@@ -54,8 +54,9 @@ the switch and only one runs per frame. **Every room entry goes through `YourGam
 why `RESTART LEVEL` lives there and why the menu cursor never falls behind the level being played.
 
 ```
-Init()    Debug → Levels → Save → Wipe → LevelSelect      (Levels first: the grid and the save slots
-                                                           are both indexed by room NUMBER)
+Init()    Debug → Levels → Save → Wipe → Night → LevelSelect   (Levels first: the grid and the save
+                                                                slots are both indexed by room NUMBER.
+                                                                Night here, not in a room: see below)
 
 Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
           menu down: Room.Update  (Player → Ball → Flag → Club → Clouds → out-of-bounds / spent strokes)
@@ -63,7 +64,7 @@ Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
                      Wipe.Update(player, in screen pixels)
                      Wipe.Closed? → YourGame.Advance: next level, or back to the menu
 
-Draw()    menu up:   LevelSelect.Draw
+Draw()    menu up:   LevelSelect.Draw  (preview(s) → Night → title → grid)
           menu down: map(BACKPOS) → camera(origin) → Sun → map(CELLPOS) → Flag → Player → Ball
                      → Moon → Clouds → Night → camera() → Meter → Club → Hud
           both:      Wipe.Draw, then Debug.Draw over everything
@@ -71,7 +72,8 @@ Draw()    menu up:   LevelSelect.Draw
 
 `Room.Enter` order matters in three places, and each is commented at the call: `Club` before the ball
 can leave a club face, `Sun` before `Player` (no sun, no shadow), `Moon` after `Sun` (it measures
-itself against the sun's sky), `Ball` before `Player` (the swing reads it on frame 1).
+itself against the sun's sky), `Ball` before `Player` (the swing reads it on frame 1). `Night` is
+**not** in that list — it is the one sky body a room does not initialise; see below.
 
 A room does not update the frame it is entered — its first frame is the next one. `Wipe` is the one
 thing that outlives a room, so it is `YourGame`'s and nothing inside a room resets it; it runs
@@ -90,7 +92,16 @@ fields together**.
 `Room.OriginX`/`OriginY` is `CELLPOS × 8`, and **world minus origin is screen** — the one conversion
 anything outside a room needs. All four sky bodies — `Sun`, `Moon`, `Clouds`, `Night` — are authored
 and measured in screen pixels and add the origin themselves, since they are drawn with the room's
-camera up: `Sun` bakes it into `X`/`Y` at `Init`, the other three cache the corner and add it at draw.
+camera up: `Sun` bakes it into `X`/`Y` at `Init`, `Moon` and `Clouds` cache the corner at `Init` and
+add it at draw, and `Night` is *handed* one per call — `Room` passes its own, `LevelSelect` passes
+`(0, 0)` because the menu is drawn in screen pixels with no camera up.
+
+**`Night` is the game's, not a room's.** `Night.Init()` takes no room and runs once, from
+`YourGame.Init`, because the hours that are night do not start over because a level did — and because
+the level select falls under the same dark, and it runs no room to load one. The cost is that a
+retune of `DAYCYCLE/NIGHT` lands on the next Ctrl+R rather than on the Ctrl+S; the other three still
+re-read per room entry. `Moon` reads `Night.Dim` at draw, so the load order in `YourGame.Init` is
+what keeps the two halves of `DAYCYCLE/NIGHT` agreeing about whether it is night.
 
 ---
 
@@ -112,7 +123,7 @@ camera up: `Sun` bakes it into `X`/`Y` at `Init`, the other three cache the corn
 | [Flag.cs](Flag.cs) | The flag sprite and its wave clip. The cup is measured off it |
 | [Sun.cs](Sun.cs) | The sun by the hour, its halo, and **the sky's geometry** (`Margin`, `Tiles`, `Span`) the moon shares |
 | [Moon.cs](Moon.cs) | The moon by the day of the month. Sprite only — the dark is `Night`'s |
-| [Night.cs](Night.cs) | The hours that are night and the one dim over the room's screenful. `Dim` is what the moon asks whether it is out |
+| [Night.cs](Night.cs) | The hours that are night and the one dim over a screenful. Loaded once by `YourGame`, drawn by both `Room` and `LevelSelect`. `Dim` is what the moon asks whether it is out |
 | [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky |
 | [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `RightX` where the club label starts |
 | [Save.cs](Save.cs) | The levels finished, one persistence slot each. Owns `DELETE SAVE` |
@@ -159,7 +170,10 @@ exceptions.
 - **`Sun.Margin`, `Sun.Tiles` and `Sun.Span` are the sky's, not the sun's.** There is one sky and it
   is authored once, on `DAYCYCLE/SUN`; the moon crosses the same line and authors no size of its own.
 - **The player's shadow is gated on `Sun.Present`**, and the level select's preview draws neither sun
-  nor moon — both are drawn from inside a room.
+  nor moon — both are initialised from inside a room, so there is nothing to place them against on
+  the menu. The `Night` over the preview is the exception, and the reason it is loaded by `YourGame`:
+  it needs no room, only the hour. It goes over the previews and *under* the grid, so the cursor is
+  still readable at midnight.
 
 ---
 

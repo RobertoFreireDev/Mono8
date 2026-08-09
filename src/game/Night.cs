@@ -8,7 +8,12 @@ namespace mono8.game;
 /// Drawn last of the room's own layers, over the terrain, the bodies and the <see cref="Clouds"/>
 /// alike, so a cloud at midnight is as dark as the ground under it — and before the camera goes back,
 /// so the HUD stays out of it. Its half of DAYCYCLE / NIGHT is the bands and their opacities; beyond
-/// them it reads the clock and the room's corner, and nothing else.
+/// them it reads the clock and the corner it is handed, and nothing else.
+///
+/// The hours belong to the game rather than to a room — the night does not start over because a level
+/// did — so unlike the other three sky bodies this is loaded once, from <see cref="YourGame.Init"/>,
+/// and no room initialises it. That is also what lets the <see cref="LevelSelect"/> draw it: the menu
+/// runs no room, so a night that only existed inside one could not fall over the menu's preview.
 /// </summary>
 internal static class Night
 {
@@ -42,9 +47,6 @@ internal static class Night
     private static float DeepOpacity;
     private static float TwilightOpacity;
 
-    private static int OriginX;
-    private static int OriginY;
-
     /// <summary>
     /// How dark this hour is, and 0 for an hour that is not night at all — which is also how the
     /// <see cref="Moon"/> asks whether it is out.
@@ -73,14 +75,14 @@ internal static class Night
     }
 
     /// <summary>
-    /// <paramref name="room"/> lends nothing but its corner — which screenful of the sheet falls
-    /// dark. The hours themselves are the NIGHT object's.
+    /// The hours and how dark each of them is, and nothing else — the corner that falls dark is the
+    /// caller's, handed to <see cref="Draw"/>. Called once, from <see cref="YourGame.Init"/>: a room
+    /// entry is not what makes it night, so re-reading this per entry would only cost the same file
+    /// read twenty times a run. A retune in the JSON editor lands on the next Ctrl+R rather than on
+    /// the Ctrl+S, which is the price of loading it once.
     /// </summary>
-    public static void Init(Room room)
+    public static void Init()
     {
-        OriginX = room.OriginX;
-        OriginY = room.OriginY;
-
         DeepFromHour = DefaultDeepFromHour;
         DeepToHour = DefaultDeepToHour;
         DuskFromHour = DefaultDuskFromHour;
@@ -103,7 +105,13 @@ internal static class Night
         TwilightOpacity = (float)data.GetDec(FieldTwilightOpacity, 0, DefaultTwilightOpacity);
     }
 
-    public static void Draw()
+    /// <summary>
+    /// One screenful of dark from <paramref name="originX"/>, <paramref name="originY"/> — the corner
+    /// in whatever space the caller's camera is up in. A room hands its own corner, since everything
+    /// it draws is in map-sheet pixels; anything drawn straight on the screen hands (0, 0). A room is
+    /// exactly one screen either way, so this covers it and nothing of the room beside it.
+    /// </summary>
+    public static void Draw(int originX, int originY)
     {
         float dim = Dim;
         if (dim <= 0f)
@@ -111,11 +119,9 @@ internal static class Night
             return;
         }
 
-        // One screenful, taken off the room's corner because the call site has the room's camera up —
-        // and a room is exactly one screen, so this covers it and nothing of the room beside it.
         // rectfill takes the far corner rather than a size.
-        YourGame.API.rectfill(OriginX, OriginY,
-            OriginX + Constants.Screen.ResolutionX - 1, OriginY + Constants.Screen.ResolutionY - 1,
+        YourGame.API.rectfill(originX, originY,
+            originX + Constants.Screen.ResolutionX - 1, originY + Constants.Screen.ResolutionY - 1,
             Constants.Colors.Black, dim);
     }
 }

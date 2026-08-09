@@ -103,8 +103,8 @@ internal class Room
         // sun it takes the room's corner and nothing else.
         Moon.Init(this);
 
-        // The dark the moon comes out in — the hours, and the corner of the screenful they fall over.
-        Night.Init(this);
+        // Night is not initialised here: the dark the moon comes out in belongs to the game rather
+        // than to a room, so YourGame loads it once and it is handed this room's corner at draw.
 
         // The sky is filled fresh on every entry, so a level is never re-entered under the same
         // clouds. Like the sun it takes only the room's corner.
@@ -197,7 +197,7 @@ internal class Room
         // both, so a cloud at midnight is as dark as the ground it drifts over rather than lit.
         Moon.Draw();
         Clouds.Draw();
-        Night.Draw();
+        Night.Draw(OriginX, OriginY);
 
         // HUD, over the room and back in screen pixels.
         api.camera();
