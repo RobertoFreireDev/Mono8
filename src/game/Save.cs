@@ -9,8 +9,8 @@ namespace mono8.game;
 /// strokes or walking out of bounds all leave the slot exactly as it was.
 ///
 /// Level N is slot N, and N is the room's NUMBER — not its object name, which is the developer's to
-/// change. <see cref="Levels"/> is what turns one into the other. Slot 0 is <see cref="Debug"/>'s,
-/// which is why the levels start at 1.
+/// change. <see cref="Levels"/> is what turns one into the other. Slot 0 belongs to no level — it
+/// carried the old debug toggle — which is why the levels start at 1.
 /// </summary>
 internal static class Save
 {
@@ -22,7 +22,7 @@ internal static class Save
     private const int SlotCount = Levels.MaxNumber + 1;
 
     // The one pause-menu entry that is up on both screens: the grid is where progress is looked at,
-    // so the menu is where a wipe is most wanted. YourGame owns 0, Debug 1, LevelSelect 2.
+    // so the menu is where a wipe is most wanted. YourGame owns 0, LevelSelect 2; 1 is free.
     private const int MenuIndex = 3;
     private const string MenuLabel = "DELETE SAVE";
 
@@ -106,10 +106,9 @@ internal static class Save
     }
 
     /// <summary>
-    /// The pause menu's DELETE SAVE: back to a save that has never been written. Every slot goes, not
-    /// just the levels — slot 0 is <see cref="Debug"/>'s and is persistence like any other — and then
-    /// the file is read back in, so what is left says "not played" in the same terms a fresh save does
-    /// rather than in terms of its own.
+    /// The pause menu's DELETE SAVE: back to a save that has never been written. Every slot goes, slot
+    /// 0 included, and then the file is read back in, so what is left says "not played" in the same
+    /// terms a fresh save does rather than in terms of its own.
     /// </summary>
     private static void Delete()
     {
@@ -126,9 +125,8 @@ internal static class Save
 
         Read();
 
-        // The two things holding a copy of what was just deleted: the toggle slot 0 carried, and the
-        // grid, which takes the results when it comes up and may be the screen this was chosen from.
-        Debug.Clear();
+        // The one thing holding a copy of what was just deleted: the grid, which takes the results
+        // when it comes up and may well be the screen this was chosen from.
         LevelSelect.Refresh();
     }
 }

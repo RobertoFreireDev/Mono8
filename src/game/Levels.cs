@@ -16,7 +16,7 @@ namespace mono8.game;
 /// </summary>
 internal static class Levels
 {
-    /// <summary>The lowest level number. Slot 0 in <see cref="Save"/> is <see cref="Debug"/>'s.</summary>
+    /// <summary>The lowest level number. Slot 0 in <see cref="Save"/> belongs to no level.</summary>
     public const int MinNumber = 1;
 
     /// <summary>

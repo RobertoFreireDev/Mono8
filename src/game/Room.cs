@@ -123,6 +123,9 @@ internal class Room
         Player.Init(this);
         Flag.Init(this);
         Hud.Init(HitMax);
+
+        // Last, and only about which level this is: the controls are explained on the first one.
+        Tutorial.Init(Number);
     }
 
     public void Update(float elapsedSeconds)
@@ -216,6 +219,7 @@ internal class Room
         Meter.Draw();
         Club.Draw();
         Hud.Draw();
+        Tutorial.Draw();
     }
 
     private void Load(string name)

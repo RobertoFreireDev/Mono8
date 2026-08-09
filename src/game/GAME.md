@@ -38,12 +38,14 @@ belongs to whoever owns the action, and taking one down is `menuitem(index)` wit
 | Index | Entry | Owner | Up on |
 |---|---|---|---|
 | 0 | `RESTART LEVEL` | `YourGame` | a room |
-| 1 | `DEBUG: ON/OFF` | `Debug` | a room |
 | 2 | `LEVELS` | `LevelSelect` | a room |
 | 3 | `DELETE SAVE` | `Save` | both screens |
 
-`LevelSelect.Show`/`Close` raise and lower the first three together — on the menu there is nothing to
+`LevelSelect.Show`/`Close` raise and lower the first two together — on the menu there is nothing to
 overlay, go back to or restart. `DELETE SAVE` is registered once in `Save.Init` and never taken down.
+**Index 1 is free**: it was the debug toggle, which a finished game does not ship. `Debug.Enabled` is
+now a field flipped in code, and `Save` slot 0 — the slot the toggle persisted in — belongs to
+nothing, which is still why the levels start at 1.
 
 ---
 
@@ -54,7 +56,7 @@ the switch and only one runs per frame. **Every room entry goes through `YourGam
 why `RESTART LEVEL` lives there and why the menu cursor never falls behind the level being played.
 
 ```
-Init()    Debug → Levels → Save → Wipe → Night → Daylight → LevelSelect
+Init()    Levels → Save → Wipe → Night → Daylight → LevelSelect
                                                                (Levels first: the grid and the save
                                                                 slots are both indexed by room NUMBER.
                                                                 Night and Daylight here, not in a
@@ -69,6 +71,7 @@ Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
 Draw()    menu up:   LevelSelect.Draw  (preview(s) → Night → Daylight → title → grid)
           menu down: map(BACKPOS) → camera(origin) → Sun → map(CELLPOS) → Flag → Player → Ball
                      → Moon → Clouds → Night → Daylight → camera() → Meter → Club → Hud
+                     → Tutorial (level 1 only)
           both:      Wipe.Draw, then Debug.Draw over everything
 ```
 
@@ -135,6 +138,7 @@ between `DAWNTO` and `DUSKFROM`, and `DUSKHR` to `NIGHT`'s `DUSKFROM`.
 | [Night.cs](Night.cs) | The hours that are night and the one dim over a screenful. Loaded once by `YourGame`, drawn by both `Room` and `LevelSelect`. `Dim` is what the moon asks whether it is out |
 | [Daylight.cs](Daylight.cs) | The daylight counterpart: warm from `DAWNHR` to `DAWNTO`, cool from `DUSKFROM` to `DUSKHR`, one `rectfill` either way. Loaded and drawn wherever `Night` is |
 | [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky |
+| [Tutorial.cs](Tutorial.cs) | The controls, one icon row per button, top-left of the first level only — each row up only while its button does something |
 | [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `RightX` where the club label starts |
 | [Save.cs](Save.cs) | The levels finished, one persistence slot each. Owns `DELETE SAVE` |
 | [Dust.cs](Dust.cs) | Foot dust pool, fixed size |
@@ -144,7 +148,7 @@ between `DAWNTO` and `DUSKFROM`, and `DUSKHR` to `NIGHT`'s `DUSKFROM`.
 | [Motion.cs](Motion.cs) | The pixel-stepped travel and gravity clamp the player and the ball share |
 | [Btn.cs](Btn.cs) | Button indices by name |
 | [Font.cs](Font.cs) | Font metrics and `PrintOutlined`, the one call every caption is drawn with |
-| [Debug.cs](Debug.cs) | The `Enabled` switch every overlay reads. Boxes belong to whoever owns them |
+| [Debug.cs](Debug.cs) | The `Enabled` switch every overlay reads — a code flag now, no menu entry. Boxes belong to whoever owns them |
 | [API_REFERENCE.md](API_REFERENCE.md) | Full `IMono8API` reference. Documentation, not game code |
 
 Most of the game is `static` — one player, one ball, one swing. `Room`, `Anim` and `SfxList` are the
@@ -162,15 +166,27 @@ exceptions.
   levels anywhere else: authoring a room with `NUMBER: 7` is what makes level 7 exist, and a number
   with no room behind it is a gap the grid skips and the cursor steps over. `Levels` turns a name
   into a number and back.
-- **`Save` slot N is level N.** Slot 0 is `Debug`'s (offset by one: `1` off, `2` on, so a fresh save
-  reads off). Slots 1-63 hold the strokes a hole was sunk in, or `-1` for never finished — `0` means
+- **`Save` slot N is level N.** Slot 0 is nobody's — it held the old debug toggle and is left alone.
+  Slots 1-63 hold the strokes a hole was sunk in, or `-1` for never finished — `0` means
   *nothing written yet*, which `Save.Init` maps to `-1`. `Levels.MaxNumber` is 63 because that is the
   last persistence slot there is. Only a sunk hole writes; losing, leaving or backing out never does.
 - **Flag `0` is a stair** alongside the project's solid flag `1`. A tile carrying both caps a stair —
   floor to anyone walking over it, a doorway to anyone on it. `Terrain.Blocked` is solid *minus*
   stair and is what a climb passes through.
 - **Sfx ids fixed in code:** `0` club on ball, `1` ball into the cup. Everything else is authored as
-  a json list and read through `SfxList`. **Sprite ids fixed in code: none.**
+  a json list and read through `SfxList`. **Sprite ids fixed in code: none.** **Icon ids fixed in
+  code:** `Tutorial`'s six button icons — `68`/`71` left and right, `72`-`75` Z, X, C, V — which are
+  the console's icon sheet and not the sprite sheet, so they are not a room's to re-author.
+- **The tutorial reads no json.** Its rows, captions and two-tile inset are consts in `Tutorial`,
+  since the icon ids it is built from are code as well. A `MENU/HINTS` object with a `POS` is where
+  the placement would go if it ever wants retuning without a rebuild.
+- **A hint asks the system that owns the button, never the state around it.** `Player.CanWalk`,
+  `Player.CanStartSwing`, `Swing.Aiming` and `Club.CanSwap` are each the condition that system
+  already gates its own press on — `Club.Update`, `Swing.TryCancel` and `Swing.Accepts` read the same
+  property the row does — so a retuned control cannot leave a hint promising a press that does
+  nothing. `REACH` retuned in json moves the ball the `GET READY` row appears at, with no code
+  change. Add a control, expose the same kind of
+  property rather than re-deriving it in `Tutorial`.
 - **Both bodies move one pixel at a time**, x and y separately, with a fractional remainder carried
   between frames (`Motion.Pixels`) — at these speeds a frame is several pixels and stepping is what
   stops tunnelling through thin walls and lands stops flush against quadrant-precise autotile edges.

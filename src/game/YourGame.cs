@@ -21,7 +21,7 @@ internal class YourGame : IEditor
     // the process, and every room entry already goes through Enter.
     private static readonly Room _room = new Room();
 
-    // Debug owns entry 1, LevelSelect 2, Save 3.
+    // LevelSelect owns entry 2, Save 3. Entry 1 was the debug toggle and is now free.
     private const int RestartIndex = 0;
     private const string RestartLabel = "RESTART LEVEL";
 
@@ -40,8 +40,6 @@ internal class YourGame : IEditor
         // Nothing here is aimed — the level select and the shot are both on the buttons — so the
         // pointer is only in the way. Esc back to the editors brings it straight back.
         API.mouse(false);
-
-        Debug.Init();
 
         // First: which room is which level is what the save slots and the grid are both indexed by.
         Levels.Init();
@@ -131,7 +129,7 @@ internal class YourGame : IEditor
     /// <summary>
     /// The pause menu's RESTART LEVEL, put up with the room and taken down with it — there is no level
     /// to restart while the level select is on screen. Both called by <see cref="LevelSelect"/>, which
-    /// is what knows which of the two is up, exactly as <see cref="Debug"/>'s pair is.
+    /// is what knows which of the two is up.
     /// </summary>
     public static void ShowRestart() => API.menuitem(RestartIndex, RestartLabel, RestartLevel);
 

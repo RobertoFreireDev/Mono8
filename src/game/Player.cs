@@ -104,7 +104,15 @@ internal static class Player
     /// on screen: the ball is in the cup, the hole is over, and nothing pressed can change either.
     /// Gravity is not part of it — a body caught in the air still settles while the screen closes.
     /// </summary>
-    private static bool Controlled => !Wipe.Active;
+    public static bool Controlled => !Wipe.Active;
+
+    /// <summary>
+    /// Whether the walk keys do anything this frame — the same three conditions
+    /// <see cref="UpdateWalk"/> gates on, which is what the <see cref="Tutorial"/> reads rather than
+    /// guessing at them. The jump shares the window; it is left out of standing on the ground on
+    /// purpose, since a hint that blinks off for the length of every jump is noise.
+    /// </summary>
+    public static bool CanWalk => !Swing.Active && !Climbing && Controlled;
 
     public static void Init(Room room)
     {

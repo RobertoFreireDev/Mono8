@@ -65,7 +65,7 @@ internal static class LevelSelect
     // The grid offers one cell per level number there can be, and no more.
     private const int MaxLevels = Levels.MaxNumber;
 
-    // YourGame owns entry 0, Debug 1, Save 3.
+    // YourGame owns entry 0, Save 3; 1 is free.
     private const int MenuIndex = 2;
     private const string MenuLabel = "LEVELS";
 
@@ -173,7 +173,6 @@ internal static class LevelSelect
         // one is up on both screens, and this is the screen it shows in.
         YourGame.API.menuitem(MenuIndex);
         YourGame.HideRestart();
-        Debug.Hide();
     }
 
     /// <summary>Takes the menu down, once <see cref="Picked"/> has been read.</summary>
@@ -182,7 +181,6 @@ internal static class LevelSelect
         Active = false;
         YourGame.API.menuitem(MenuIndex, MenuLabel, Show);
         YourGame.ShowRestart();
-        Debug.Show();
     }
 
     /// <summary>

@@ -61,6 +61,13 @@ internal static class Swing
     /// <summary>While true the club is on screen and <see cref="Sprite"/> is the frame to draw.</summary>
     public static bool Active => Current != Phase.Idle;
 
+    /// <summary>
+    /// The club is out and the shot has not been taken — addressed or pulled back. The window C backs
+    /// out of, and the one the swing-through press is waiting in, so it is what the
+    /// <see cref="Tutorial"/> reads to know which of the two the button is about to do.
+    /// </summary>
+    public static bool Aiming => Current == Phase.Ready || Current == Phase.Pull;
+
     /// <summary>How hard the ball is struck, 0 to 1 — the meter reading the swing-through was
     /// started on, run through <see cref="Strength"/>. 0 on a miss.</summary>
     public static float Power { get; private set; }
@@ -185,7 +192,7 @@ internal static class Swing
     /// </summary>
     private static bool TryCancel()
     {
-        if (Current != Phase.Ready && Current != Phase.Pull)
+        if (!Aiming)
         {
             return false;
         }

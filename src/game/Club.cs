@@ -76,6 +76,13 @@ internal static class Club
     /// <summary>For the debug overlay, and what the label prints.</summary>
     public static string Name => Loaded > 0 ? Names[Index] : string.Empty;
 
+    /// <summary>
+    /// Whether the button would change anything: a bag of one has nothing to walk to, and mid-swing
+    /// the club that was addressed is the club that hits. The condition <see cref="Update"/> presses
+    /// on, read by the <see cref="Tutorial"/>.
+    /// </summary>
+    public static bool CanSwap => Loaded > 1 && !Swing.Active;
+
     public static void Init()
     {
         var api = YourGame.API;
@@ -125,7 +132,7 @@ internal static class Club
         }
 
         // Not mid-swing: the club that was addressed is the club that hits.
-        if (Loaded > 1 && !Swing.Active && YourGame.API.btnp(Btn.Club))
+        if (CanSwap && YourGame.API.btnp(Btn.Club))
         {
             // Whatever is showing is what leaves, so a second press part way through a swap picks
             // the turn up from where it got to rather than snapping back.
