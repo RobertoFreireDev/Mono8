@@ -22,7 +22,7 @@ internal static class Save
     private const int SlotCount = Levels.MaxNumber + 1;
 
     // The one pause-menu entry that is up on both screens: the grid is where progress is looked at,
-    // so the menu is where a wipe is most wanted. LevelSelect owns 1, Debug 0, YourGame 2.
+    // so the menu is where a wipe is most wanted. YourGame owns 0, Debug 1, LevelSelect 2.
     private const int MenuIndex = 3;
     private const string MenuLabel = "DELETE SAVE";
 

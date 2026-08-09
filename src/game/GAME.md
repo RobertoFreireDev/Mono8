@@ -37,9 +37,9 @@ belongs to whoever owns the action, and taking one down is `menuitem(index)` wit
 
 | Index | Entry | Owner | Up on |
 |---|---|---|---|
-| 0 | `DEBUG: ON/OFF` | `Debug` | a room |
-| 1 | `LEVELS` | `LevelSelect` | a room |
-| 2 | `RESTART LEVEL` | `YourGame` | a room |
+| 0 | `RESTART LEVEL` | `YourGame` | a room |
+| 1 | `DEBUG: ON/OFF` | `Debug` | a room |
+| 2 | `LEVELS` | `LevelSelect` | a room |
 | 3 | `DELETE SAVE` | `Save` | both screens |
 
 `LevelSelect.Show`/`Close` raise and lower the first three together — on the menu there is nothing to

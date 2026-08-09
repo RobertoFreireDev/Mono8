@@ -64,8 +64,8 @@ internal static class LevelSelect
     // The grid offers one cell per level number there can be, and no more.
     private const int MaxLevels = Levels.MaxNumber;
 
-    // Debug owns entry 0, YourGame 2, Save 3.
-    private const int MenuIndex = 1;
+    // YourGame owns entry 0, Debug 1, Save 3.
+    private const int MenuIndex = 2;
     private const string MenuLabel = "LEVELS";
 
     // Measured once per Init and indexed by cell, so a frame of the menu allocates nothing. Cell i is

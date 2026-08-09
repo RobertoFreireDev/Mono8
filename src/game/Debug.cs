@@ -6,7 +6,8 @@ namespace mono8.game;
 /// </summary>
 internal static class Debug
 {
-    private const int MenuIndex = 0;
+    // YourGame owns entry 0, LevelSelect 2, Save 3.
+    private const int MenuIndex = 1;
 
     // Persistence slot. A fresh save reads 0, so the stored value is offset by one and 0 means
     // "never toggled" — which lands on off, the default.

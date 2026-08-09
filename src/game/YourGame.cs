@@ -21,8 +21,8 @@ internal class YourGame : IEditor
     // the process, and every room entry already goes through Enter.
     private static readonly Room _room = new Room();
 
-    // Debug owns entry 0, LevelSelect 1, Save 3.
-    private const int RestartIndex = 2;
+    // Debug owns entry 1, LevelSelect 2, Save 3.
+    private const int RestartIndex = 0;
     private const string RestartLabel = "RESTART LEVEL";
 
     public static IMono8API API;
