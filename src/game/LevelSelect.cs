@@ -6,7 +6,7 @@ namespace mono8.game;
 /// One number per level in a grid centred on the screen. Level N is the room whose NUMBER is N —
 /// <see cref="Levels"/> is what finds it, whatever the developer called the object — so what has
 /// been authored is what can be picked, and a number with no room behind it is not drawn at all.
-/// That is how a grid laid out for twenty shows five.
+/// That is how a grid laid out for twelve shows however many rooms exist.
 ///
 /// Behind the grid is the level the cursor is on: its backdrop, its cells and its flag, at the
 /// camera the room itself would use — picking a hole is picking a picture of it. Only the three
@@ -46,10 +46,11 @@ internal static class LevelSelect
     // The clip the previewed flag waves on — the same one the room's flag runs.
     private const string FlagAnim = "FLAG";
 
-    // MENU/GRID is not authored yet, so everything it holds has a default here: the 5x4 of twenty
-    // levels the game asks for, in cells wide enough for two digits and the space around them.
-    private const int DefaultCols = 5;
-    private const int DefaultRows = 4;
+    // Every field of MENU/GRID has a default here, so a half-authored object still lays out: the 4x3
+    // of twelve levels the game asks for, in cells wide enough for two digits and the space around
+    // them.
+    private const int DefaultCols = 4;
+    private const int DefaultRows = 3;
     private const int DefaultCellW = 32;
     private const int DefaultCellH = 20;
 
@@ -253,7 +254,7 @@ internal static class LevelSelect
 
         Wave.Update(elapsedSeconds);
 
-        // One cell per press, no repeat: a menu of twenty is small enough that held-key repeat would
+        // One cell per press, no repeat: a menu of twelve is small enough that held-key repeat would
         // overshoot more often than it would help.
         if (api.btnp(Btn.Left))
         {

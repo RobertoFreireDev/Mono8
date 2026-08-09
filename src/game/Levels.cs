@@ -21,7 +21,7 @@ internal static class Levels
 
     /// <summary>
     /// The highest. dget/dset hold 64 ints, so 63 is the last number a result can be recorded for —
-    /// well past the 20 the grid offers.
+    /// well past the 12 the grid offers.
     /// </summary>
     public const int MaxNumber = 63;
 

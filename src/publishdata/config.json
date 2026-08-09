@@ -5,7 +5,7 @@
   "MAP": { "TOOL": 0, "LAYER": 0, "VISIBLE": [true, true, false, false], "CAMX": 37, "CAMY": 42, "ZOOM": 2 },
   "SFX": { "INDEX": 4 },
   "MUSIC": { "PATTERN": 0 },
-  "JSON": { "GROUP": "ROOMS", "OBJECT": "12", "COLLAPSED": ["GAME", "MENU", "PLAYER", "CLUBS", "BALL", "SWING", "HUD", "ANIM", "DAYCYCLE", "CLOUDS"] },
+  "JSON": { "GROUP": "MENU", "OBJECT": "GRID", "COLLAPSED": ["GAME", "ROOMS", "PLAYER", "CLUBS", "BALL", "SWING", "HUD", "ANIM", "DAYCYCLE", "CLOUDS"] },
   "ONION": [
     { "SPR": 9, "REF": 8, "ORDER": 0, "TINT": 1, "OPACITY": 1 },
     { "SPR": 10, "REF": 8, "ORDER": 1, "TINT": 2, "OPACITY": 1 },

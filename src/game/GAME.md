@@ -200,7 +200,7 @@ exceptions.
 
 | Group / object | Read by | Holds |
 |---|---|---|
-| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (default 5×4), `CELL` (px, default `(32, 20)`), `TITLE`. `PAD` is authored but **no longer read** |
+| `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (default 4×3), `CELL` (px, default `(32, 20)`), `TITLE`. `PAD` is authored but **no longer read** |
 | `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (cells), `BACKPOS` (cells, absolute, default `(256, 0)` = map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet px, absolute), `PLYRDIR` (spawn facing: `1` right — also the default when absent — `0` or `-1` left), `HITMAX` (default 5; ≤0 = unlimited), `NUMBER` (`1`-`63`) |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` `OUTSEC` `INSEC` `COLOR` `DITHER` — **not authored; defaults run**. `COLOR` and `DITHER` are a pair: the dither sprite's holes are white, so the draw is wrapped in `palt(7, true)` and the mask colour must be the sprite's other colour |
 | `DAYCYCLE/DAY` | `Sun` and `Daylight`, a half each; `Moon` for the sky | **Shared:** `DAWNHR` `DUSKHR` — outside them there is no sun and no cast. **`Sun`:** `SPR` `TILES`, `MARGIN`, `GLOWRAD` `GLOWCOL` (paired by index, widest last) `GLOWOPA`. **`Daylight`:** `DAWNTO` where the morning's cast lets go and `DUSKFROM` where the afternoon's picks up (both pinned inside the day; leave them apart for a plain midday, together for a day of two halves), `DAWNCOL` `DAWNOPA`, `DUSKCOL` `DUSKOPA` |
@@ -223,10 +223,9 @@ exceptions.
 
 ### Authored so far
 
-- **Twenty rooms**, `ROOMS/01`-`20`, numbered `1`-`20`. Only `01`-`05` have a cut of the map sheet of
-  their own, along the top row (`CELLPOS` `(0, 0)`, `(32, 0)`, `(64, 0)`, `(96, 0)`, `(128, 0)`);
-  `06`-`20` all point back at `02`'s `CELLPOS` with their own spawns — the numbers exist, the levels
-  do not.
+- **Twelve rooms**, `ROOMS/01`-`12`, numbered `1`-`12`, each with a cut of the map sheet of its own:
+  three rows of five, four and three across the top-left of the sheet (`CELLPOS` y `0`, `18`, `36`).
+  The grid is authored `4`×`3` to match — twelve cells, no empties.
 - **Clips:** `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 - **Clubs:** `DRIVER`, `WEDGE`, `PUTTER`.
 - **Clouds:** three kinds (`O1`-`O3`), `CONFIG` fully authored.
@@ -255,6 +254,5 @@ exceptions.
 - **No scorecard.** `Save` holds the stroke count and nothing draws it: the grid shows *whether* a
   hole is done, not what it was done in. No par, no per-hole result screen, nothing at the end of a
   run but the level select coming back up.
-- **Fifteen placeholder rooms** (`06`-`20`) waiting for a map.
 - **Running out of strokes restarts the room with no notice** — no caption, no pause, no sound.
 - **`GAME/WIPE` is unauthored**; the wipe runs on code defaults.

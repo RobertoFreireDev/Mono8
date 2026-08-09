@@ -6,8 +6,8 @@
   },
   "MENU": {
     "GRID": {
-      "COLS:i": 5,
-      "ROWS:i": 4,
+      "COLS:i": 4,
+      "ROWS:i": 3,
       "CELL:p": [32, 20],
       "PAD:i": 3,
       "TITLE:t": "SELECT LEVEL"
