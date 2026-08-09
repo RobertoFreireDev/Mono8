@@ -27,6 +27,12 @@ internal static class Hud
     private static string HitPlain;
 
     /// <summary>
+    /// Screen x the corner's captions start at — what anything else stacked in the column, like the
+    /// <see cref="LevelHud"/>, lines itself up on.
+    /// </summary>
+    public static int LeftX => Margin;
+
+    /// <summary>
     /// Screen x just past the count, which is where the <see cref="Club"/> label lines itself up
     /// from. Fixed, since the slot is.
     /// </summary>

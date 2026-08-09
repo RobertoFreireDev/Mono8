@@ -68,7 +68,7 @@ internal class YourGame : IEditor
             if (LevelSelect.Picked != null)
             {
                 LevelSelect.Close();
-                Enter(LevelSelect.Picked);
+                Enter(LevelSelect.Picked, arrived: true);
             }
 
             return;
@@ -113,17 +113,27 @@ internal class YourGame : IEditor
             return;
         }
 
-        Enter(next);
+        Enter(next, arrived: true);
         Wipe.Open();
     }
 
     // Every room entry goes through here, so the menu's cursor never falls behind the level actually
     // being played: pausing out of the third hole comes back to the menu on 3, not on the 1 picked
     // to start the run.
-    private static void Enter(string name)
+    //
+    // <paramref name="arrived"/> is a level reached — picked off the menu, or come up behind the wipe
+    // — as against one started over, which is the same load without having got anywhere. Only this
+    // method can tell the two apart: Room.Enter is what a lost room restarts itself with, and it
+    // reads the same from the inside either way. The call-out goes after the load, which clears it.
+    private static void Enter(string name, bool arrived)
     {
         LevelSelect.Focus(name);
         _room.Enter(name);
+
+        if (arrived)
+        {
+            LevelHud.Highlight();
+        }
     }
 
     /// <summary>
@@ -146,7 +156,7 @@ internal class YourGame : IEditor
         }
 
         Wipe.Stop();
-        Enter(_room.Name);
+        Enter(_room.Name, arrived: false);
     }
 
     public void Draw()

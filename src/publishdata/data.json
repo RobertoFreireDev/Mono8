@@ -276,7 +276,7 @@
       "DAWNCOL:i": 9,
       "DAWNOPA:d": 0.2,
       "DUSKCOL:i": 2,
-      "DUSKOPA:d": 0.4
+      "DUSKOPA:d": 0.2
     },
     "NIGHT": {
       "SPR:i": 129,

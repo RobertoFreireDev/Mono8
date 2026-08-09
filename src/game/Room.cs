@@ -124,7 +124,10 @@ internal class Room
         Flag.Init(this);
         Hud.Init(HitMax);
 
-        // Last, and only about which level this is: the controls are explained on the first one.
+        // Last, and only about which level this is: the corner says which one, and the controls are
+        // explained on the first one. Neither raises the level's call-out — a restart comes through
+        // here as well, and only YourGame knows an entry from a restart.
+        LevelHud.Init(Number);
         Tutorial.Init(Number);
     }
 
@@ -136,6 +139,9 @@ internal class Room
 
         // After the player, so the swing state the toggle checks is this frame's.
         Club.Update(elapsedSeconds);
+
+        // HUD, and only a timer running down — nothing reads it, so the slot does not matter.
+        LevelHud.Update(elapsedSeconds);
 
         // Scenery — nothing reads the clouds, so this only has to happen once a frame.
         Clouds.Update(elapsedSeconds);
@@ -219,6 +225,7 @@ internal class Room
         Meter.Draw();
         Club.Draw();
         Hud.Draw();
+        LevelHud.Draw();
         Tutorial.Draw();
     }
 

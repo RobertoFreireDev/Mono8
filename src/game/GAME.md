@@ -71,7 +71,7 @@ Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
 Draw()    menu up:   LevelSelect.Draw  (preview(s) → Night → Daylight → title → grid)
           menu down: map(BACKPOS) → camera(origin) → Sun → map(CELLPOS) → Flag → Player → Ball
                      → Moon → Clouds → Night → Daylight → camera() → Meter → Club → Hud
-                     → Tutorial (level 1 only)
+                     → LevelHud → Tutorial (level 1 only)
           both:      Wipe.Draw, then Debug.Draw over everything
 ```
 
@@ -139,7 +139,8 @@ between `DAWNTO` and `DUSKFROM`, and `DUSKHR` to `NIGHT`'s `DUSKFROM`.
 | [Daylight.cs](Daylight.cs) | The daylight counterpart: warm from `DAWNHR` to `DAWNTO`, cool from `DUSKFROM` to `DUSKHR`, one `rectfill` either way. Loaded and drawn wherever `Night` is |
 | [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky |
 | [Tutorial.cs](Tutorial.cs) | The controls, one icon row per button, top-left of the first level only — each row up only while its button does something |
-| [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `RightX` where the club label starts |
+| [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `LeftX`/`RightX` the two ends of the corner's column |
+| [LevelHud.cs](LevelHud.cs) | `LEVEL n` above the strokes count, up for three seconds on a level *arrived at* and then gone |
 | [Save.cs](Save.cs) | The levels finished, one persistence slot each. Owns `DELETE SAVE` |
 | [Dust.cs](Dust.cs) | Foot dust pool, fixed size |
 | [Steps.cs](Steps.cs) | Footstep sfx on an interval while walking |
@@ -177,6 +178,23 @@ exceptions.
   a json list and read through `SfxList`. **Sprite ids fixed in code: none.** **Icon ids fixed in
   code:** `Tutorial`'s six button icons — `68`/`71` left and right, `72`-`75` Z, X, C, V — which are
   the console's icon sheet and not the sprite sheet, so they are not a room's to re-author.
+- **A level arrived at is not the same entry as a level started over**, and only `YourGame.Enter`
+  can tell them apart — `Room.Enter` is also what a room lost or walked out of restarts *itself*
+  with, and reads identically from the inside. So `LevelHud.Init` (which every entry runs) *clears*
+  the call-out and `YourGame.Enter(name, arrived: true)` is the only thing that raises it: the menu
+  pick and `Advance` pass `true`, `RESTART LEVEL` passes `false`. Anything else that ever wants to
+  fire on arrival and not on restart hangs off the same flag rather than re-deriving it.
+- **The bottom-left corner is one column, measured bottom-up off the meter bar.** `Meter.TopY` is
+  `HUD/METER.MARGIN` from the bottom, `Club.LabelY` is `HUD/CLUB.GAP` above that, and the level
+  caption is `LevelHud.RowGap` above *that* — so a retuned meter margin still moves the whole stack
+  together. `Hud.LeftX` is the x all of it starts at. The level row is the only one of the three that
+  is not always up, and its slot is left empty rather than closed up: it is the top of the column, so
+  nothing has to move when it goes.
+- **Every caption over the room is white on a one-pixel black outline** — `Font.PrintOutlined` and
+  nothing else. The level caption is no exception: what makes it a call-out is the three seconds, not
+  a colour of its own.
+- **The level caption reads no json**, for the same reason the tutorial does not: a `HUD/LEVEL`
+  object with a `POS` is where the placement would go if it ever wants retuning without a rebuild.
 - **The tutorial reads no json.** Its rows, captions and two-tile inset are consts in `Tutorial`,
   since the icon ids it is built from are code as well. A `MENU/HINTS` object with a `POS` is where
   the placement would go if it ever wants retuning without a rebuild.
