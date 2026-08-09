@@ -174,7 +174,7 @@ internal static class Player
         RemX = 0f;
         RemY = 0f;
         OnGround = false;
-        FacingLeft = false;
+        FacingLeft = room.PlayerFacingLeft;
         Climbing = false;
         Moving = false;
         AnimClimbing = false;

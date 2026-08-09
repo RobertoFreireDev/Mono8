@@ -36,6 +36,7 @@ internal class Room
     private const string FieldBall = "BALLPOS";
     private const string FieldHitMax = "HITMAX";
     private const string FieldNumber = "NUMBER";
+    private const string FieldPlayerDir = "PLYRDIR";
 
     public string Name { get; private set; }
 
@@ -53,6 +54,13 @@ internal class Room
 
     public int PlayerX { get; private set; }
     public int PlayerY { get; private set; }
+
+    /// <summary>
+    /// Which way the player is turned on entry, from PLYRDIR: 1 is right, 0 or -1 is left. Right is
+    /// the default, so a room that authors nothing spawns facing the way the map is usually laid
+    /// out.
+    /// </summary>
+    public bool PlayerFacingLeft { get; private set; }
 
     public bool HasFlag { get; private set; }
     public int FlagX { get; private set; }
@@ -254,6 +262,7 @@ internal class Room
 
         PlayerX = originX;
         PlayerY = originY;
+        PlayerFacingLeft = false;
         HasFlag = false;
         FlagX = originX;
         FlagY = originY;
@@ -271,6 +280,10 @@ internal class Room
         {
             (PlayerX, PlayerY) = data.GetXY(FieldPlayer);
         }
+
+        // Anything that is not a step to the right is a turn to the left, so 0 and -1 both face
+        // left. Only the fallback for a room that authors nothing at all is right.
+        PlayerFacingLeft = data.GetInt(FieldPlayerDir, 0, 1) <= 0;
 
         if (data.Has(FieldFlag))
         {
