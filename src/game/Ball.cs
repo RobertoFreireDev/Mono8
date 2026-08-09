@@ -65,6 +65,10 @@ internal static class Ball
     public static int CenterX => X + Size / 2;
     public static int CenterY => Y + Size / 2;
 
+    /// <summary>Bottom row of the ball — the row it rests a floor on, and what the
+    /// <see cref="Player"/> levels its own feet against. An unauthored SIZE reads as 1.</summary>
+    public static int BottomY => Y + (Size > 0 ? Size : 1) - 1;
+
     /// <summary>Whether the ball can still be addressed and struck — not once it is going down.</summary>
     public static bool InPlay => Present && !Sinking;
 

@@ -126,93 +126,13 @@
     },
     "12": {
       "CELLPOS:p": [32, 36],
-      "FLAGPOS:p": [436, 105],
+      "FLAGPOS:p": [322, 345],
       "PLYRPOS:p": [304, 390],
       "PLYRDIR:i": 1,
       "BALLPOS:p": [308, 390],
       "BACKPOS:p": [256, 0],
-      "HITMAX:i": 8,
+      "HITMAX:i": 10,
       "NUMBER:i": 12
-    },
-    "13": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 13
-    },
-    "14": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 14
-    },
-    "15": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 15
-    },
-    "16": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 16
-    },
-    "17": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 17
-    },
-    "18": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 18
-    },
-    "19": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 19
-    },
-    "20": {
-      "CELLPOS:p": [32, 0],
-      "FLAGPOS:p": [436, 105],
-      "PLYRPOS:p": [286, 96],
-      "PLYRDIR:i": 1,
-      "BALLPOS:p": [302, 96],
-      "BACKPOS:p": [256, 0],
-      "HITMAX:i": 5,
-      "NUMBER:i": 20
     }
   },
   "PLAYER": {
@@ -226,9 +146,10 @@
       "GRAVITY:d": 450,
       "JUMP:d": 98,
       "MAXFALL:d": 200,
-      "REACH:p": [6, 4],
+      "REACH:p": [6, 2],
+      "REACHUP:i": 1,
       "CLUBX:i": 4,
-      "FAILTXT:t": "Miss!",
+      "FAILTXT:t": "MISS!",
       "FAILY:i": 10
     }
   },

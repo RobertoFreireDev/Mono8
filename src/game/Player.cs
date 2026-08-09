@@ -69,10 +69,12 @@ internal static class Player
     // CLUBX is the sprite-local x of the club head at address facing right — where the ball has to
     // be for the swing to look like it connects, mirrored for facing left, and past the sprite edge
     // is fine. REACH is how far off that point the ball can still be addressed, x and y apart: x is
-    // measured from the club head, y from the whole body.
+    // measured from the club head, y from the foot line — and the two directions off that line are
+    // not the same slack, since the club swings along the ground rather than up it.
     private static int ClubX;
     private static int ReachX;
-    private static int ReachY;
+    private static int ReachDown;
+    private static int ReachUp;
 
     // The miss, shouted over the head.
     private static string FailText;
@@ -133,7 +135,8 @@ internal static class Player
         MaxFallSpeed = 0f;
         ClubX = 0;
         ReachX = 0;
-        ReachY = 0;
+        ReachDown = 0;
+        ReachUp = 0;
         FailText = string.Empty;
         FailTextY = 0;
 
@@ -154,7 +157,8 @@ internal static class Player
         JumpSpeed = (float)stats.GetDec("JUMP");
         MaxFallSpeed = (float)stats.GetDec("MAXFALL");
         ClubX = stats.GetInt("CLUBX");
-        (ReachX, ReachY) = stats.GetXY("REACH");
+        (ReachX, ReachDown) = stats.GetXY("REACH");
+        ReachUp = stats.GetInt("REACHUP");
         FailText = stats.GetStr("FAILTXT");
         FailTextY = stats.GetInt("FAILY");
     }
@@ -180,6 +184,10 @@ internal static class Player
         AnimClimbing = false;
     }
 
+    /// <summary>Bottom row of the body — what the player stands on, and what the ball is levelled
+    /// against. An unauthored SPRSIZE reads as 1 for the same reason the walk limits do it.</summary>
+    private static int FootY => Y + (SprSize > 0 ? SprSize : 1) - 1;
+
     /// <summary>
     /// Whether a swing may start here: both feet down and the ball within reach of the club head.
     /// The <see cref="Swing"/> asks before leaving Idle, so a press over open ground does nothing.
@@ -191,20 +199,20 @@ internal static class Player
             return false;
         }
 
-        // Vertically the ball is measured against the whole body, not its centre: a ball resting by
-        // the player's feet is level with them, and at this reach a centre-to-centre test would
-        // read that as out of range.
-        int dy = 0;
-        if (Ball.CenterY < Y)
+        // Vertically it is foot line against foot line — the bottom of the body against the bottom
+        // of the ball — which is the one comparison that does not move with either size: a ball
+        // resting on the floor the player is standing on reads exactly 0 whatever SPRSIZE and SIZE
+        // are. A centre-against-body test read the whole sprite as level, so a ball on a ledge at
+        // chest height was addressable from below it; the club swings along the ground and cannot
+        // reach up there. Hence the two slacks apart: REACHUP is the little the ball may sit above
+        // the feet, REACH's y the dip the club can still come down into.
+        int dy = Ball.BottomY - FootY;
+        if (dy > ReachDown || -dy > ReachUp)
         {
-            dy = Y - Ball.CenterY;
-        }
-        else if (Ball.CenterY > Y + SprSize - 1)
-        {
-            dy = Ball.CenterY - (Y + SprSize - 1);
+            return false;
         }
 
-        return YourGame.API.abs(Ball.CenterX - ClubPointX) <= ReachX && dy <= ReachY;
+        return YourGame.API.abs(Ball.CenterX - ClubPointX) <= ReachX;
     }
 
     /// <summary>
@@ -612,10 +620,12 @@ internal static class Player
     }
 
     /// <summary>
-    /// Where the ball's centre has to be for <see cref="CanStartSwing"/> to say yes — CLUBX and
-    /// REACH drawn as the box they add up to, green once the ball is actually inside it. There is no
-    /// tuning those two blind, since the window is a relationship between the player and the ball
-    /// rather than anything visible on either sprite.
+    /// Where the ball has to be for <see cref="CanStartSwing"/> to say yes — CLUBX, REACH and
+    /// REACHUP drawn as the box they add up to, green once the ball is actually inside it. The two
+    /// axes are read off different parts of the ball, so the box is too: its width is where the
+    /// centre may be, its height where the bottom row may land. There is no tuning any of it blind,
+    /// since the window is a relationship between the player and the ball rather than anything
+    /// visible on either sprite.
     /// </summary>
     private static void DrawAddressDebug()
     {
@@ -625,8 +635,9 @@ internal static class Player
         }
 
         int mid = ClubPointX;
+        int foot = FootY;
 
-        YourGame.API.rect(mid - ReachX, Y - ReachY, mid + ReachX, Y + SprSize - 1 + ReachY,
+        YourGame.API.rect(mid - ReachX, foot - ReachUp, mid + ReachX, foot + ReachDown,
             CanStartSwing() ? Constants.Colors.Green : Constants.Colors.Pink);
     }
 

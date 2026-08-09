@@ -175,6 +175,11 @@ exceptions.
   between frames (`Motion.Pixels`) — at these speeds a frame is several pixels and stepping is what
   stops tunnelling through thin walls and lands stops flush against quadrant-precise autotile edges.
   What a blocked step *means* is each body's own: the player stops, the ball bounces.
+- **The ball is addressed foot line to foot line.** `Player.FootY` against `Ball.BottomY`, so a ball
+  on the floor the player stands on reads 0 whatever `SPRSIZE` and `SIZE` are. The slack is
+  asymmetric on purpose — the club swings along the ground, so `REACHUP` (above the feet, `0` = the
+  ball may never be higher than the player stands) is small and `REACH`'s y is the dip below the
+  feet the club can still come down into. `REACHX` is still measured centre-to-club-head.
 - **The cup is read off the flag, not the map** — `BALL/HOLEPOS`/`HOLESIZE` is a rect from the flag
   sprite's top-left. No `FLAGPOS`, no flag, and so no cup.
 - **`Sun.Margin`, `Sun.Tiles` and `Sun.Span` are the sky's, not the sun's.** There is one sky and it
@@ -202,7 +207,7 @@ exceptions.
 | `DAYCYCLE/NIGHT` | `Moon` and `Night`, a half each | **`Moon`:** `SPR`, `MONTHDAY`. **`Night`:** `DEEPFROM` `DEEPTO` (wraps midnight, so `DEEPFROM` > `DEEPTO` is the expected shape) `DEEPOPA`, `DUSKFROM` `DAWNTO` `TWILOPA`. Hours between the bands are undimmed and moonless |
 | `CLOUDS/<name>` | `Clouds` | One *kind* of cloud: `SPRIDX` `TILESX` `TILESY`. Every object but `CONFIG` is one |
 | `CLOUDS/CONFIG` | `Clouds` | `MINCLOUD` `MAXCLOUD`, `STRTPOSX` `STRTPOSY` (`[min, max]` bands), `SPEED` (px/s, rightward), `MINDISTX` `MINDISTY` (clearance, a box not a radius) |
-| `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `FAILTXT` `FAILY` |
+| `PLAYER/STATS` | `Player` | `SPR` `SPRSIZE` `HITPOS` `HITSIZE` `SPEED` `CLIMB` `GRAVITY` `JUMP` `MAXFALL` `CLUBX` `REACH` `REACHUP` `FAILTXT` `FAILY` |
 | `BALL/STATS` | `Ball` | `SIZE` `GRAVITY` `MAXFALL` `BOUNCE` `FRICTION` `HITX` `HITY` `BLINK` `REST` `HOLEPOS` `HOLESIZE` `HOLESPD` `SINKDEP` `SINKSPD`. **`HITX`/`HITY` are a speed and a launch angle**, not two velocities, so a club lofts or shortens the shot without either being re-authored |
 | `SWING/POWER` | `Swing`, `Meter` | `SWEEP` `MISS` `MINHIT` |
 | `SWING/CLUB` | `Swing` | `SPR` `PRESS` `HITSEC` `FAILSEC` |
@@ -229,7 +234,8 @@ exceptions.
   `0.2`, `10`-`11` plain, `12`-`14` dark purple at `0.2`, `15`-`17` plain, `18`-`21` and `2`-`5` black
   at `0.2`, `22`-`1` black at `0.4`. The second plain stretch is `DUSKHR 15` against `NIGHT`'s
   `DUSKFROM 18` — closing it is a retune of either, not a code change.
-- **Unauthored:** `GAME/WIPE` only.
+- **Unauthored:** `GAME/WIPE`, and `PLAYER/STATS`'s `REACHUP` — absent it reads `0`, which is the
+  strict reading (the ball level with the feet or below, never above).
 
 ---
 
