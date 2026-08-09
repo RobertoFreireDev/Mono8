@@ -325,6 +325,7 @@ internal static class LevelSelect
         // Under the grid, though: the numbers are the menu's and not the level's, and a cursor you
         // have to find through a wash of black is a cursor lost at midnight.
         Night.Draw(0, 0);
+        Daylight.Draw(0, 0);
 
         if (Title.Length > 0)
         {

@@ -9,14 +9,15 @@ namespace mono8.game;
 /// Outside daylight there is no sun — and no sun is also no shadow under the player, which is the
 /// only other thing anything asks it.
 ///
-/// Everything about it is authored under DAYCYCLE / SUN, and that object carries the sky itself —
-/// <see cref="Margin"/>, <see cref="Tiles"/> and the <see cref="Span"/> measured off the two — since
-/// the <see cref="Moon"/> crosses the same line and there is only one sky to author.
+/// Its half of DAYCYCLE / DAY is the sprite, its halo and the sky itself — <see cref="Margin"/>,
+/// <see cref="Tiles"/> and the <see cref="Span"/> measured off the two — since the <see cref="Moon"/>
+/// crosses the same line and there is only one sky to author. The other half is the
+/// <see cref="Daylight"/>'s: the two share DAWNHR and DUSKHR, which is what the object is named for.
 /// </summary>
 internal static class Sun
 {
     private const string JsonGroup = "DAYCYCLE";
-    private const string JsonObject = "SUN";
+    private const string JsonObject = "DAY";
 
     private const string FieldSpr = "SPR";
     private const string FieldTiles = "TILES";

@@ -199,6 +199,10 @@ internal class Room
         Clouds.Draw();
         Night.Draw(OriginX, OriginY);
 
+        // The day's own cast, in the same slot and over the same screenful: the two never fall on the
+        // same hour, so this is the daylight half of the one wash rather than a second layer over it.
+        Daylight.Draw(OriginX, OriginY);
+
         // HUD, over the room and back in screen pixels.
         api.camera();
         Meter.Draw();

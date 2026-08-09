@@ -49,10 +49,12 @@ internal class YourGame : IEditor
         Save.Init();
         Wipe.Init();
 
-        // The one sky body loaded here rather than by the room that draws it: the hours that are
-        // night are the game's, not a level's, and the menu falls under them too — so it outlives
-        // every room and is read once. Before the menu, which draws it on its first frame.
+        // The two washes loaded here rather than by the room that draws them: the hours that are night
+        // — and the hours that are morning — are the game's, not a level's, and the menu falls under
+        // them too, so they outlive every room and are read once. Before the menu, which draws them on
+        // its first frame.
         Night.Init();
+        Daylight.Init();
 
         LevelSelect.Init();
     }

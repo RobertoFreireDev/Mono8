@@ -321,7 +321,7 @@
     }
   },
   "DAYCYCLE": {
-    "SUN": {
+    "DAY": {
       "SPR:i": 1,
       "TILES:i": 2,
       "MARGIN:i": 16,
@@ -329,7 +329,13 @@
       "DUSKHR:i": 15,
       "GLOWRAD:i": [16, 20, 24],
       "GLOWCOL:i": [25, 9, 10],
-      "GLOWOPA:d": 0.2
+      "GLOWOPA:d": 0.2,
+      "DAWNTO:i": 10,
+      "DUSKFROM:i": 12,
+      "DAWNCOL:i": 9,
+      "DAWNOPA:d": 0.2,
+      "DUSKCOL:i": 2,
+      "DUSKOPA:d": 0.2
     },
     "NIGHT": {
       "SPR:i": 129,

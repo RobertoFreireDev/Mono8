@@ -54,9 +54,11 @@ the switch and only one runs per frame. **Every room entry goes through `YourGam
 why `RESTART LEVEL` lives there and why the menu cursor never falls behind the level being played.
 
 ```
-Init()    Debug → Levels → Save → Wipe → Night → LevelSelect   (Levels first: the grid and the save
+Init()    Debug → Levels → Save → Wipe → Night → Daylight → LevelSelect
+                                                               (Levels first: the grid and the save
                                                                 slots are both indexed by room NUMBER.
-                                                                Night here, not in a room: see below)
+                                                                Night and Daylight here, not in a
+                                                                room: see below)
 
 Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
           menu down: Room.Update  (Player → Ball → Flag → Club → Clouds → out-of-bounds / spent strokes)
@@ -64,16 +66,16 @@ Update()  menu up:   LevelSelect.Update; a pick → YourGame.Enter(name)
                      Wipe.Update(player, in screen pixels)
                      Wipe.Closed? → YourGame.Advance: next level, or back to the menu
 
-Draw()    menu up:   LevelSelect.Draw  (preview(s) → Night → title → grid)
+Draw()    menu up:   LevelSelect.Draw  (preview(s) → Night → Daylight → title → grid)
           menu down: map(BACKPOS) → camera(origin) → Sun → map(CELLPOS) → Flag → Player → Ball
-                     → Moon → Clouds → Night → camera() → Meter → Club → Hud
+                     → Moon → Clouds → Night → Daylight → camera() → Meter → Club → Hud
           both:      Wipe.Draw, then Debug.Draw over everything
 ```
 
 `Room.Enter` order matters in three places, and each is commented at the call: `Club` before the ball
 can leave a club face, `Sun` before `Player` (no sun, no shadow), `Moon` after `Sun` (it measures
-itself against the sun's sky), `Ball` before `Player` (the swing reads it on frame 1). `Night` is
-**not** in that list — it is the one sky body a room does not initialise; see below.
+itself against the sun's sky), `Ball` before `Player` (the swing reads it on frame 1). `Night` and
+`Daylight` are **not** in that list — they are the two washes a room does not initialise; see below.
 
 A room does not update the frame it is entered — its first frame is the next one. `Wipe` is the one
 thing that outlives a room, so it is `YourGame`'s and nothing inside a room resets it; it runs
@@ -90,18 +92,25 @@ The authored spawns (`PLYRPOS`, `BALLPOS`, `FLAGPOS`) are map-sheet pixels taken
 fields together**.
 
 `Room.OriginX`/`OriginY` is `CELLPOS × 8`, and **world minus origin is screen** — the one conversion
-anything outside a room needs. All four sky bodies — `Sun`, `Moon`, `Clouds`, `Night` — are authored
-and measured in screen pixels and add the origin themselves, since they are drawn with the room's
-camera up: `Sun` bakes it into `X`/`Y` at `Init`, `Moon` and `Clouds` cache the corner at `Init` and
-add it at draw, and `Night` is *handed* one per call — `Room` passes its own, `LevelSelect` passes
-`(0, 0)` because the menu is drawn in screen pixels with no camera up.
+anything outside a room needs. All five sky pieces — `Sun`, `Moon`, `Clouds`, `Night`, `Daylight` —
+are authored and measured in screen pixels and add the origin themselves, since they are drawn with
+the room's camera up: `Sun` bakes it into `X`/`Y` at `Init`, `Moon` and `Clouds` cache the corner at
+`Init` and add it at draw, and `Night` and `Daylight` are *handed* one per call — `Room` passes its
+own, `LevelSelect` passes `(0, 0)` because the menu is drawn in screen pixels with no camera up.
 
-**`Night` is the game's, not a room's.** `Night.Init()` takes no room and runs once, from
-`YourGame.Init`, because the hours that are night do not start over because a level did — and because
-the level select falls under the same dark, and it runs no room to load one. The cost is that a
-retune of `DAYCYCLE/NIGHT` lands on the next Ctrl+R rather than on the Ctrl+S; the other three still
-re-read per room entry. `Moon` reads `Night.Dim` at draw, so the load order in `YourGame.Init` is
+**`Night` and `Daylight` are the game's, not a room's.** Their `Init()` takes no room and runs once,
+from `YourGame.Init`, because the hours that are night — or morning — do not start over because a
+level did, and because the level select falls under the same wash and runs no room to load one. The
+cost is that a retune of `DAYCYCLE/NIGHT` or of `DAY`'s hours lands on the next Ctrl+R rather than on
+the Ctrl+S; the other three still re-read per room entry, so a mid-run Ctrl+S moves the sun before it
+moves the cast over it. `Moon` reads `Night.Dim` at draw, so the load order in `YourGame.Init` is
 what keeps the two halves of `DAYCYCLE/NIGHT` agreeing about whether it is night.
+
+**The two washes are one wash, split at the hour.** `Night` covers `DEEPFROM`-`DAWNTO`, `Daylight`
+covers `DAWNHR`-`DUSKHR`, and every band is read low-inclusive / high-exclusive so no hour is painted
+twice. Both objects carry a `DAWNTO` and a `DUSKFROM` and they are not the same hours: on `NIGHT` they
+bound the twilights, on `DAY` they bound the two casts. Hours in no band at all are plain — midday
+between `DAWNTO` and `DUSKFROM`, and `DUSKHR` to `NIGHT`'s `DUSKFROM`.
 
 ---
 
@@ -124,6 +133,7 @@ what keeps the two halves of `DAYCYCLE/NIGHT` agreeing about whether it is night
 | [Sun.cs](Sun.cs) | The sun by the hour, its halo, and **the sky's geometry** (`Margin`, `Tiles`, `Span`) the moon shares |
 | [Moon.cs](Moon.cs) | The moon by the day of the month. Sprite only — the dark is `Night`'s |
 | [Night.cs](Night.cs) | The hours that are night and the one dim over a screenful. Loaded once by `YourGame`, drawn by both `Room` and `LevelSelect`. `Dim` is what the moon asks whether it is out |
+| [Daylight.cs](Daylight.cs) | The daylight counterpart: warm from `DAWNHR` to `DAWNTO`, cool from `DUSKFROM` to `DUSKHR`, one `rectfill` either way. Loaded and drawn wherever `Night` is |
 | [Clouds.cs](Clouds.cs) | The clouds crossing a room's sky |
 | [Hud.cs](Hud.cs) | Strokes left, two zero-padded digits; `Taken` is what a sunk hole records, `RightX` where the club label starts |
 | [Save.cs](Save.cs) | The levels finished, one persistence slot each. Owns `DELETE SAVE` |
@@ -168,12 +178,16 @@ exceptions.
 - **The cup is read off the flag, not the map** — `BALL/HOLEPOS`/`HOLESIZE` is a rect from the flag
   sprite's top-left. No `FLAGPOS`, no flag, and so no cup.
 - **`Sun.Margin`, `Sun.Tiles` and `Sun.Span` are the sky's, not the sun's.** There is one sky and it
-  is authored once, on `DAYCYCLE/SUN`; the moon crosses the same line and authors no size of its own.
+  is authored once, on `DAYCYCLE/DAY`; the moon crosses the same line and authors no size of its own.
+- **`DAYCYCLE/DAY` is not the sun's object** — it is the daylight's, and `Sun` and `Daylight` take a
+  half each. `DAWNHR` and `DUSKHR` are the pair they share: they say where the sun hangs *and* which
+  hours are cast. `Sun.Present` is inclusive at both ends while the casts are not, so the sun is
+  still up on the hour the tint lets go.
 - **The player's shadow is gated on `Sun.Present`**, and the level select's preview draws neither sun
   nor moon — both are initialised from inside a room, so there is nothing to place them against on
-  the menu. The `Night` over the preview is the exception, and the reason it is loaded by `YourGame`:
-  it needs no room, only the hour. It goes over the previews and *under* the grid, so the cursor is
-  still readable at midnight.
+  the menu. The `Night` and `Daylight` over the preview are the exception, and the reason they are
+  loaded by `YourGame`: they need no room, only the hour. They go over the previews and *under* the
+  grid, so the cursor is still readable at midnight.
 
 ---
 
@@ -184,7 +198,7 @@ exceptions.
 | `MENU/GRID` | `LevelSelect` | `COLS` `ROWS` (default 5×4), `CELL` (px, default `(32, 20)`), `TITLE`. `PAD` is authored but **no longer read** |
 | `ROOMS/<name>` | `Room`, `Levels`, `LevelSelect` | `CELLPOS` (cells), `BACKPOS` (cells, absolute, default `(256, 0)` = map layer 2), `PLYRPOS` `BALLPOS` `FLAGPOS` (map-sheet px, absolute), `HITMAX` (default 5; ≤0 = unlimited), `NUMBER` (`1`-`63`) |
 | `GAME/WIPE` | `Wipe` | `WAITSEC` `OUTSEC` `INSEC` `COLOR` `DITHER` — **not authored; defaults run**. `COLOR` and `DITHER` are a pair: the dither sprite's holes are white, so the draw is wrapped in `palt(7, true)` and the mask colour must be the sprite's other colour |
-| `DAYCYCLE/SUN` | `Sun`, and `Moon` for the sky | `SPR` `TILES`, `MARGIN`, `DAWNHR` `DUSKHR` (outside them, no sun at all), `GLOWRAD` `GLOWCOL` (paired by index, widest last) `GLOWOPA` |
+| `DAYCYCLE/DAY` | `Sun` and `Daylight`, a half each; `Moon` for the sky | **Shared:** `DAWNHR` `DUSKHR` — outside them there is no sun and no cast. **`Sun`:** `SPR` `TILES`, `MARGIN`, `GLOWRAD` `GLOWCOL` (paired by index, widest last) `GLOWOPA`. **`Daylight`:** `DAWNTO` where the morning's cast lets go and `DUSKFROM` where the afternoon's picks up (both pinned inside the day; leave them apart for a plain midday, together for a day of two halves), `DAWNCOL` `DAWNOPA`, `DUSKCOL` `DUSKOPA` |
 | `DAYCYCLE/NIGHT` | `Moon` and `Night`, a half each | **`Moon`:** `SPR`, `MONTHDAY`. **`Night`:** `DEEPFROM` `DEEPTO` (wraps midnight, so `DEEPFROM` > `DEEPTO` is the expected shape) `DEEPOPA`, `DUSKFROM` `DAWNTO` `TWILOPA`. Hours between the bands are undimmed and moonless |
 | `CLOUDS/<name>` | `Clouds` | One *kind* of cloud: `SPRIDX` `TILESX` `TILESY`. Every object but `CONFIG` is one |
 | `CLOUDS/CONFIG` | `Clouds` | `MINCLOUD` `MAXCLOUD`, `STRTPOSX` `STRTPOSY` (`[min, max]` bands), `SPEED` (px/s, rightward), `MINDISTX` `MINDISTY` (clearance, a box not a radius) |
@@ -211,7 +225,10 @@ exceptions.
 - **Clips:** `FLAG`, `GOLFPULL`, `GOLFHIT`, `PLRWALK`, `PLRSTAIR`.
 - **Clubs:** `DRIVER`, `WEDGE`, `PUTTER`.
 - **Clouds:** three kinds (`O1`-`O3`), `CONFIG` fully authored.
-- **`DAYCYCLE`** fully authored, `DUSKHR` retuned to `15`.
+- **`DAYCYCLE`** fully authored, `DUSKHR` retuned to `15`. The day as it stands: `6`-`9` orange at
+  `0.2`, `10`-`11` plain, `12`-`14` dark purple at `0.2`, `15`-`17` plain, `18`-`21` and `2`-`5` black
+  at `0.2`, `22`-`1` black at `0.4`. The second plain stretch is `DUSKHR 15` against `NIGHT`'s
+  `DUSKFROM 18` — closing it is a retune of either, not a code change.
 - **Unauthored:** `GAME/WIPE` only.
 
 ---
