@@ -205,7 +205,7 @@ bool mcol(x, y, w, h, flag = 0)             // rect meets a flagged tile
 
 Coordinates are **pixels over the whole map sheet** = cell coords × 8. Apply your camera/layer offsets *before* calling. The rect runs `x, y` → `x + w - 1, y + h - 1`; an empty rect (side ≤ 0) meets nothing, as does anything off the map.
 
-`mcol` reads a sprite flag (`0`-`7`), whose meaning is entirely your game's — one bit per whole 8×8 tile. Hand-drawn tiles and autotile pieces alike are read this way: the developer flags the tiles that are solid, ice or hazard, and the terrain an autotile brush paints answers only because its pieces carry the flag. **This project uses flag `1` for solid ground.** Confirm the flag before assuming it for anything else.
+`mcol` reads a sprite flag (`0`-`7`), whose meaning is entirely your game's — one bit per whole 8×8 tile. Hand-drawn tiles and autotile pieces alike are read this way: the developer flags the tiles that are solid, ice or hazard, and the terrain an autotile brush paints answers only because its pieces carry the flag. **This project has not fixed a flag for anything yet** — ask which bit means what, and record it in [src/game/GAME.md](src/game/GAME.md) once it is decided.
 
 ```csharp
 int  fget(spriteId)              bool fget(spriteId, flag)

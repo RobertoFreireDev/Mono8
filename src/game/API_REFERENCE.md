@@ -303,8 +303,8 @@ any other and draws as a `#`, so nothing a developer types is silently swallowed
 across a `\n`**, so one marker tints a whole multi-line caption.
 
 A marker draws nothing and takes no width, which is what a measurement has to allow for: the engine
-discounts markers when it sizes a string, but `Font.Width` in game code counts characters, so measure
-(and outline — see `Font.PrintOutlined`) with the marker-free version of the caption.
+discounts markers when it sizes a string, but a game-side width helper counts characters, so measure
+(and outline) with the marker-free version of the caption.
 
 ```csharp
 API.print("SCORE #10" + score + "#-- PTS", 4, 4, Constants.Colors.White);
@@ -471,7 +471,7 @@ Whether the tile under a point carries a sprite flag.
 | `flag` | bit index to test | `0`–`7`; outside that → `false` |
 
 The meaning of each flag is entirely your game's: one for solid, another for ice, another for
-hazards — ask the developer which is which. **This project uses flag `1` for solid ground.** Cells
+hazards — ask the developer which is which, and record the answer in [GAME.md](GAME.md). Cells
 holding sprite `0` never collide, however that sprite is flagged.
 
 ### `bool mcol(int x, int y, int w, int h, int flag = 0)`
