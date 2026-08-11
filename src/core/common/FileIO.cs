@@ -31,28 +31,6 @@ public static class FileIO
         File.WriteAllText(fullPath, content);
     }
 
-    /// <summary><see cref="Read"/> for the one authored file that is not text: the baked SFX bank.</summary>
-    public static byte[] ReadBytes(string fileName, string extension, string path = "")
-    {
-        var embedded = EmbeddedData.ReadBytes($"{fileName}.{extension}");
-        if (embedded != null) return embedded;
-
-        try
-        {
-            return File.ReadAllBytes(BuildPath(fileName, extension, path));
-        }
-        catch
-        {
-            return Array.Empty<byte>();
-        }
-    }
-
-    public static void WriteBytes(string fileName, string extension, byte[] content, string path = "")
-    {
-        var fullPath = BuildPath(fileName, extension, path);
-        File.WriteAllBytes(fullPath, content);
-    }
-
     public static string BuildPath(string fileName, string extension, string path)
     {
         var basePath = string.IsNullOrWhiteSpace(path)

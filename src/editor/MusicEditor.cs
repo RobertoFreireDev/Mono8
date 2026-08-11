@@ -7,7 +7,7 @@ namespace mono8.editor;
 /// </summary>
 internal class MusicEditor : IEditor, IEditorConfig
 {
-    private readonly IEditorAPI _api;
+    private readonly IMono8API _api;
     private readonly EventNotifier eventNotifier;
 
     // ── Pattern-index strip ─────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ internal class MusicEditor : IEditor, IEditorConfig
     private readonly int[] scroll = new int[ChannelCount];   // each column scrolls independently
     private int playStartPattern = -1;
 
-    public MusicEditor(IEditorAPI api)
+    public MusicEditor(IMono8API api)
     {
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
@@ -190,7 +190,7 @@ internal class MusicEditor : IEditor, IEditorConfig
     {
         if (Playing >= 0)
         {
-            _api.MusicLive(-1);
+            _api.music(-1);
             playStartPattern = -1;
         }
         else
@@ -200,7 +200,7 @@ internal class MusicEditor : IEditor, IEditorConfig
             SyncAllMusic();
             playStartPattern = patternIndex;
             Array.Clear(scroll, 0, scroll.Length);   // start each column at the first note of its SFX
-            _api.MusicLive(patternIndex);
+            _api.music(patternIndex);
         }
     }
 
@@ -398,7 +398,7 @@ internal class MusicEditor : IEditor, IEditorConfig
     private void CommitNoteEdit(int sfx)
     {
         SyncSfx(sfx);
-        _api.SfxLive(sfx, -1, selectedCell, 1);
+        _api.sfx(sfx, -1, selectedCell, 1);
         AdvanceCell();
     }
 
