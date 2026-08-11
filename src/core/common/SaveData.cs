@@ -37,6 +37,9 @@ internal static class SaveData
     private static void Persist()
     {
         if (string.IsNullOrWhiteSpace(_savePath)) return;
+        // A published build embeds its data instead of shipping the folder, so the first dset is
+        // what creates it.
+        Directory.CreateDirectory(Path.GetDirectoryName(_savePath));
         File.WriteAllText(_savePath, string.Join("\n", _slots));
     }
 }
