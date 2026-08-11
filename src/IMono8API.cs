@@ -236,12 +236,34 @@ public interface IMono8API
     // AUDIO
     // ============================================================
 
+    /// <summary>
+    /// Plays SFX <paramref name="sfxId"/>. <paramref name="sfxId"/> -1 stops every channel and -2
+    /// stops <paramref name="channel"/> alone; <paramref name="channel"/> -1 picks a free one.
+    /// <paramref name="offset"/> and <paramref name="length"/> select a note range within the 32.
+    /// <para>
+    /// A published build plays audio pre-rendered from <c>data.sfx</c> at save time rather than
+    /// synthesising it, which is inaudible except in three places: noise and percussion are one
+    /// fixed rendering instead of varying per play, a looping SFX can click where it wraps, and an
+    /// <paramref name="offset"/> above 0 starts part-way into that rendering rather than from a
+    /// reset oscillator, so a mid-SFX slice may not sound quite as it does in the editor. An
+    /// <paramref name="offset"/> of 0 is exact at any <paramref name="length"/>.
+    /// </para>
+    /// </summary>
     void sfx(
     int sfxId,
     int channel = -1,
     int offset = 0,
     int length = -1);
 
+    /// <summary>
+    /// Plays music pattern <paramref name="musicId"/>, or stops the music when it is negative.
+    /// Patterns chain on their own loop-start/loop-end/stop marks.
+    /// <para>
+    /// <paramref name="fadeLength"/> and <paramref name="channelMask"/> are accepted and ignored.
+    /// Music is sequenced from the same SFX <see cref="sfx"/> plays, so a published build inherits
+    /// its pre-rendering caveats.
+    /// </para>
+    /// </summary>
     void music(
         int musicId,
         int fadeLength = 0,
@@ -355,11 +377,22 @@ public interface IMono8API
 }
 
 /// <summary>
-/// Sprite-sheet mutation, available to the built-in editors only. Game code sees
+/// Sprite-sheet mutation and live audio, available to the built-in editors only. Game code sees
 /// <see cref="IMono8API"/>, which cannot paint over the sheet it is drawing from.
 /// </summary>
 internal interface IEditorAPI : IMono8API
 {
+    /// <summary>
+    /// As <see cref="IMono8API.sfx"/>, but always synthesised from the SFX sheet as it stands right
+    /// now. The editors have to hear the edit under the cursor, where a published build's
+    /// <see cref="IMono8API.sfx"/> plays the bank baked by the last save — one Ctrl+S behind, and
+    /// with the pre-rendering's own quirks around loop points and mid-SFX offsets.
+    /// </summary>
+    void SfxLive(int sfxId, int channel = -1, int offset = 0, int length = -1);
+
+    /// <inheritdoc cref="SfxLive"/>
+    void MusicLive(int musicId, int fadeLength = 0, int channelMask = 0);
+
     void SetPixel(int x, int y, int colorIndex);
 
     /// <summary>As <see cref="SetPixel"/>, but stencilled through another sprite's 8x8 tile.</summary>

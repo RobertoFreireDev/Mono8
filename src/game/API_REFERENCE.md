@@ -706,6 +706,30 @@ loop-end / stop marks authored in the Music editor.
 Music takes over the channels its patterns use, so a busy track leaves fewer channels for `sfx`.
 Call it once when a scene starts — calling it every frame restarts the track every frame.
 
+### In a published build
+
+A published build does not synthesise audio. Every save bakes `data.sfx` into `data.wav`, and
+`sfx`/`music` play that instead — same calls, same channels, same music patterns, since a pattern is
+still four sfx started together and timed off their note clocks.
+
+Three differences are audible, all of them consequences of the sound being decided at save time
+rather than at play time:
+
+- **Noise is fixed.** A percussive sfx built on waveform `6` plays one identical rendering every
+  time, where live synthesis varies it slightly per play. The rendering has to be reproducible or
+  every save would rewrite a multi-megabyte file.
+- **A looping sfx can click where it wraps.** Live synthesis carries oscillator phase continuously
+  across the loop; the bank jumps back to the loop start. Author the loop point near a zero crossing
+  if you hear it.
+- **`offset > 0` starts mid-rendering.** Live playback resets the oscillator and the previous-note
+  state before the first note it plays; the bank hands you that note with whatever preceded it. So a
+  mid-sfx slice can sound different from the editor's preview. **`offset = 0` is exact at any
+  `length`** — packing several sounds into one slot still works, it is only slices that do not start
+  at note 0 that shift.
+
+An sfx that was never baked — a silent one, or one the bake skipped — plays as silence and still
+occupies its channel for the full duration, so music timing is unaffected.
+
 ---
 
 ## Random

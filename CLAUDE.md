@@ -69,6 +69,7 @@ Read the current data files when you need to confirm what exists — they live i
 | [src/publishdata/data.json](src/publishdata/data.json) | authored json — **read this before writing any `gjson` call** |
 | [src/publishdata/data.gff](src/publishdata/data.gff) | per-sprite flag bits, one line per sheet row |
 | [src/publishdata/data.atl](src/publishdata/data.atl) | which 8×6 blocks are autotiles |
+| `src/publishdata/data.wav` + `data.snx` | the sfx pre-rendered at save time — what a published build plays instead of synthesising. Generated, never authored |
 
 Read only — never write them. (`src/data/` is the runtime copy the build consumes; it is not the authored source and is not where you look.)
 
@@ -141,7 +142,9 @@ handful of places the engine surprises you (`cls` is drawn through the camera tr
 with a negative radius throws; `music`'s `fadeLength` and `channelMask` are accepted but ignored;
 `mset`/`fset` changes survive `Init()`; `atan2` returns `-0.5`-`0.5` turns rather than PICO-8's
 `0`-`1`; `pal` also remaps shapes, `print` and `icon`, while `palt`
-only affects `spr`/`sspr`/`icon`). It is documentation, not game code — do not delete or restructure
+only affects `spr`/`sspr`/`icon`; a published build plays audio pre-rendered at save time, so noise
+is fixed rather than varying, a looping sfx can click at the wrap, and `sfx` with `offset > 0`
+starts mid-rendering — `offset` `0` is exact). It is documentation, not game code — do not delete or restructure
 it, and if you notice it disagreeing with `src/IMono8API.cs`, say so rather than rewriting it
 wholesale. The condensed version below is enough for routine work.
 

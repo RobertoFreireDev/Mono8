@@ -8,7 +8,15 @@ internal class Mono8API : IEditorAPI
     public static readonly bool PublishGame = true;
 
     public static EditorRegistry Editors = new EditorRegistry();
-    private static SfxEngine _sfxEngine = new SfxEngine();
+
+    // One sequencer, chosen once: a published build plays the bank the last save baked, everything
+    // else synthesises. Both are the same sequencer with a different sample source, so channel
+    // allocation and music patterns behave identically either way. PublishGame is declared above,
+    // so it is already assigned when this initialiser runs.
+    private static readonly AudioSequencer _audio = PublishGame ? new AudioPlayer() : new SfxEngine();
+
+    /// <summary>The live synthesiser, or null in a published build — where nothing can edit audio anyway.</summary>
+    private static SfxEngine LiveEngine => _audio as SfxEngine;
     public static SpriteSheet SpriteSheet = new SpriteSheet();
     public static AutotileSheet AutotileSheet = new AutotileSheet();
     public static SfxSheet SfxSheet = new SfxSheet();
@@ -67,8 +75,10 @@ internal class Mono8API : IEditorAPI
         // The sheets are the only parsers; the engine plays the snapshots they hand it.
         for (int i = 0; i < SfxSheet.Count; i++) SyncSfx(i);
         for (int p = 0; p < MusicSheet.Count; p++) SyncMusic(p);
+        // After the snapshots: the bank checks its note stride against them before trusting itself.
+        _audio.LoadBank(path);
 
-        _sfxEngine.Sfx(-1);
+        _audio.Sfx(-1);
     }
 
     private static string[] ReadLines(string extension, string path) =>
@@ -93,21 +103,24 @@ internal class Mono8API : IEditorAPI
             if (editors[i].Editor is IEditorConfig configured) configured.CaptureConfig(ConfigSheet);
         }
         ConfigSheet.Save(path);
+        // Baked here, from the sheet just written, so the bank a published build plays can never
+        // fall behind data.sfx — and so the mirror below carries it along with everything else.
+        SfxBaker.Bake(SfxSheet, path);
         // The saved files live in the build output; keep the project-side backup in step with them.
         FileIO.MirrorDataFiles(path);
     }
 
     /// <summary>Push the editor's current SFX edits into the live audio engine so previews reflect them.</summary>
-    internal void SyncSfx(int index) => _sfxEngine.SetSfx(index, SfxSheet.ToSfxData(index));
+    internal void SyncSfx(int index) => _audio.SetSfx(index, SfxSheet.ToSfxData(index));
 
     /// <summary>Push the editor's current music-pattern edits into the live audio engine.</summary>
-    internal void SyncMusic(int index) => _sfxEngine.SetMusic(index, MusicSheet.ToMusicData(index));
+    internal void SyncMusic(int index) => _audio.SetMusic(index, MusicSheet.ToMusicData(index));
 
     /// <summary>Note the engine is currently playing for <paramref name="index"/> (-1 if not playing); drives the editor playhead.</summary>
-    internal int CurrentSfxNote(int index) => _sfxEngine.CurrentNote(index);
+    internal int CurrentSfxNote(int index) => _audio.CurrentNote(index);
 
     /// <summary>Music pattern the engine is currently playing (-1 if none); drives the Music editor's playing indicator.</summary>
-    internal int CurrentMusicPattern() => _sfxEngine.CurrentMusicPattern;
+    internal int CurrentMusicPattern() => _audio.CurrentMusicPattern;
 
     public void Update(GameTime gameTime)
     {
@@ -121,14 +134,14 @@ internal class Mono8API : IEditorAPI
                 // that gets here is the game's first frame — and it precedes any Draw.
                 if (!_playingGame) InitGame();
 
-                _sfxEngine.UpdateMusic();
+                _audio.UpdateMusic();
                 if (!Menu.IsPaused()) _game.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
                 return;
             }
 
             Editors.EnsureActiveInitialized();
 
-            _sfxEngine.UpdateMusic();
+            _audio.UpdateMusic();
             if (!Menu.IsPaused())
             {
                 if (_playingGame)
@@ -198,12 +211,12 @@ internal class Mono8API : IEditorAPI
         catch (Exception ex) { ErrorHandler.SetError(ex); }
     }
 
-    public void StopSounds() => _sfxEngine.Sfx(-1);
+    public void StopSounds() => _audio.Sfx(-1);
 
     public void Unload()
     {
         StopSounds();
-        _sfxEngine.Dispose();
+        _audio.Dispose();
     }
 
     public bool btn(int button) => ButtonInput.Pressed(button);
@@ -257,8 +270,15 @@ internal class Mono8API : IEditorAPI
     public void SetPaintBucket(int x, int y, int regionX, int regionY, int regionW, int regionH, int colorIndex)
         => SpriteSheet.PaintBucket(x, y, regionX, regionY, regionW, regionH, colorIndex);
 
-    public void sfx(int sfxId, int channel = -1, int offset = 0, int length = -1) 
-        => _sfxEngine.Sfx(sfxId, channel, offset, length);
+    public void sfx(int sfxId, int channel = -1, int offset = 0, int length = -1)
+        => _audio.Sfx(sfxId, channel, offset, length);
+
+    // The editors audition the sheet as it stands, never the bank — that is the point of them.
+    public void SfxLive(int sfxId, int channel = -1, int offset = 0, int length = -1)
+        => LiveEngine?.Sfx(sfxId, channel, offset, length);
+
+    public void MusicLive(int musicId, int fadeLength = 0, int channelMask = 0)
+        => LiveEngine?.Music(musicId, fadeLength, channelMask);
 
     public void spr(int spriteId, int x, int y, int width = 1, int height = 1,
         float scale = 1f, bool flipX = false, bool flipY = false, float colorOpaqueness = 1f)
@@ -443,7 +463,7 @@ internal class Mono8API : IEditorAPI
     public void fset(int spriteId, int value) => SpriteSheet.SetFlags(spriteId, value);
 
     public void music(int musicId, int fadeLength = 0, int channelMask = 0)
-        => _sfxEngine.Music(musicId, fadeLength, channelMask);
+        => _audio.Music(musicId, fadeLength, channelMask);
 
     private static Random _rng = new Random();
 
