@@ -28,32 +28,16 @@
       <LogicalName>Icon.bmp</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-  <!-- PublishGame is a C# flag, so the build reads it out of the source rather than keeping a second
-       copy of it here: only `dotnet publish` of a published-game build embeds the authored data. -->
-  <PropertyGroup>
-    <Mono8PublishGame>$([System.Text.RegularExpressions.Regex]::IsMatch($([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/Mono8API.cs')), 'PublishGame\s*=\s*true'))</Mono8PublishGame>
-    <EmbedGameData Condition="'$(_IsPublishing)' == 'true' and '$(Mono8PublishGame)' == 'True'">true</EmbedGameData>
-  </PropertyGroup>
-  <ItemGroup Condition="'$(EmbedGameData)' == 'true'">
-    <!-- data.save is dset's runtime file, written next to the executable; it is never authored data. -->
-    <EmbeddedResource Include="publishdata\*" Exclude="publishdata\*.save">
-      <LogicalName>publishdata/%(Filename)%(Extension)</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.*" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The publish copy is dropped when the same files are embedded, so a published game ships as
-         the executable alone rather than with an editable copy of its own data beside it. -->
     <None Update="data\data.*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory Condition="'$(EmbedGameData)' == 'true'">Never</CopyToPublishDirectory>
     </None>
     <None Update="data\config.*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory Condition="'$(EmbedGameData)' == 'true'">Never</CopyToPublishDirectory>
     </None>
   </ItemGroup>
   <ItemGroup>

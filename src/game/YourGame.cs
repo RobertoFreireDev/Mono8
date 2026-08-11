@@ -36,6 +36,6 @@ internal class YourGame : IEditor
 
     public void Draw()
     {
-        API.cls(Constants.Colors.DarkBlue);
+        API.cls(Constants.Colors.Black);
     }
 }
