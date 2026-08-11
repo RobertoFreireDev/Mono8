@@ -58,6 +58,13 @@ internal sealed class SfxBank
         dest[destByteOffset + 1] = _file[src + 1];
     }
 
+    /// <summary>One sample as a value, for a reader playing at a rate the bank was not baked at.</summary>
+    public short GetSample(long sampleIndex)
+    {
+        int src = _dataOffset + (int)(sampleIndex * 2);
+        return (short)(_file[src] | (_file[src + 1] << 8));
+    }
+
     /// <param name="sfxData">
     /// The freshly parsed <c>data.sfx</c>. Each entry's note length is re-derived from it and
     /// checked against the baked stride: a bank that is out of step with the sheet it came from is

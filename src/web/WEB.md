@@ -54,8 +54,32 @@ to. `publishdata` wins wherever both hold the same file.
 | Alt+F4 | Quits | Nothing |
 | F2 | Toggles fullscreen | Toggles fullscreen, if the browser grants it |
 
-Audio is unchanged: a published build plays the bank baked at save time, which is the same
-`DynamicSoundEffectInstance` path on both, over WebAudio here.
+Audio plays the same bank baked at save time, through the same `DynamicSoundEffectInstance` path,
+over WebAudio here. Two things about the browser are not the desktop's, and both are silent when
+they are wrong — see [Audio in the browser](#audio-in-the-browser).
+
+## Audio in the browser
+
+WebAudio is stricter than the desktop's mixer, and KNI 4.2.9001 does not paper over the difference.
+
+**The rate is the device's, not ours.** An AudioContext runs at whatever the machine's output is set
+to — 48000 on most of them — and KNI throws `NotImplementedException` from the voice's constructor
+rather than resample. That constructor runs from `Mono8API`'s static initialiser, so the whole
+console died on it before a frame was drawn. The page is asked for the rate first
+(`mono8AudioSampleRate` in `index.html` → `WebAudio.SampleRate` → `AudioFormat.OutputSampleRate`),
+every channel is built at it, and `BankChannel` reads the 44100 bank into it by interpolating
+between baked samples. `data.wav` is still baked at 44100 and nothing about the desktop moves: when
+the two rates agree the read is the same byte copy it always was.
+
+**`wwwroot/js/streamProcessor.js` is required.** KNI's voice loads it as an AudioWorklet module by
+that page-relative path the first time a sound plays, and no NuGet package ships it — it is copied
+from KNI's Blazor project template (`Templates/VisualStudio2022/ProjectTemplates/BlazorGL.NetCore`,
+tag `v4.2.9001`) and belongs to the same version as the packages below. Its absence is nearly
+invisible: the load is awaited inside a fire-and-forget task, so there is no 404 in the console and
+no exception at the time — the voice simply stays half-built, and the next `sfx()` that stops a
+channel throws `NullReferenceException` out of KNI from wherever the game happened to be. The same
+half-built window exists legitimately while the module is loading, which is why every call into the
+voice from `BankChannel` is wrapped: a lost sound is not worth a frozen console.
 
 ## Keeping the KNI version in step
 
@@ -64,3 +88,8 @@ Audio is unchanged: a published build plays the bank baked at save time, which i
 that `nkast.Kni.Platform.Blazor.GL` depends on. If you bump the KNI packages, check that dependency
 and update these script tags with it — a stale path 404s silently and takes input, audio or the
 canvas with it.
+
+`wwwroot/js/streamProcessor.js` is version-locked the same way, without a version in its name to
+warn you. Re-copy it from the template of the KNI tag you moved to, and check whether that version
+still wants `streamProcessor.js` or has moved on to `streamProcessor2.js` — the name is a string
+inside `Kni.Platform`, and the newer one carries the resampling that the console does here instead.

@@ -39,6 +39,11 @@
     <script src="_content/nkast.Wasm.Canvas/js/Canvas.8.0.11.js"></script>
     <script src="_content/nkast.Wasm.Canvas/js/CanvasGLContext.8.0.11.js"></script>
     <script src="_content/nkast.Wasm.Audio/js/Audio.8.0.11.js"></script>
+    <!-- js/streamProcessor.js is the other half of the audio and is NOT a script tag: KNI's dynamic
+         voice loads it as an AudioWorklet module, by that exact page-relative path, the first time
+         anything plays. No package ships it — it comes from KNI's own Blazor template and lives in
+         wwwroot/js here. A missing one does not 404 in the console: the load is awaited inside a
+         fire-and-forget task, so the voice just stays half-built and throws when it is next stopped. -->
     <script src="_content/nkast.Wasm.XR/js/XR.8.0.11.js"></script>
 
     <script>
@@ -50,6 +55,26 @@
             canvas.width = holder.clientWidth;
             canvas.height = holder.clientHeight;
         }
+
+        // The rate the browser's audio output runs at. WebAudio will not resample for us and KNI
+        // refuses a voice at any other rate, so the console asks before it builds its channels and
+        // reads its 44100 bank into whatever comes back. The context exists only to be measured.
+        window.mono8AudioSampleRate = function ()
+        {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return 0;
+            try
+            {
+                var ctx = new Ctx();
+                var rate = ctx.sampleRate;
+                ctx.close();
+                return rate;
+            }
+            catch (e)
+            {
+                return 0;
+            }
+        };
 
         function tickJS()
         {

@@ -19,7 +19,7 @@ internal sealed class AudioPlayer : AudioSequencer
     {
         var channels = new IAudioChannel[AudioFormat.NumChannels];
         for (int i = 0; i < channels.Length; i++)
-            channels[i] = new BankChannel(i, AudioFormat.BufferSamples, OnBufferNeeded, _bank);
+            channels[i] = new BankChannel(i, AudioFormat.OutputBufferSamples, OnBufferNeeded, _bank);
         Channels = channels;
     }
 
