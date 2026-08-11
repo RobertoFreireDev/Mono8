@@ -42,7 +42,10 @@ internal static class Menu
         foreach (var item in _customItems)
             if (item.HasValue) _items.Add(new MenuEntry(item.Value.Label, item.Value.Callback, Builtin.Custom));
         _items.Add(new MenuEntry("Restart Game", null, Builtin.Restart));
+#if !BLAZORGL
+        // A browser tab has nowhere to exit to, and Game.Exit throws there rather than doing nothing.
         _items.Add(new MenuEntry("Exit", null, Builtin.Exit));
+#endif
         return _items;
     }
 

@@ -3,14 +3,23 @@ namespace mono8.core.common;
 internal static class SaveData
 {
     private static readonly int[] _slots = new int[Constants.GameDataSizes.SaveDataSlotCount];
+#if BLAZORGL
+    /// <summary>The localStorage key the save file becomes in the browser; see <see cref="Persist"/>.</summary>
+    private const string StorageKey = Constants.File.Name + "." + Constants.File.Extensions.Save;
+#else
     private static string _savePath = string.Empty;
+#endif
 
     internal static void Load(string folderPath)
     {
-        _savePath = FileIO.BuildPath(Constants.File.Name, Constants.File.Extensions.Save, folderPath);
         Array.Clear(_slots, 0, Constants.GameDataSizes.SaveDataSlotCount);
 
+#if BLAZORGL
+        var raw = WebStorage.Read(StorageKey);
+#else
+        _savePath = FileIO.BuildPath(Constants.File.Name, Constants.File.Extensions.Save, folderPath);
         var raw = FileIO.Read(Constants.File.Name, Constants.File.Extensions.Save, folderPath);
+#endif
         if (string.IsNullOrWhiteSpace(raw)) return;
 
         var lines = raw.Split('\n');
@@ -36,10 +45,16 @@ internal static class SaveData
 
     private static void Persist()
     {
+#if BLAZORGL
+        // The browser's file system is a page's worth of memory — a save written to it is gone on
+        // reload, which is the one thing dset must not be. localStorage is what survives.
+        WebStorage.Write(StorageKey, string.Join("\n", _slots));
+#else
         if (string.IsNullOrWhiteSpace(_savePath)) return;
         // A published build embeds its data instead of shipping the folder, so the first dset is
         // what creates it.
         Directory.CreateDirectory(Path.GetDirectoryName(_savePath));
         File.WriteAllText(_savePath, string.Join("\n", _slots));
+#endif
     }
 }
