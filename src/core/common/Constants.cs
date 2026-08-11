@@ -114,15 +114,6 @@ public static class Constants
             public const string Save = "save";
 
             public const string Json = "json";
-
-            /// <summary>
-            /// The SFX bank baked from <see cref="Sfx"/> on every save: a plain 44.1kHz 16-bit mono
-            /// wav holding every audible SFX end to end. Only a published build reads it.
-            /// </summary>
-            public const string SfxBank = "wav";
-
-            /// <summary>Where each SFX starts inside <see cref="SfxBank"/>, and how much of it was baked.</summary>
-            public const string SfxBankIndex = "snx";
         }
     }
 

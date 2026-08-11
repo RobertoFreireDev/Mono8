@@ -38,36 +38,4 @@ internal static class EmbeddedData
             return null;
         }
     }
-
-    /// <summary>
-    /// The embedded file's bytes, or null when this build does not carry it — <see cref="Read"/> for
-    /// the one file that is not text, the baked SFX bank.
-    /// </summary>
-    internal static byte[] ReadBytes(string fileName)
-    {
-        if (!Mono8API.PublishGame) return null;
-
-        try
-        {
-            using var stream = typeof(EmbeddedData).Assembly.GetManifestResourceStream(Prefix + fileName);
-            if (stream == null) return null;
-
-            // Straight into the final array rather than through a MemoryStream: the bank is a
-            // multi-megabyte large-object allocation, and copying would peak at twice its size.
-            var bytes = new byte[stream.Length];
-            int read = 0;
-            while (read < bytes.Length)
-            {
-                int n = stream.Read(bytes, read, bytes.Length - read);
-                if (n == 0) break;
-                read += n;
-            }
-
-            return read == bytes.Length ? bytes : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }
