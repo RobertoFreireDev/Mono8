@@ -12,14 +12,6 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
-  <!-- The web host is its own project (web/mono8.web.csproj) sitting inside this one's folder, so the
-       SDK's globs would otherwise pull its Blazor sources — and its obj/ — into the desktop build. -->
-  <ItemGroup>
-    <Compile Remove="web\**" />
-    <EmbeddedResource Remove="web\**" />
-    <Content Remove="web\**" />
-    <None Remove="web\**" />
-  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico">
       <LogicalName>Icon.ico</LogicalName>
