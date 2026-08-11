@@ -6,7 +6,7 @@ namespace mono8.editor;
 /// </summary>
 internal class SfxEditor : IEditor, IEditorConfig
 {
-    private readonly IMono8API _api;
+    private readonly IEditorAPI _api;
     private readonly EventNotifier eventNotifier;
 
     // ── Layout ────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ internal class SfxEditor : IEditor, IEditorConfig
     // false = primary pitch/volume view (below); true = the alternate view.
     public bool AltView { get; set; }
 
-    public SfxEditor(IMono8API api)
+    public SfxEditor(IEditorAPI api)
     {
         _api = api;
         eventNotifier = new EventNotifier(api, 2f, 1, Constants.Screen.ResolutionY - Constants.GameDataSizes.TileSize + 1);
@@ -188,12 +188,12 @@ internal class SfxEditor : IEditor, IEditorConfig
         {
             if (Mono8Game.GameAPI.CurrentSfxNote(sfxIndex) >= 0)
             {
-                _api.sfx(-1);
+                _api.SfxLive(-1);
             }
             else
             {
                 Sync();
-                _api.sfx(sfxIndex);
+                _api.SfxLive(sfxIndex);
             }
         }
 
@@ -356,7 +356,7 @@ internal class SfxEditor : IEditor, IEditorConfig
     private void CommitNoteEdit()
     {
         Sync();
-        _api.sfx(sfxIndex, -1, selectedCell, 1);
+        _api.SfxLive(sfxIndex, -1, selectedCell, 1);
         selectedCell = Math.Min(selectedCell + 1, NoteCount - 1);
     }
 

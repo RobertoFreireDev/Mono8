@@ -142,6 +142,8 @@ Everything you author in the editors lives in the `data/` folder next to the exe
 | `data.map` | Map cells, as two hex digits per cell. |
 | `data.sfx` | The 64 sound effects. |
 | `data.music` | The 64 music patterns. |
+| `data.wav` | The sound effects pre-rendered, rebaked from `data.sfx` on every save. Only a published build reads it; the editors always synthesise. A plain 44.1kHz 16-bit mono wav, so you can open it and listen. Note it is regenerated whole whenever audio changes, so each such save commits a fresh copy of it. |
+| `data.snx` | Where each sound effect starts inside `data.wav`. Meaningless without it. |
 | `data.json` | Authored game data — groups, objects and typed fields (see below). |
 | `data.icons` | The editors' icon sheet, which [`icon`](#graphics) and [`mouseicon`](#input) also draw from. |
 | `data.font` | The 5×7 glyph sheet [`print`](#graphics) draws with. |
@@ -428,7 +430,9 @@ These seven are `IEditorAPI`, not `IMono8API`: they mutate the sprite sheet and 
 | `sfx` | `sfxId, channel = -1, offset = 0, length = -1` | Plays a sound effect. `channel = -1` restarts the sfx (stopping any channel already playing it) on the first free channel. `offset`/`length` select a note range; `length = -1` plays to the end. |
 | `music` | `musicId, fadeLength = 0, channelMask = 0` | Plays a music pattern, with optional fade-in and channel mask. |
 
-There are 4 audio channels (`0`-`3`). `sfx(-1)` stops every channel, `sfx(-2, channel)` stops just that channel, and a negative `musicId` stops the music.
+There are 4 audio channels (`0`-`3`). `sfx(-1)` stops every channel, `sfx(-2, channel)` stops just that channel, and a negative `musicId` stops the music. `fadeLength` and `channelMask` are accepted and ignored.
+
+A published build plays the audio baked into `data.wav` at save time rather than synthesising it, which changes nothing about these calls but does mean the bank has to exist: **author your audio with `PublishGame` still `false`, save once so the bake runs, then flip the flag and publish.** Publishing without ever having saved ships a silent game. See [Audio in a published build](src/game/API_REFERENCE.md#in-a-published-build) for the three ways pre-rendered sound differs from the editor's preview.
 
 ### Random
 

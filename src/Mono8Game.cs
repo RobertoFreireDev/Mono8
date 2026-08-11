@@ -15,6 +15,11 @@ public class Mono8Game : Game
     private int _fpsCounter = 0;
     private Intro _intro = new Intro();
     private bool _unfocusedDimDrawn;
+#if BLAZORGL
+    // The page owns the canvas and nothing raises ClientSizeChanged for it, so the size is watched
+    // rather than subscribed to; see SyncCanvasSize.
+    private Point _canvasSize;
+#endif
 
     public Mono8Game()
     {
@@ -26,7 +31,9 @@ public class Mono8Game : Game
         IsMouseVisible = false;
         ColorPalette.SetColorPalette();
         IsFixedTimeStep = true;
+#if !BLAZORGL
         Window.ClientSizeChanged += OnResize;
+#endif
     }
 
     public void LoadFiles()
@@ -41,6 +48,7 @@ public class Mono8Game : Game
         base.Initialize();
     }
 
+#if !BLAZORGL
     private void OnResize(Object sender, EventArgs e)
     {
         if (sender is not GameWindow)
@@ -58,6 +66,7 @@ public class Mono8Game : Game
         Screen.SetResolution(_graphics, GraphicsDevice, window.ClientBounds.Width, window.ClientBounds.Height);
         Window.Position = new Point(window.ClientBounds.X, window.ClientBounds.Y);
     }
+#endif
 
     protected override void LoadContent()
     {
@@ -75,6 +84,12 @@ public class Mono8Game : Game
         TextEntry.Attach(Window);
         LoadFiles();
 
+#if BLAZORGL
+        // There is no window to size or move: the canvas is whatever the page gave it, and going
+        // fullscreen is the browser's to grant and only on a user gesture (F2, below). The console
+        // just fills what it was handed and follows it from there.
+        SyncCanvasSize();
+#else
         if (Mono8API.PublishGame)
         {
             Screen.ToggleFullScreen(_graphics, GraphicsDevice);
@@ -86,13 +101,41 @@ public class Mono8Game : Game
                 _graphics.PreferredBackBufferWidth,
                 _graphics.PreferredBackBufferHeight);
         }
+#endif
     }
+
+#if BLAZORGL
+    /// <summary>
+    /// Matches the back buffer to the canvas the page is holding. The desktop gets this from
+    /// <c>ClientSizeChanged</c>; in the browser the canvas is resized by the host page's own resize
+    /// handler, which raises nothing, so the size is compared once a frame instead.
+    /// </summary>
+    private void SyncCanvasSize()
+    {
+        var bounds = Window.ClientBounds;
+        if (bounds.Width <= 0 || bounds.Height <= 0) return;
+        if (bounds.Width == _canvasSize.X && bounds.Height == _canvasSize.Y) return;
+
+        _canvasSize = new Point(bounds.Width, bounds.Height);
+        Screen.SetResolution(_graphics, GraphicsDevice, bounds.Width, bounds.Height);
+    }
+#endif
 
     protected override void Update(GameTime gameTime)
     {
+#if BLAZORGL
+        SyncCanvasSize();
+#endif
+
         // First thing in the frame: the intro path and the early return below both depend on it being current.
         bool wasFocused = Screen.IsFocused;
+#if BLAZORGL
+        // The browser stops calling the game loop for a tab that is not visible, so the frame is
+        // already held for us — and IsActive on a canvas is not the window focus the dim is about.
+        Screen.UpdateIsFocused(true, _graphics.IsFullScreen);
+#else
         Screen.UpdateIsFocused(IsActive, _graphics.IsFullScreen);
+#endif
 
         // Unfocused holds the last frame, so a drawn pointer would sit frozen on it — hand the OS one
         // back for as long as the window is not ours to draw into.
@@ -121,8 +164,10 @@ public class Mono8Game : Game
             _unfocusedDimDrawn = false;
         }
 
+#if !BLAZORGL
         if (KeybrdInput.IsAltF4Pressed())
             Exit();
+#endif
 
         if (KeybrdInput.IsF2Released())
         {
