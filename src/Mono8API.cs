@@ -5,7 +5,7 @@ internal class Mono8API : IEditorAPI
     // Flip to true to publish: the console boots straight into the game and stays there — the editors
     // are never built, and neither Esc nor Ctrl+R can reach them. Deliberately not a const, so the
     // editor-side branches still compile without unreachable-code warnings.
-    public static readonly bool PublishGame = false;
+    public static readonly bool PublishGame = true;
 
     public static EditorRegistry Editors = new EditorRegistry();
 

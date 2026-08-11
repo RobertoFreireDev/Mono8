@@ -4,6 +4,11 @@ public static class FileIO
 {
     public static string Read(string fileName, string extension, string path = "")
     {
+        // A published build carries the authored data inside the executable; what it does not carry
+        // — data.save, and every file in a dev build — still comes off disk.
+        var embedded = EmbeddedData.Read($"{fileName}.{extension}");
+        if (embedded != null) return embedded;
+
         try
         {
             var fullPath = BuildPath(fileName, extension, path);
