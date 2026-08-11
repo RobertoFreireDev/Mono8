@@ -30,9 +30,6 @@ internal sealed class BankChannel : IAudioChannel
     private bool _hasBank;
     private int _start;
     private int _notesRendered;
-    // The note's length in the bank, which is not its length here when the device plays at a rate
-    // the bake was not made at. The two together are the resampling ratio, note by note.
-    private int _bakedSamplesPerNote;
 
     public int CurrentSfxIndex => _sfxIndex;
     public int CurrentNoteIndex => _noteIndex;
@@ -48,28 +45,13 @@ internal sealed class BankChannel : IAudioChannel
 
         _byteBuffer = new byte[bufferSamples * 2];
 
-        try
-        {
-            _dsfi = new DynamicSoundEffectInstance(AudioFormat.OutputSampleRate, AudioChannels.Mono);
-            _dsfi.BufferNeeded += (_, _) => _onBufferNeeded(this);
-        }
-        catch (Exception)
-        {
-            // A device that will not hand out a voice at all — a browser with audio switched off, or
-            // one whose rate we failed to read. Silence is a state this channel is already able to be
-            // in; refusing to boot the console over it is not. This runs from a static initialiser,
-            // where a throw takes the whole game down before a frame is drawn.
-            _dsfi = null;
-        }
+        _dsfi = new DynamicSoundEffectInstance(AudioFormat.SampleRate, AudioChannels.Mono);
+        _dsfi.BufferNeeded += (_, _) => _onBufferNeeded(this);
     }
 
     public void Play(int sfxIndex, SfxData data, int offset, int length)
     {
         Stop();
-
-        // No voice on this device: the channel stays free rather than pretending to play something
-        // nothing will ever pull buffers for.
-        if (_dsfi == null) return;
 
         _sfxIndex = sfxIndex;
         _sfx = data;
@@ -80,20 +62,16 @@ internal sealed class BankChannel : IAudioChannel
         _samplesPlayed = 0;
         _isPlaying = true;
 
-        // The clock runs in the device's samples, which is what the sequencer measures a pattern
-        // with. Never zero: a speed-0 note is one sample here and advances on the next tick either
-        // way, and the read below divides by it.
-        _samplesPerNote = Math.Max(1, AudioFormat.OutputSamplesPerNote(data));
+        _samplesPerNote = AudioFormat.SamplesPerNote(data);
 
         // An SFX with nothing baked for it still occupies the channel for its full length rather
         // than declining to start: the music sequencer times patterns off SamplesPlayed, and
         // channel stealing ranks on Progress, so a channel that bailed out here would change both.
-        // The stride is checked in the bank's own rate — the bake knew nothing of this device.
-        _hasBank = _bank.TryGet(sfxIndex, out _start, out _notesRendered, out _bakedSamplesPerNote)
-                   && _bakedSamplesPerNote == AudioFormat.SamplesPerNote(data);
+        _hasBank = _bank.TryGet(sfxIndex, out _start, out _notesRendered, out int bakedSamplesPerNote)
+                   && bakedSamplesPerNote == _samplesPerNote;
 
         FillBuffer();
-        try { _dsfi.Play(); } catch (Exception) { }
+        _dsfi.Play();
     }
 
     public void Stop()
@@ -104,27 +82,21 @@ internal sealed class BankChannel : IAudioChannel
         ReleaseChannel();
     }
 
-    // Every call into the device below is allowed to fail. The browser's voice is only half built
-    // while its audio worklet is still loading — stopping one in that window throws out of KNI — and
-    // a console frozen on an error screen because a footstep was cut short is a far worse bug than a
-    // lost footstep. The channel's own state is ours and stays correct either way.
     private void ReleaseChannel()
     {
         _sfxIndex = -1;
-        if (_dsfi != null && !_dsfi.IsDisposed)
+        if (!_dsfi.IsDisposed)
         {
-            try { _dsfi.Stop(); } catch (Exception) { }
+            _dsfi.Stop();
         }
     }
 
     public void FillBuffer()
     {
-        if (_dsfi == null) return;
-
         if (!_isPlaying || _sfx == null)
         {
             Array.Clear(_byteBuffer, 0, _byteBuffer.Length);
-            try { _dsfi.SubmitBuffer(_byteBuffer); } catch (Exception) { }
+            _dsfi.SubmitBuffer(_byteBuffer);
             return;
         }
 
@@ -142,31 +114,12 @@ internal sealed class BankChannel : IAudioChannel
                 break;
             }
 
-            // Where in the note we are, in the bank's samples rather than the device's. Scaling by
-            // the two strides rather than by a rate ratio is what keeps every note starting exactly
-            // on its own first baked sample, however the rates divide.
-            long scaled = (long)_sampleInNote * _bakedSamplesPerNote;
-            long sample = _start + (long)_noteIndex * _bakedSamplesPerNote + scaled / _samplesPerNote;
-            int frac = (int)(scaled % _samplesPerNote);
-
             // Past the baked length is silence — which is exactly what the synthesiser produced
             // there, since that is why the bake stopped where it did.
+            long sample = _start + (long)_noteIndex * _samplesPerNote + _sampleInNote;
             if (_hasBank && _noteIndex >= 0 && _noteIndex < _notesRendered && _bank.Contains(sample))
             {
-                if (frac == 0)
-                {
-                    _bank.CopySampleBytes(sample, _byteBuffer, s * 2);
-                }
-                else
-                {
-                    // Between two baked samples: interpolate rather than repeat the nearer one,
-                    // which at 44100 into 48000 would beat against the waveform audibly.
-                    int a = _bank.GetSample(sample);
-                    int b = _bank.Contains(sample + 1) ? _bank.GetSample(sample + 1) : a;
-                    int value = a + (b - a) * frac / _samplesPerNote;
-                    _byteBuffer[s * 2] = (byte)value;
-                    _byteBuffer[s * 2 + 1] = (byte)(value >> 8);
-                }
+                _bank.CopySampleBytes(sample, _byteBuffer, s * 2);
             }
             else
             {
@@ -179,7 +132,7 @@ internal sealed class BankChannel : IAudioChannel
             if (!_isPlaying) ReleaseChannel();
         }
 
-        try { _dsfi.SubmitBuffer(_byteBuffer); } catch (Exception) { }
+        _dsfi.SubmitBuffer(_byteBuffer);
     }
 
     // ── Clock advancement — the same walk ChannelState's synthesiser makes ─────
@@ -216,9 +169,9 @@ internal sealed class BankChannel : IAudioChannel
 
     public void Dispose()
     {
-        if (_dsfi != null && !_dsfi.IsDisposed)
+        if (!_dsfi.IsDisposed)
         {
-            try { _dsfi.Stop(); } catch (Exception) { }
+            _dsfi.Stop();
             _dsfi.Dispose();
         }
     }

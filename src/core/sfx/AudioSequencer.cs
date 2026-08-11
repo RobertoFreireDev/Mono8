@@ -249,8 +249,7 @@ internal abstract class AudioSequencer : IDisposable
 
             // Pattern length is its longest channel's single pass. A looping SFX passes
             // once at its loop point; a non-looping one passes over all its notes.
-            // In the device's samples, which is what SamplesPlayed above counts in.
-            int samplesPerNote = AudioFormat.OutputSamplesPerNote(sfxData);
+            int samplesPerNote = AudioFormat.SamplesPerNote(sfxData);
             int passNotes = sfxData.HasLoop ? sfxData.LoopEnd : sfxData.Notes.Count;
             _patternLengthSamples = Math.Max(_patternLengthSamples, (long)passNotes * samplesPerNote);
         }
